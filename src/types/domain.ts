@@ -1,0 +1,271 @@
+export type LanguageLevel = 'acessivel' | 'tecnico';
+
+export type WaterAccess =
+  | 'sequeiro'
+  | 'irrigacao'
+  | 'poco_artesiano'
+  | 'acude'
+  | 'cisterna';
+
+export type LaborType = 'familiar' | 'tracao_animal' | 'maquinario';
+
+export type FinancialTier = 'recursos_proprios' | 'pronaf' | 'emprestimo_local';
+
+export type FarmObjective = 'subsistencia' | 'misto' | 'comercial';
+
+export type DroughtAlertLevel =
+  | 'normal'
+  | 'atencao'
+  | 'alerta'
+  | 'seca_confirmada';
+
+export type ErosionRiskLevel = 'baixo' | 'moderado' | 'alto';
+
+export interface AccessibilityProfile {
+  voiceOnboardingCompleted: boolean;
+  voiceGuidanceEnabled: boolean;
+  speechRate: number; // 0.85 padrão para cadência clara no campo
+  highContrast: boolean;
+  largeText: boolean;
+  languageLevel: LanguageLevel;
+}
+
+export interface FarmerProfile {
+  id: string;
+  tratamento: string; // Ex.: "Dona Maria", "Seu João"
+  nome: string;
+  faixaEtaria: '18-35' | '36-55' | '56+';
+  waterAccess: WaterAccess;
+  laborType: LaborType;
+  financialTier: FinancialTier;
+  objective: FarmObjective;
+  limitacoes: string[];
+  historicoCultivo: string[];
+}
+
+export interface GeoPoint {
+  latitude: number;
+  longitude: number;
+}
+
+export interface NdviZonePatch {
+  id: string;
+  setor: string;
+  vigor: 'verde' | 'amarelo' | 'vermelho';
+  ndviValor: number;
+  descricao: string;
+  relativeBox: { xPct: number; yPct: number; wPct: number; hPct: number };
+}
+
+export interface LeafAnalysisResult {
+  id: string;
+  imageUri: string;
+  criadoEm: string;
+  indiceVerdePct: number;
+  amarelamentoPct: number;
+  necrosePct?: number;
+  status: 'saudavel' | 'estresse_leve' | 'clorose_ou_seca';
+  titulo: string;
+  diagnosticoAcessivel: string;
+  diagnosticoTecnico: string;
+  acaoRecomendada: string;
+}
+
+export interface ModelAWaterBalance {
+  chuvaImergMm: number;
+  et0PowerMm: number;
+  kcAplicado: number;
+  demandaCulturaMm: number;
+  saldoHidricoMm: number;
+  smapTendencia: 'subindo' | 'estavel' | 'caindo';
+  status: 'positivo' | 'equilibrado' | 'deficit_confirmado';
+  resumoTecnico: string;
+  resumoAcessivel: string;
+}
+
+export interface DroughtSignalStep {
+  etapa: 'Chuva' | 'Solo' | 'Planta' | 'Calor';
+  fonte: string;
+  anomaliaDetectada: boolean;
+  valorAtual: string;
+  referenciaHistorica: string;
+  descricao: string;
+}
+
+export interface ModelBDroughtCascade {
+  sinaisAtivos: number;
+  nivel: DroughtAlertLevel;
+  emoji: '😊' | '😐' | '😟' | '😰';
+  sinais: DroughtSignalStep[];
+  resumoTecnico: string;
+  resumoAcessivel: string;
+}
+
+export interface ModelCPlantingWindow {
+  primeirasChuvasDetectadasMm: number;
+  smapUmidadeEstavelDias: number;
+  probabilidadeVeranicoPct: number;
+  recomendacao: 'plantar_agora' | 'esperar_semana' | 'aguardar_chuvas';
+  titulo: string;
+  explicacaoTecnica: string;
+  explicacaoAcessivel: string;
+}
+
+export interface ModelDErosionMatrix {
+  chuvaIntensaScore: number;
+  declividadePct: number;
+  mesesSoloExposto: number;
+  erodibilidadeSoilGrids: 'baixa' | 'media' | 'alta';
+  nivel: ErosionRiskLevel;
+  praticasRecomendadas: string[];
+  resumoTecnico: string;
+  resumoAcessivel: string;
+}
+
+export interface ModelEClimate2050 {
+  deltaTempC: number;
+  deltaChuvaPct: number;
+  semanasDeficitAtual: number;
+  semanasDeficit2050: number;
+  semanasDeficitAdicionais: number;
+  rotacaoAtual: string;
+  rotacaoResilienteSugerida: string;
+  resumoTecnico: string;
+  resumoAcessivel: string;
+}
+
+export interface CropDecisionItem {
+  id: string;
+  nome: string;
+  variedadeRegional: string;
+  kcMedio: number;
+  diasColheita: number;
+  produtividadeKgPorHa: number;
+  custoInsumosPorHa: number;
+  precoMedioKg: number;
+  zarcStatus: 'indicada' | 'restricao_leve' | 'nao_recomendada';
+  resilienciaSeca: 'alta' | 'media' | 'baixa';
+  observacao: string;
+}
+
+export interface WellPoint {
+  id: string;
+  codigoSiagas: string;
+  latitude: number;
+  longitude: number;
+  profundidadeM: number;
+  vazaoLph: number;
+  salinidade: 'doce' | 'salobra' | 'salina';
+  sucessoHistoricoPct: number;
+  custoEstimadoPerfR$: number;
+  distanciaKm?: number;
+}
+
+export interface WellHeatmapSummary {
+  faixaProfundidadeMinM: number;
+  faixaProfundidadeMaxM: number;
+  taxaSucessoPct: number;
+  riscoSalinidade: 'baixo' | 'moderado' | 'alto';
+  tendenciaGraceFo: 'recarga_positiva' | 'estavel' | 'rebaixamento';
+  orientacaoBaixaRenda: string;
+}
+
+export interface EdiblePlantPANC {
+  id: string;
+  nomePopular: string;
+  nomeCientifico: string;
+  biomas: string[];
+  phMin: number;
+  phMax: number;
+  resistenciaSeca: 'extrema' | 'alta';
+  parteComestivel: string;
+  diasColheitaRapida: number;
+  cultivoRapido: string;
+  preparoCulinario: string;
+  fonteValidacao: string;
+  isCulturaResiliente?: boolean;
+}
+
+export interface ProactiveAlertItem {
+  id: string;
+  categoria: 'plantio' | 'veranico' | 'fitossanitario' | 'seca';
+  severidade: 'info' | 'atencao' | 'urgente';
+  titulo: string;
+  mensagemAcessivel: string;
+  mensagemTecnica: string;
+  criadoEm: string;
+  lido: boolean;
+}
+
+export interface NasaDiagnosticsPackage {
+  atualizadoEm: string;
+  fontePacote: 'local_seed' | 'motor_local' | 'api_remota';
+  climaDia: {
+    tempMaxC: number;
+    tempMinC: number;
+    condicao: string;
+    icone: '☀️' | '⛅' | '🌦️' | '🌧️' | '🔥';
+    chuvaHojeMm: number;
+    umidadeRelativaPct: number;
+  };
+  rotacaoAtual: {
+    culturas: string;
+    diasPassados: number;
+    diasTotais: number;
+    diasRestantes: number;
+    progressoPct: number;
+    fase: string;
+  };
+  soloSoilGrids: {
+    ph: number;
+    textura: string;
+    carbonoOrganicoGKg: number;
+  };
+  ndviZonas: NdviZonePatch[];
+  modeloA: ModelAWaterBalance;
+  modeloB: ModelBDroughtCascade;
+  modeloC: ModelCPlantingWindow;
+  modeloD: ModelDErosionMatrix;
+  modeloE: ModelEClimate2050;
+  culturasRecomendadas: CropDecisionItem[];
+  wellSummary: WellHeatmapSummary;
+}
+
+export interface FarmProperty {
+  id: string;
+  farmerId: string;
+  nome: string;
+  municipio: string;
+  estado: string;
+  regiaoNome: string;
+  bioma: 'Caatinga' | 'Mata Atlântica' | 'Cerrado';
+  centroid: GeoPoint;
+  polygon: GeoPoint[];
+  areaHectares: number;
+  areaTarefasBa: number;
+  raioBuscaKm: number;
+  culturaPrincipal: string;
+  diagnostico: NasaDiagnosticsPackage;
+}
+
+export interface FieldValidationLog {
+  id: string;
+  farmId: string;
+  tipo: 'chuva_hoje' | 'terra_umida' | 'poco_perfurado' | 'analise_foliar';
+  choveuHoje?: boolean;
+  terraUmida?: boolean;
+  pocoDeuAgua?: boolean;
+  pocoProfundidadeM?: number;
+  observacao: string;
+  criadoEm: string;
+  sincronizado: boolean;
+}
+
+export interface SyncQueueItem {
+  id: string;
+  endpoint: string;
+  payloadJson: string;
+  status: 'pendente' | 'sincronizado' | 'erro';
+  criadoEm: string;
+  tentativas: number;
+}

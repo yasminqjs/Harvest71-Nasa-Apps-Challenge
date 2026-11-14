@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "RoçaViva",
+    "slug": "rocaviva-nasa-field-shift",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Para demarcar o perímetro da sua roça caminhando sem internet.",
+        "NSCameraUsageDescription": "Para examinar folhas da lavoura com a câmera offline.",
+        "NSMicrophoneUsageDescription": "Para perguntar por voz sobre chuva, plantio e seca."
+      }
+    },
+    "android": {
+      "package": "com.rocaviva.nasafieldshift",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "RECORD_AUDIO"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permita o GPS para demarcar sua roça caminhando offline."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Permita a câmera para analisar a saúde das folhas offline."
+        }
+      ],
+      "expo-notifications",
+      "expo-font"
+    ]
+  }
+}
