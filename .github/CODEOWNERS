@@ -1,0 +1,4 @@
+# Ajuste os donos quando os colegas entrarem. Mudanças em infra e CI exigem revisão do mantenedor GCP.
+*                       @yasminqjs
+/infra/                 @yasminqjs
+/.github/workflows/     @yasminqjs

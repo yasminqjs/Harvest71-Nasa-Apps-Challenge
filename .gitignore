@@ -1,0 +1,35 @@
+# Segredos e credenciais — NUNCA versionar
+.env
+.env.*
+*.pem
+*.key
+*-key.json
+service-account*.json
+credentials*.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Saídas pesadas / dados reais
+*.OUT
+runs/
+data/private/
+*.zip
+*.tar.gz
+
+# Terraform (se adotado)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+# Editor / SO
+.DS_Store
+.idea/
+.vscode/
