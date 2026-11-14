@@ -39,5 +39,10 @@ gcloud run services list --region="$REGION"
 echo; echo "== Cloud Run jobs"
 gcloud run jobs list --region="$REGION"
 
-echo; echo "== VMs Compute Engine (esperado: nenhuma)"
-gcloud compute instances list 2>&1 || true
+echo; echo "== Compute Engine (esperado: API desabilitada = nenhuma VM)"
+# Não use `gcloud compute instances list` aqui: com a API desligada ele pergunta se quer ativá-la.
+if gcloud services list --enabled --filter='config.name=compute.googleapis.com' --format='value(config.name)' | grep -q compute; then
+  gcloud compute instances list --quiet
+else
+  echo "compute.googleapis.com desabilitada — nenhuma VM possível"
+fi
