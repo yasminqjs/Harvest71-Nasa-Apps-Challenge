@@ -1,0 +1,83 @@
+name: deploy-api
+
+# Deploy automático da fieldshift-api quando a main muda em apps/api.
+# Autenticação por Workload Identity Federation (sem chave JSON). O provedor só aceita
+# tokens deste repositório na branch main; PRs e forks não conseguem implantar.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/api/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: fieldshift-harvest71-2026
+  REGION: us-central1
+  SERVICE: fieldshift-api
+  IMAGE_REPO: us-central1-docker.pkg.dev/fieldshift-harvest71-2026/fieldshift/fieldshift-api
+  WIF_PROVIDER: projects/475766990512/locations/global/workloadIdentityPools/github/providers/github-oidc
+  DEPLOY_SA: fieldshift-deploy-sa@fieldshift-harvest71-2026.iam.gserviceaccount.com
+  RUNTIME_SA: fieldshift-api-sa@fieldshift-harvest71-2026.iam.gserviceaccount.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Testes
+        working-directory: apps/api
+        run: |
+          pip install -r requirements-dev.txt
+          pytest -q
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build e push da imagem
+        run: |
+          SHORT="${GITHUB_SHA::7}"
+          echo "SHORT=$SHORT" >> "$GITHUB_ENV"
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          docker build --build-arg GIT_COMMIT="$SHORT" -t "$IMAGE_REPO:$SHORT" apps/api
+          docker push "$IMAGE_REPO:$SHORT"
+
+      # Sem --allow-unauthenticated: o CI não mexe no IAM do serviço (a política atual é preservada).
+      - name: Deploy no Cloud Run
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --project="$PROJECT_ID" --region="$REGION" \
+            --image="$IMAGE_REPO:$SHORT" \
+            --service-account="$RUNTIME_SA" \
+            --cpu=1 --memory=512Mi --concurrency=10 \
+            --min-instances=0 --max-instances=2 \
+            --cpu-throttling --timeout=60 --port=8080
+
+      - name: Verificar /version
+        run: |
+          URL="$(gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --format='value(status.url)')"
+          for i in 1 2 3 4 5; do
+            BODY="$(curl -fsS "$URL/version" || true)"
+            echo "$BODY"
+            if echo "$BODY" | grep -q "\"commit\":\"$SHORT\""; then echo "OK: commit $SHORT no ar"; exit 0; fi
+            sleep 5
+          done
+          echo "Versão esperada ($SHORT) não apareceu em /version" >&2
+          exit 1
