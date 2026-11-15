@@ -90,6 +90,18 @@ def test_open_mode_works_without_key(sim, monkeypatch):
     assert client.get(f"/simulations/{r.json()['id']}").json()["status"] == "queued"
 
 
+def test_simulation_serializes_weather_event_dates(sim):
+    import json
+
+    _, store, _ = sim
+    event = {"id": "seca", "type": "rainfall_multiplier",
+             "start_date": "2024-02-29", "end_date": "2024-03-10", "factor": 0.2}
+    response = client.post("/simulations", json={**GOOD, "weather_events": [event]})
+    assert response.status_code == 202
+    request = json.loads(json.dumps(store[f"requests/{response.json()['id']}.json"]))
+    assert request["weather_events"] == [event | {"source_kind": "hypothetical"}]
+
+
 def test_open_mode_limits_per_ip(sim, monkeypatch):
     m, _, _ = sim
     monkeypatch.setattr(m, "RATE_PER_MINUTE", 2)

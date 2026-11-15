@@ -270,6 +270,8 @@ class SimulationRequest(BaseModel):
     @model_validator(mode="after")
     def _events_do_not_overlap(self):
         events = sorted(self.weather_events, key=lambda e: e.start_date)
+        if len({event.id for event in events}) != len(events):
+            raise ValueError("ids de eventos devem ser únicos")
         for previous, current in zip(events, events[1:]):
             if current.start_date <= previous.end_date:
                 raise ValueError("eventos de chuva sobrepostos não são suportados")
@@ -316,7 +318,7 @@ def create_simulation(req: SimulationRequest, key: str = Depends(require_key)) -
     rate_limit(key)
     rid = uuid.uuid4().hex[:16]
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    _put_json(f"requests/{rid}.json", {**req.model_dump(exclude_none=True), "id": rid, "created_utc": now})
+    _put_json(f"requests/{rid}.json", {**req.model_dump(mode="json", exclude_none=True), "id": rid, "created_utc": now})
     _run_job(rid)
     return {"id": rid, "status": "queued", "created_utc": now, "poll": f"/simulations/{rid}",
             "note": "a simulação leva cerca de 15 a 60 s; consulte o endereço em 'poll'"}

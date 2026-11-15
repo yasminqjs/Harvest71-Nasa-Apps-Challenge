@@ -103,11 +103,13 @@ def apply_power_events(power_doc: dict, events: Iterable[WeatherEvent]) -> tuple
 
     # Valida integralmente antes de modificar; não permite eventos sobre datas repetidas.
     covered: set[date] = set()
+    ids: set[str] = set()
     for event in event_list:
         if event.type != "rainfall_multiplier" or event.source_kind != "hypothetical":
             raise ValueError("evento não suportado em v1")
-        if not event.id or event.end_date < event.start_date:
+        if not event.id or event.id in ids or event.end_date < event.start_date:
             raise ValueError("id ou intervalo do evento inválido")
+        ids.add(event.id)
         if not isinstance(event.factor, (int, float)) or isinstance(event.factor, bool) or not math.isfinite(event.factor) or not 0 <= event.factor <= 1:
             raise ValueError("factor deve ser finito e estar entre 0 e 1")
         if (event.end_date - event.start_date).days + 1 > 3660:
@@ -117,7 +119,8 @@ def apply_power_events(power_doc: dict, events: Iterable[WeatherEvent]) -> tuple
             key = day.strftime("%Y%m%d")
             if day in covered:
                 raise ValueError("eventos de chuva sobrepostos não são suportados em v1")
-            if key not in rainfall or rainfall[key] is None or float(rainfall[key]) < 0:
+            value = rainfall.get(key)
+            if value is None or not math.isfinite(float(value)) or float(value) < 0:
                 raise ValueError(f"chuva ausente ou inválida em {day.isoformat()}")
             covered.add(day)
 
