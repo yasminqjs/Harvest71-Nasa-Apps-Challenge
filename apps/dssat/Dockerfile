@@ -27,10 +27,10 @@ RUN cd /opt/dssat/Genotype && for f in *; do grep -qxF "$f" /src/genotype_keep.t
  && sed -i -E '/[Cc][Hh][Ii][Nn][Aa]|[Cc][Hh][Ii][Nn][Ee][Ss][Ee]/d' PNGRO048.CUL \
  && python3 /src/tools/br_cultivars.py genotype /opt/dssat/Genotype \
  && mkdir -p /opt/dssat/Soil /opt/dssat/Weather /opt/dssat/reference \
- && cp data/Soil/BR.SOL /opt/dssat/Soil/ \
- && cp data/Weather/BRPI0201.WTH /opt/dssat/Weather/ \
- && cp data/Maize/BRPI0202.MZX data/Maize/BRPI0202.MZA data/Maize/BRPI0202.MZT /opt/dssat/reference/ \
- && cp os/license.txt /opt/dssat/LICENSE-dssat-csm-os.txt \
+ && cp /src/data/Soil/BR.SOL /opt/dssat/Soil/ \
+ && cp /src/data/Weather/BRPI0201.WTH /opt/dssat/Weather/ \
+ && cp /src/data/Maize/BRPI0202.MZX /src/data/Maize/BRPI0202.MZA /src/data/Maize/BRPI0202.MZT /opt/dssat/reference/ \
+ && cp /src/os/license.txt /opt/dssat/LICENSE-dssat-csm-os.txt \
  && ! grep -rqiE 'china|chinese|beijing|nanjing|gansu' /opt/dssat/Genotype /opt/dssat/Soil /opt/dssat/Weather /opt/dssat/reference \
  && printf '{"dssat_csm_os":"%s","dssat_csm_data":"%s","genotype":"catalogo (genotype_keep.txt)"}\n' "$DSSAT_OS_COMMIT" "$DSSAT_DATA_COMMIT" > /opt/dssat/BUILD_INFO.json
 
