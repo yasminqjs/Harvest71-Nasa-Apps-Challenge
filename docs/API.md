@@ -2,6 +2,8 @@
 
 Base: `https://fieldshift-api-avshjoa6eq-uc.a.run.app` · JSON UTF-8 · sem conta Google necessária.
 
+Para montar as telas, formular os pedidos e acompanhar os Jobs, consulte o [guia de integração do front](GUIA_FRONT_DSSAT.md).
+
 ## Acesso
 **Por enquanto o acesso é livre:** não precisa de chave. Cada IP pode fazer 6 simulações por minuto e
 200 por dia, e o servidor tem um teto diário global. Quando a equipe ligar a exigência de chave
