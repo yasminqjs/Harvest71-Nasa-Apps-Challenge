@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../i18n/native';
 import { FEATURE_COLOR_STYLES } from '../models/farmArchitecture';
 import { FeatureColorCode } from '../types/domain';
 

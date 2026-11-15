@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Pressable, Text } from '../i18n/native';
+import { useLanguage } from '../i18n/Language';
 import { BahiaRegionPreset, NORDESTE_REGIONS } from '../data/seedData';
 import { AppTheme } from '../theme/tokens';
 import { GeoPoint } from '../types/domain';
@@ -37,7 +39,8 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
   const [basemap, setBasemap] = useState<'streets' | 'satellite'>('streets');
   const [showLabels, setShowLabels] = useState(true);
 
-  const html = useMemo(() => buildNordesteLeafletHtml(), []);
+  const { language } = useLanguage();
+  const [html] = useState(() => buildNordesteLeafletHtml(language));
 
   useEffect(() => {
     onSelectRef.current = onSelectRegion;
@@ -49,6 +52,7 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
     gpsCoords: gpsUserCoords ?? null,
     basemap,
     showLabels,
+    language,
   });
 
   useEffect(() => {
@@ -58,8 +62,9 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
       gpsCoords: gpsUserCoords ?? null,
       basemap,
       showLabels,
+      language,
     };
-  }, [selectedRegionName, gpsDetectedRegionId, gpsUserCoords, basemap, showLabels]);
+  }, [selectedRegionName, gpsDetectedRegionId, gpsUserCoords, basemap, showLabels, language]);
 
   const getFrameWin = (): LeafletIframeWindow | null =>
     (iframeRef.current?.contentWindow as LeafletIframeWindow | null) ?? null;
@@ -97,9 +102,10 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
       gpsCoords: gpsUserCoords ?? null,
       basemap,
       showLabels,
+      language,
       panToSelected: true,
     });
-  }, [mapReady, selectedRegionName, gpsDetectedRegionId, gpsUserCoords, basemap, showLabels]);
+  }, [mapReady, selectedRegionName, gpsDetectedRegionId, gpsUserCoords, basemap, showLabels, language]);
 
   const handleIframeLoad = () => {
     setMapReady(true);
@@ -115,7 +121,7 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
     <View style={[styles.container, { borderColor: theme.border, backgroundColor: theme.surfaceMuted }]}>
       <iframe
         ref={iframeRef}
-        title="Mapa interativo do Nordeste"
+        title={language === 'en' ? 'Interactive map of Northeast Brazil' : 'Mapa interativo do Nordeste'}
         srcDoc={html}
         onLoad={handleIframeLoad}
         onError={() => onFallbackOffline?.()}

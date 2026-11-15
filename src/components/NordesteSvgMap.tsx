@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, Text } from '../i18n/native';
 import Svg, {
   Circle,
   G,
@@ -8,8 +9,8 @@ import Svg, {
   Path,
   Polyline,
   Rect,
-  Text as SvgText,
 } from 'react-native-svg';
+import { SvgText } from '../i18n/svg';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { NORDESTE_IBGE_GEOJSON } from '../data/nordesteIbgeGeo';
 import { BahiaRegionPreset, NORDESTE_REGIONS } from '../data/seedData';

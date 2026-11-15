@@ -1,19 +1,15 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  AppState,
-  BackHandler,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, AppState, BackHandler, StyleSheet, View } from 'react-native';
+import { Text } from './src/i18n/native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { AlertTopBanner } from './src/components/AlertTopBanner';
 import { AppHeader } from './src/components/AppHeader';
 import { AppTutorialModal } from './src/components/AppTutorialModal';
 import { BottomTabBar, MainTabKey } from './src/components/BottomTabBar';
 import { MobileViewport } from './src/components/MobileViewport';
+import { LanguageMenu } from './src/components/LanguageMenu';
+import { LanguageProvider } from './src/i18n/Language';
 import {
   AccessibilityProvider,
   useAccessibility,
@@ -108,6 +104,11 @@ const RoçaVivaRoot: React.FC = () => {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg }]} edges={['top', 'bottom']}>
       <StatusBar style={accessibility.highContrast ? 'light' : 'dark'} />
+      {(!accessibility.voiceOnboardingCompleted || !nordesteMapCompleted) && (
+        <View style={{ alignItems: 'flex-end', paddingHorizontal: 12, paddingVertical: 4 }}>
+          <LanguageMenu theme={theme} />
+        </View>
+      )}
 
       {!accessibility.voiceOnboardingCompleted ? (
         <VoiceOnboardingScreen />
@@ -158,11 +159,13 @@ const RoçaVivaRoot: React.FC = () => {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AccessibilityProvider>
-        <MobileViewport>
-          <RoçaVivaRoot />
-        </MobileViewport>
-      </AccessibilityProvider>
+      <LanguageProvider>
+        <AccessibilityProvider>
+          <MobileViewport>
+            <RoçaVivaRoot />
+          </MobileViewport>
+        </AccessibilityProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

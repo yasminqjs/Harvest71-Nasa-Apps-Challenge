@@ -1,6 +1,14 @@
 import { LEAFLET_CSS, LEAFLET_JS } from '../data/leafletInline';
 import { NORDESTE_IBGE_GEOJSON } from '../data/nordesteIbgeGeo';
 import { NORDESTE_REGIONS } from '../data/seedData';
+import type { Language } from '../i18n/Language';
+
+export const MAP_LABELS = {
+  en: { locale: 'en', streets: 'Esri Streets', satellite: 'Esri Satellite', plot: 'Plot',
+    point: 'Point', water: 'Water', success: 'success', fresh: 'fresh', brackish: 'brackish', saline: 'saline' },
+  pt: { locale: 'pt-BR', streets: 'Esri Ruas', satellite: 'Esri Satélite', plot: 'Lote',
+    point: 'Ponto', water: 'Água', success: 'sucesso', fresh: 'doce', brackish: 'salobra', saline: 'salina' },
+};
 
 const HOST_EMITTER_HELPER = `
   function emitHostMessage(channel, payload) {
@@ -15,7 +23,25 @@ const HOST_EMITTER_HELPER = `
   }
 `;
 
-export function buildNordesteLeafletHtml(): string {
+const MAP_LOCALE_HELPER = `
+  var mapLabels = ${JSON.stringify(MAP_LABELS)};
+  function updateAttribution(layer, label) {
+    var current = layer.getAttribution();
+    if (current === label) return;
+    if (map.hasLayer(layer) && map.attributionControl) {
+      map.attributionControl.removeAttribution(current);
+      map.attributionControl.addAttribution(label);
+    }
+    layer.options.attribution = label;
+  }
+  function textNode(text, tag) {
+    var element = document.createElement(tag || 'span');
+    element.textContent = text;
+    return element;
+  }
+`;
+
+export function buildNordesteLeafletHtml(language: Language = 'pt'): string {
   const geoJsonStr = JSON.stringify(NORDESTE_IBGE_GEOJSON);
   const regionsPayload = JSON.stringify(
     NORDESTE_REGIONS.map((r) => ({
@@ -31,7 +57,7 @@ export function buildNordesteLeafletHtml(): string {
   );
 
   return `<!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="${MAP_LABELS[language].locale}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -118,6 +144,8 @@ ${LEAFLET_JS}
 <script>
 (function() {
 ${HOST_EMITTER_HELPER}
+${MAP_LOCALE_HELPER}
+  var labels = mapLabels[${JSON.stringify(language)}];
   var IBGE_GEO = ${geoJsonStr};
   var REGIONS = ${regionsPayload};
   var state = {
@@ -139,7 +167,7 @@ ${HOST_EMITTER_HELPER}
 
   var osmLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 18,
-    attribution: 'Esri Ruas · IBGE'
+    attribution: labels.streets + ' · IBGE'
   });
 
   var osmFallbackApplied = false;
@@ -151,7 +179,7 @@ ${HOST_EMITTER_HELPER}
 
   var satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 18,
-    attribution: 'Esri Satélite · IBGE'
+    attribution: labels.satellite + ' · IBGE'
   });
 
   var satLabelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
@@ -282,6 +310,12 @@ ${HOST_EMITTER_HELPER}
     if (next.gpsCoords !== undefined) state.gpsCoords = next.gpsCoords;
     if (next.basemap !== undefined) state.basemap = next.basemap;
     if (next.showLabels !== undefined) state.showLabels = next.showLabels;
+    if (next.language === 'en' || next.language === 'pt') {
+      labels = mapLabels[next.language];
+      document.documentElement.lang = labels.locale;
+      updateAttribution(osmLayer, labels.streets + ' · IBGE');
+      updateAttribution(satLayer, labels.satellite + ' · IBGE');
+    }
 
     if (state.basemap === 'satellite') {
       if (map.hasLayer(osmLayer)) map.removeLayer(osmLayer);
@@ -323,9 +357,9 @@ ${HOST_EMITTER_HELPER}
 </html>`;
 }
 
-export function buildFarmLeafletHtml(): string {
+export function buildFarmLeafletHtml(language: Language = 'pt'): string {
   return `<!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="${MAP_LABELS[language].locale}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -354,6 +388,8 @@ ${LEAFLET_JS}
 <script>
 (function() {
 ${HOST_EMITTER_HELPER}
+${MAP_LOCALE_HELPER}
+  var labels = mapLabels[${JSON.stringify(language)}];
   var state = {
     centroid: { latitude: -12.9714, longitude: -38.5014 },
     polygon: [],
@@ -375,14 +411,14 @@ ${HOST_EMITTER_HELPER}
 
   var satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 19,
-    attribution: 'Esri Satélite'
+    attribution: labels.satellite
   });
   var satLabelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 19
   });
   var osmLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 19,
-    attribution: 'Esri Ruas'
+    attribution: labels.streets
   });
 
   var farmOsmFallbackApplied = false;
@@ -467,7 +503,7 @@ ${HOST_EMITTER_HELPER}
           dashArray: isActive ? null : '5,4',
           fillColor: lot.corHex || '#2563EB',
           fillOpacity: isActive ? 0.42 : 0.26
-        }).bindTooltip(lot.nome || 'Lote', { sticky: true }).addTo(lotsLayer);
+        }).bindTooltip(textNode(lot.nome || labels.plot), { sticky: true }).addTo(lotsLayer);
       } else if (isActive && lotPts.length === 2) {
         L.polyline(
           lotPts.map(function(p) { return [p.latitude, p.longitude]; }),
@@ -483,7 +519,7 @@ ${HOST_EMITTER_HELPER}
             weight: 2,
             fillColor: lot.corHex || '#2563EB',
             fillOpacity: 1
-          }).bindTooltip((lot.nome || 'Lote') + ' · Ponto ' + (idx + 1)).addTo(lotsLayer);
+          }).bindTooltip(textNode((lot.nome || labels.plot) + ' · ' + labels.point + ' ' + (idx + 1))).addTo(lotsLayer);
         });
       }
     });
@@ -496,13 +532,18 @@ ${HOST_EMITTER_HELPER}
           weight: 2,
           fillColor: '#16A34A',
           fillOpacity: 1
-        }).bindTooltip('Ponto ' + (idx + 1)).addTo(polyLayer);
+        }).bindTooltip(textNode(labels.point + ' ' + (idx + 1))).addTo(polyLayer);
       });
     }
 
     if (state.showWells) {
       (state.wells || []).forEach(function(w) {
         var fill = w.salinidade === 'doce' ? '#0EA5E9' : (w.salinidade === 'salobra' ? '#F59E0B' : '#EF4444');
+        var salinity = w.salinidade === 'doce' ? labels.fresh : (w.salinidade === 'salobra' ? labels.brackish : labels.saline);
+        var popup = document.createElement('div');
+        popup.appendChild(textNode(w.codigoSiagas, 'strong'));
+        popup.appendChild(textNode(w.profundidadeM + ' m · ' + w.vazaoLph + ' L/h', 'div'));
+        popup.appendChild(textNode(labels.water + ': ' + salinity + ' (' + w.sucessoHistoricoPct + '% ' + labels.success + ')', 'div'));
         L.circle([w.latitude, w.longitude], {
           radius: 1400,
           color: fill,
@@ -516,11 +557,7 @@ ${HOST_EMITTER_HELPER}
           weight: 1.8,
           fillColor: fill,
           fillOpacity: 0.95
-        }).bindPopup(
-          '<strong>' + w.codigoSiagas + '</strong><br/>' +
-          w.profundidadeM + ' m · ' + w.vazaoLph + ' L/h<br/>' +
-          'Água: ' + w.salinidade + ' (' + w.sucessoHistoricoPct + '% sucesso)'
-        ).addTo(wellsLayer);
+        }).bindPopup(popup).addTo(wellsLayer);
       });
     }
   }
@@ -529,6 +566,12 @@ ${HOST_EMITTER_HELPER}
     var prevCentroid = state.centroid;
     var prevShowWells = state.showWells;
     state = Object.assign({}, state, next);
+    if (next.language === 'en' || next.language === 'pt') {
+      labels = mapLabels[next.language];
+      document.documentElement.lang = labels.locale;
+      updateAttribution(osmLayer, labels.streets);
+      updateAttribution(satLayer, labels.satellite);
+    }
 
     if (state.basemap === 'satellite') {
       if (map.hasLayer(osmLayer)) map.removeLayer(osmLayer);

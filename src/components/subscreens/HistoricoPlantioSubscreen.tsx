@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Pressable, Text, TextInput } from '../../i18n/native';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { getAppTheme } from '../../theme/tokens';
 import { PLANT_CATALOG_CHIPS } from '../../utils/agronomyHelpers';

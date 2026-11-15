@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Pressable, Text } from '../i18n/native';
+import { useLanguage } from '../i18n/Language';
 import MapView, { Circle, MapPressEvent, Marker, Polygon } from 'react-native-maps';
 import { WebView, WebViewMessageEvent, WebViewProps } from 'react-native-webview';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { sortPolygonPoints } from '../utils/geoprocessing';
-import { buildFarmLeafletHtml } from '../utils/leafletHtml';
+import { buildFarmLeafletHtml, MAP_LABELS } from '../utils/leafletHtml';
 import {
   FarmMapCanvasProps,
   VectorFarmCanvas as VectorFallbackCanvas,
@@ -47,7 +49,8 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
   const webViewRef = useRef<WebViewHandle | null>(null);
   const [ready, setReady] = useState(false);
   const [basemap, setBasemap] = useState<'satellite' | 'streets'>('satellite');
-  const html = useMemo(() => buildFarmLeafletHtml(), []);
+  const { language } = useLanguage();
+  const [source] = useState(() => ({ html: buildFarmLeafletHtml(language), baseUrl: 'https://rocaviva.app/' }));
 
   useEffect(() => {
     if (!ready) return;
@@ -60,9 +63,10 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
       showWells,
       drawingMode,
       basemap,
+      language,
     });
     webViewRef.current?.injectJavaScript(`window.__updateFarmMap && window.__updateFarmMap(${payload}); true;`);
-  }, [ready, centroid, polygon, lots, activeLotId, wells, showWells, drawingMode, basemap]);
+  }, [ready, centroid, polygon, lots, activeLotId, wells, showWells, drawingMode, basemap, language]);
 
   const handleMessage = (event: WebViewMessageEvent) => {
     try {
@@ -83,6 +87,7 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
             showWells,
             drawingMode,
             basemap,
+            language,
             forceFit: true,
           })}); true;`
         );
@@ -101,7 +106,7 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
       <LeafletWebView
         ref={webViewRef}
         originWhitelist={['*']}
-        source={{ html, baseUrl: 'https://rocaviva.app/' }}
+        source={source}
         javaScriptEnabled
         domStorageEnabled
         nestedScrollEnabled
@@ -178,6 +183,8 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
 
 export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
   const { isOnline } = useAccessibility();
+  const { language } = useLanguage();
+  const labels = MAP_LABELS[language];
   const [forceVectorOffline, setForceVectorOffline] = useState(false);
   const {
     centroid,
@@ -261,7 +268,7 @@ export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
                   <Marker
                     key={`${lot.id}-pt-${idx}-${pt.latitude}`}
                     coordinate={pt}
-                    title={`${lot.nome} • Ponto ${idx + 1}`}
+                    title={`${lot.nome} • ${labels.point} ${idx + 1}`}
                     pinColor={lot.corHex}
                   />
                 ))
@@ -272,13 +279,14 @@ export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
               <Marker
                 key={`${idx}-${pt.latitude}`}
                 coordinate={pt}
-                title={`Ponto ${idx + 1}`}
+                title={`${labels.point} ${idx + 1}`}
                 pinColor="#16A34A"
               />
             ))}
 
           {showWells &&
             wells.map((w) => {
+              const salinity = w.salinidade === 'doce' ? labels.fresh : w.salinidade === 'salobra' ? labels.brackish : labels.saline;
               const color =
                 w.salinidade === 'doce'
                   ? 'rgba(14, 165, 233, 0.35)'
@@ -296,7 +304,7 @@ export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
                   <Marker
                     coordinate={{ latitude: w.latitude, longitude: w.longitude }}
                     title={`${w.codigoSiagas} • ${w.profundidadeM}m`}
-                    description={`Água ${w.salinidade} • ${w.vazaoLph} L/h • Sucesso ${w.sucessoHistoricoPct}%`}
+                    description={`${labels.water}: ${salinity} • ${w.vazaoLph} L/h • ${w.sucessoHistoricoPct}% ${labels.success}`}
                     pinColor={w.salinidade === 'doce' ? 'blue' : 'orange'}
                   />
                 </React.Fragment>

@@ -1,15 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, Text, TextInput } from '../i18n/native';
 import { FarmBoundaryStep, FarmLotsStep } from '../components/onboarding/FarmLotDemarcationStep';
 import { NordesteSvgMap } from '../components/NordesteSvgMap';
 import { useAccessibility } from '../context/AccessibilityContext';

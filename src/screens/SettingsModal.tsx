@@ -1,13 +1,8 @@
+import { useLanguage } from '../i18n/Language';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Pressable, Text } from '../i18n/native';
 import { FeedbackSection } from '../components/FeedbackSection';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { OFFICIAL_DATA_SOURCES } from '../data/seedData';
@@ -26,6 +21,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   initialTab = 'perfil',
   onClose,
 }) => {
+  const { language } = useLanguage();
   const {
     accessibility,
     farmers,
@@ -444,7 +440,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         >
                           Você confirmou estar ciente
                           {al.confirmadoCienteEm
-                            ? ` (${new Date(al.confirmadoCienteEm).toLocaleDateString('pt-BR')})`
+                            ? ` (${new Date(al.confirmadoCienteEm).toLocaleDateString(language === 'pt' ? 'pt-BR' : 'en-US')})`
                             : ''}
                         </Text>
                       </View>

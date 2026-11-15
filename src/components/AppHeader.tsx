@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Pressable, Text } from '../i18n/native';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { getAppTheme } from '../theme/tokens';
+import { LanguageMenu } from './LanguageMenu';
 
 interface AppHeaderProps {
   onOpenSettings: () => void;
@@ -109,7 +111,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           </Pressable>
         )}
 
-        {/* Círculo de USUÁRIO / configurações exatamente como no wireframe */}
+        <LanguageMenu theme={theme} />
         <Pressable
           onPress={onOpenSettings}
           accessibilityLabel="Abrir perfil do usuário, alertas e configurações"

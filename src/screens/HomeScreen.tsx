@@ -1,15 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import {
-  BackHandler,
-  Linking,
-  Pressable,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { BackHandler, Linking, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Pressable, Text } from '../i18n/native';
 import { MainTabKey } from '../components/BottomTabBar';
 import { FeatureBadge } from '../components/FeatureBadge';
 import { ClimaDiaSubscreen } from '../components/subscreens/ClimaDiaSubscreen';

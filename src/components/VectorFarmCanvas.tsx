@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Line, Polygon, Rect, Text as SvgText } from 'react-native-svg';
+import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
+import { Pressable, Text } from '../i18n/native';
+import Svg, { Circle, Line, Polygon, Rect } from 'react-native-svg';
+import { SvgText } from '../i18n/svg';
 import { AppTheme } from '../theme/tokens';
 import { GeoPoint, NdviZonePatch, WellPoint } from '../types/domain';
 import { sortPolygonPoints } from '../utils/geoprocessing';

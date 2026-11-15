@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Pressable, Text } from '../i18n/native';
+import { useLanguage } from '../i18n/Language';
 import { WebView, WebViewMessageEvent, WebViewProps } from 'react-native-webview';
 import { BahiaRegionPreset, NORDESTE_REGIONS } from '../data/seedData';
 import { AppTheme } from '../theme/tokens';
@@ -34,7 +36,8 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
   const [basemap, setBasemap] = useState<'streets' | 'satellite'>('streets');
   const [showLabels, setShowLabels] = useState(true);
 
-  const html = useMemo(() => buildNordesteLeafletHtml(), []);
+  const { language } = useLanguage();
+  const [source] = useState(() => ({ html: buildNordesteLeafletHtml(language), baseUrl: 'https://rocaviva.app/' }));
 
   useEffect(() => {
     if (!mapReady) return;
@@ -44,16 +47,27 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
       gpsCoords: gpsUserCoords ?? null,
       basemap,
       showLabels,
+      language,
       panToSelected: true,
     });
     webViewRef.current?.injectJavaScript(`window.__updateMapState && window.__updateMapState(${payload}); true;`);
-  }, [mapReady, selectedRegionName, gpsDetectedRegionId, gpsUserCoords, basemap, showLabels]);
+  }, [mapReady, selectedRegionName, gpsDetectedRegionId, gpsUserCoords, basemap, showLabels, language]);
 
   const handleMessage = (event: WebViewMessageEvent) => {
     try {
       const msg = JSON.parse(event.nativeEvent.data) as { type: string; id?: string };
       if (msg.type === 'ready') {
         setMapReady(true);
+        const payload = JSON.stringify({
+          selectedName: selectedRegionName,
+          gpsRegionId: gpsDetectedRegionId ?? null,
+          gpsCoords: gpsUserCoords ?? null,
+          basemap,
+          showLabels,
+          language,
+          panToSelected: true,
+        });
+        webViewRef.current?.injectJavaScript(`window.__updateMapState && window.__updateMapState(${payload}); true;`);
         return;
       }
       if (msg.type === 'selectRegion' && msg.id) {
@@ -72,7 +86,7 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
       <LeafletWebView
         ref={webViewRef}
         originWhitelist={['*']}
-        source={{ html, baseUrl: 'https://rocaviva.app/' }}
+        source={source}
         javaScriptEnabled
         domStorageEnabled
         nestedScrollEnabled

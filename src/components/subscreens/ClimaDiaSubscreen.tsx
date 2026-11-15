@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
+import { StyleSheet, View } from 'react-native';
+import { Pressable, Text } from '../../i18n/native';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
+import { SvgText } from '../../i18n/svg';
 import { AppTheme } from '../../theme/tokens';
 import { FarmProperty } from '../../types/domain';
 import { buildSevenDayClimateSeries } from '../../utils/agronomyHelpers';

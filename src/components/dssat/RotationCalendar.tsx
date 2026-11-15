@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { loadRotationPlan, saveRotationPlan } from '../../database/sqlite';
+import { useLanguage } from '../../i18n/Language';
 import { useDssatJob } from '../../hooks/useDssatJob';
 import { createRotationCompare, friendlyMessage, planRotationCalendar, type RotationCalendarResult } from '../../services/dssatApi';
 import type { getAppTheme } from '../../theme/tokens';
@@ -30,6 +31,7 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
   crops: CatalogCrop[]; caps: Capabilities | null; theme: ReturnType<typeof getAppTheme>;
   point: GeoPoint; farmId: string; lotId: string; knownPlants: string[];
 }) {
+  const { language } = useLanguage();
   const [selected, setSelected] = useState<string[]>([]);
   const [dates, setDates] = useState(defaultDates);
   const [result, setResult] = useState<RotationCalendarResult>();
@@ -97,7 +99,7 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
   function showCycles(cycles: Cycles) {
     return cycles.map((cycle) => (
       <P key={cycle.planting_date} theme={theme}>
-        {cropName(cycle.crop)}{' · '}{shortDate(cycle.planting_date)} até {shortDate(cycle.end_date)}
+        {cropName(cycle.crop)}{' · '}{shortDate(cycle.planting_date, language)} até {shortDate(cycle.end_date, language)}
       </P>
     ));
   }

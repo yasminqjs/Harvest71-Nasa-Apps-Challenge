@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import type { getAppTheme } from '../../theme/tokens';
+import { useLanguage, type Language } from '../../i18n/Language';
 import { Card, Chip, H, P } from './DssatShared';
 
 export const DAY = 86_400_000;
 export const isoDay = (time: number) => new Date(time).toISOString().slice(0, 10);
-export const shortDate = (date: string) => date.split('-').reverse().join('/');
+export function shortDate(date: string, language: Language) {
+  return new Date(date).toLocaleDateString(language === 'pt' ? 'pt-BR' : 'en-US', {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
+  });
+}
 
 export function tomorrow() {
   const now = new Date();
@@ -16,6 +21,7 @@ export function FuturePlantingDate({ value, min, max, label, disabled, theme, on
   value: string; min: number; max: number; label: string; disabled: boolean;
   theme: ReturnType<typeof getAppTheme>; onChange: (value: string) => void;
 }) {
+  const { language } = useLanguage();
   const [month, setMonth] = useState<number>();
   const current = new Date(Math.min(max, Math.max(min, month ?? (Date.parse(value) || min))));
   const y = current.getUTCFullYear();
@@ -26,12 +32,12 @@ export function FuturePlantingDate({ value, min, max, label, disabled, theme, on
 
   return (
     <View style={{ gap: 6 }}>
-      <Chip theme={theme} label={`${label}: ${value ? shortDate(value) : 'Escolher data'}`}
+      <Chip theme={theme} label={`${label}: ${value ? shortDate(value, language) : 'Escolher data'}`}
         selected={month !== undefined} disabled={disabled}
         onPress={() => setMonth(month === undefined ? first : undefined)} />
       {month !== undefined && (
         <Card theme={theme}>
-          <H theme={theme}>{current.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</H>
+          <H theme={theme}>{current.toLocaleDateString(language === 'pt' ? 'pt-BR' : 'en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</H>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             <Chip theme={theme} label="Mês anterior" selected={false} disabled={disabled || first <= min} onPress={() => setMonth(Date.UTC(y, m - 1, 1))} />
             <Chip theme={theme} label="Próximo mês" selected={false} disabled={disabled || next > max} onPress={() => setMonth(next)} />

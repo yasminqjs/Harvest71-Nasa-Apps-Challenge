@@ -17,6 +17,18 @@ import { rotationPlanKey } from './rotationPlanKey';
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
+export async function readInterfaceLanguage() {
+  const db = await getDb();
+  await db.execAsync('CREATE TABLE IF NOT EXISTS interface_preferences (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+  const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM interface_preferences WHERE key = 'language'");
+  return row?.value === 'pt' || row?.value === 'en' ? row.value : null;
+}
+
+export async function writeInterfaceLanguage(language: 'en' | 'pt') {
+  const db = await getDb();
+  await db.runAsync("INSERT OR REPLACE INTO interface_preferences (key, value) VALUES ('language', ?)", language);
+}
+
 async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
     dbPromise = SQLite.openDatabaseAsync('rocaviva.db').catch((err) => {

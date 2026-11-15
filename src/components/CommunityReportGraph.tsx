@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, G, Line, Rect, Text as SvgText } from 'react-native-svg';
+import { StyleSheet, View } from 'react-native';
+import { Pressable, Text } from '../i18n/native';
+import Svg, { Circle, G, Line, Rect } from 'react-native-svg';
+import { SvgText } from '../i18n/svg';
 import { TOPIC_META } from '../data/communityMockData';
 import { AppTheme } from '../theme/tokens';
 import { CommunityGraphEdge, CommunityGraphNode } from '../types/domain';

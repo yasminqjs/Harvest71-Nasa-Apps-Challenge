@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Pressable, Text } from '../../i18n/native';
 import { AppTheme } from '../../theme/tokens';
 import { FarmProperty } from '../../types/domain';
 import {

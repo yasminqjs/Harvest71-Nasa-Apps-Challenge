@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Pressable, Text } from '../../i18n/native';
 import type { JobState } from '../../hooks/useDssatJob';
 import type { AppTheme } from '../../theme/tokens';
 import type { FarmProperty } from '../../types/domain';

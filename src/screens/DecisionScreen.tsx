@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, Text } from '../i18n/native';
 import { FeatureBadge } from '../components/FeatureBadge';
 import { DssatAreaSimulation } from '../components/dssat/DssatAreaSimulation';
 import { DssatRotationSearch } from '../components/dssat/DssatRotationSearch';

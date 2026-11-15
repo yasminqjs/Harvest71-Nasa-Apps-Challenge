@@ -5,6 +5,9 @@ import { AppState, AppStateStatus, Platform } from 'react-native';
 import { EdiblePlantPANC, FarmProperty, FarmerProfile, LanguageLevel } from '../types/domain';
 import { regionalizarTexto } from '../utils/regionalize';
 
+import { translate } from '../i18n/translate';
+import type { Language } from '../i18n/Language';
+
 export interface VoiceReply {
   intent:
     | 'agua'
@@ -19,8 +22,15 @@ export interface VoiceReply {
   texto: string;
 }
 
+let interfaceLanguage: Language = 'en';
+export function setVoiceInterfaceLanguage(language: Language) {
+  if (interfaceLanguage !== language) stopSpeaking();
+  interfaceLanguage = language;
+}
+
 interface ActiveSpeechSession {
   fullText: string;
+  language: string;
   baseOffset: number;
   lastCharIndex: number;
   rate: number;
@@ -86,7 +96,7 @@ function startUtteranceFromSession(session: ActiveSpeechSession): void {
 
   try {
     Speech.speak(remaining, {
-      language: 'pt-BR',
+      language: session.language,
       rate: session.rate,
       pitch: 1.0,
       onBoundary: (ev: { charIndex?: number }) => {
@@ -252,7 +262,7 @@ export function speakText(
 
   if (!enabled && !force) return;
 
-  const textoFinal = regionalizarTexto(rawText, languageLevel, tratamento).trim();
+  const textoFinal = (interfaceLanguage === 'en' ? translate(rawText, 'en') : regionalizarTexto(rawText, languageLevel, tratamento)).trim();
   if (!textoFinal) {
     onDone?.();
     return;
@@ -268,6 +278,7 @@ export function speakText(
 
   const session: ActiveSpeechSession = {
     fullText: textoFinal,
+    language: interfaceLanguage === 'en' ? 'en-US' : 'pt-BR',
     baseOffset: 0,
     lastCharIndex: 0,
     rate,
@@ -308,6 +319,7 @@ export function interpretYesNoVoiceReply(transcript: string): YesNoVoiceIntent {
 
   if (
     norm.includes('nao entendi') ||
+    /\brepeat\b|say it again/.test(norm) ||
     norm.includes('repet') ||
     norm.includes('de novo') ||
     norm.includes('outra vez') ||
@@ -318,6 +330,7 @@ export function interpretYesNoVoiceReply(transcript: string): YesNoVoiceIntent {
 
   if (
     /\bnao\b/.test(norm) ||
+    /\bno\b|without voice|keep reading/.test(norm) ||
     norm.includes('sem voz') ||
     norm.includes('silencioso') ||
     norm.includes('so ler') ||
@@ -334,6 +347,7 @@ export function interpretYesNoVoiceReply(transcript: string): YesNoVoiceIntent {
 
   if (
     /\bsim\b/.test(norm) ||
+    /\byes\b|enable voice/.test(norm) ||
     /\bquero\b/.test(norm) ||
     /\bpode\b/.test(norm) ||
     norm.includes('ativar') ||
@@ -367,14 +381,19 @@ export function answerFarmerVoiceQuery(
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
   const d = farm.diagnostico;
+  const formatReply = (text: string) => {
+    if (interfaceLanguage === 'pt') return regionalizarTexto(text, level, farmer.tratamento);
+    const translated = translate(text, 'en');
+    return translated !== text ? translated : text.split(/(?<=[.!?])\s+/).map((part) => translate(part, 'en')).join(' ');
+  };
 
-  if (q.includes('agua') || q.includes('falta') || q.includes('molh') || q.includes('irriga')) {
+  if (q.includes('water') || q.includes('agua') || q.includes('falta') || q.includes('molh') || q.includes('irriga')) {
     const raw =
       level === 'acessivel' ? d.modeloA.resumoAcessivel : d.modeloA.resumoTecnico;
     return {
       intent: 'agua',
       titulo: 'Água para a roça',
-      texto: regionalizarTexto(raw, level, farmer.tratamento),
+      texto: formatReply(raw),
     };
   }
 
@@ -394,12 +413,12 @@ export function answerFarmerVoiceQuery(
     return {
       intent: 'plantar',
       titulo: 'Janela de plantio',
-      texto: regionalizarTexto(raw, level, farmer.tratamento),
+      texto: formatReply(raw),
     };
   }
 
   if (
-    q.includes('seca') ||
+    q.includes('drought') || q.includes('seca') ||
     q.includes('estiagem') ||
     q.includes('alerta') ||
     q.includes('chuv') ||
@@ -411,21 +430,21 @@ export function answerFarmerVoiceQuery(
     return {
       intent: 'seca',
       titulo: 'Risco de seca e chuva',
-      texto: regionalizarTexto(raw, level, farmer.tratamento),
+      texto: formatReply(raw),
     };
   }
 
-  if (q.includes('poco') || q.includes('furar') || q.includes('subterr') || q.includes('cacimba')) {
+  if (q.includes('well') || q.includes('poco') || q.includes('furar') || q.includes('subterr') || q.includes('cacimba')) {
     const w = d.wellSummary;
     const raw = `Nos poços da região em até ${farm.raioBuscaKm} quilômetros, a profundidade varia de ${w.faixaProfundidadeMinM} a ${w.faixaProfundidadeMaxM} metros, com ${w.taxaSucessoPct}% de chance de dar água e risco ${w.riscoSalinidade} de água salobra. ${w.orientacaoBaixaRenda}`;
     return {
       intent: 'poco',
       titulo: 'Onde furar poço (SIAGAS + NASA)',
-      texto: regionalizarTexto(raw, level, farmer.tratamento),
+      texto: formatReply(raw),
     };
   }
 
-  if (q.includes('eros') || q.includes('lavar') || q.includes('enxurrada') || q.includes('solo') || q.includes('terra')) {
+  if (q.includes('eros') || q.includes('lavar') || q.includes('enxurrada') || q.includes('soil') || q.includes('solo') || q.includes('terra')) {
     const solo = d.soloSoilGrids;
     const raw = `${
       level === 'acessivel' ? d.modeloD.resumoAcessivel : d.modeloD.resumoTecnico
@@ -433,17 +452,17 @@ export function answerFarmerVoiceQuery(
     return {
       intent: 'erosao',
       titulo: 'Solo e risco de erosão',
-      texto: regionalizarTexto(raw, level, farmer.tratamento),
+      texto: formatReply(raw),
     };
   }
 
-  if (q.includes('futuro') || q.includes('2030') || q.includes('2050') || q.includes('clima')) {
+  if (q.includes('future') || q.includes('climate') || q.includes('futuro') || q.includes('2030') || q.includes('2050') || q.includes('clima')) {
     const raw =
       level === 'acessivel' ? d.modeloE.resumoAcessivel : d.modeloE.resumoTecnico;
     return {
       intent: 'futuro',
       titulo: 'Projeção 2030–2050',
-      texto: regionalizarTexto(raw, level, farmer.tratamento),
+      texto: formatReply(raw),
     };
   }
 
@@ -466,7 +485,7 @@ export function answerFarmerVoiceQuery(
     return {
       intent: 'pancs',
       titulo: 'Plantas comestíveis resistentes',
-      texto: regionalizarTexto(raw, level, farmer.tratamento),
+      texto: formatReply(raw),
     };
   }
 
@@ -474,7 +493,7 @@ export function answerFarmerVoiceQuery(
   return {
     intent: 'resumo',
     titulo: 'Resumo geral da roça',
-    texto: regionalizarTexto(fallback, level, farmer.tratamento),
+    texto: formatReply(fallback),
   };
 }
 
@@ -528,7 +547,7 @@ function mapWebSpeechError(errCode: string): string {
     case 'aborted':
       return 'A escuta foi interrompida antes de capturar a fala. Toque no microfone para tentar novamente.';
     case 'language-not-supported':
-      return 'Idioma pt-BR não suportado pelo reconhecimento de voz deste navegador. Toque em um dos botões.';
+      return 'O reconhecimento de voz deste navegador não oferece o idioma selecionado. Use os controles na tela.';
     default:
       return `Não foi possível ouvir o microfone (${errCode || 'erro desconhecido'}). Tente novamente ou toque em um dos botões.`;
   }
@@ -551,6 +570,7 @@ export function startVoiceCapture(
   } = options;
 
   stopSpeaking();
+  const recognitionLocale = interfaceLanguage === 'en' ? 'en-US' : 'pt-BR';
 
   // 1) Web (Chrome / Edge / Safari via Web Speech API)
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -631,7 +651,7 @@ export function startVoiceCapture(
 
             if (errCode === 'language-not-supported' && !retriedLang) {
               retriedLang = true;
-              startAttempt(langToUse === 'pt-BR' ? 'pt' : '');
+              startAttempt(langToUse === recognitionLocale ? recognitionLocale.split('-')[0] : '');
               return;
             }
 
@@ -686,7 +706,7 @@ export function startVoiceCapture(
       };
 
       // Aguarda breve liberação de áudio do speechSynthesis antes de abrir o microfone
-      startTimer = setTimeout(() => startAttempt('pt-BR'), 150);
+      startTimer = setTimeout(() => startAttempt(recognitionLocale), 150);
 
       return () => {
         cancelled = true;
@@ -802,7 +822,7 @@ export function startVoiceCapture(
             if (cancelled || finished) return;
             try {
               mod.start({
-                lang: 'pt-BR',
+                lang: recognitionLocale,
                 interimResults: true,
                 maxAlternatives: 3,
                 continuous: false,

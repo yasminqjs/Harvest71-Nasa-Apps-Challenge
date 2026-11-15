@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
+import { Pressable, Text } from '../../i18n/native';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { analyzeLeafImageOffline } from '../../services/leafAnalyzer';
 import { getAppTheme } from '../../theme/tokens';

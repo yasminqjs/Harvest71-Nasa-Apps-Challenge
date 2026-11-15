@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
+import { Pressable, Text, TextInput } from '../../i18n/native';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { getAppTheme } from '../../theme/tokens';
 import { ProblemReportType } from '../../types/domain';

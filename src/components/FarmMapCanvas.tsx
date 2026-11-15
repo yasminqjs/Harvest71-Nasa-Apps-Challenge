@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Pressable, Text } from '../i18n/native';
+import { useLanguage } from '../i18n/Language';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { buildFarmLeafletHtml } from '../utils/leafletHtml';
 import { FarmMapCanvasProps, VectorFarmCanvas } from './VectorFarmCanvas';
@@ -31,7 +33,8 @@ const LeafletFarmWebCanvas: React.FC<
   const onAddPointRef = useRef(onAddPoint);
   const [ready, setReady] = useState(false);
   const [basemap, setBasemap] = useState<'satellite' | 'streets'>('satellite');
-  const html = useMemo(() => buildFarmLeafletHtml(), []);
+  const { language } = useLanguage();
+  const [html] = useState(() => buildFarmLeafletHtml(language));
 
   useEffect(() => {
     onAddPointRef.current = onAddPoint;
@@ -46,6 +49,7 @@ const LeafletFarmWebCanvas: React.FC<
     showWells,
     drawingMode,
     basemap,
+    language,
   });
 
   useEffect(() => {
@@ -58,8 +62,9 @@ const LeafletFarmWebCanvas: React.FC<
       showWells,
       drawingMode,
       basemap,
+      language,
     };
-  }, [centroid, polygon, lots, activeLotId, wells, showWells, drawingMode, basemap]);
+  }, [centroid, polygon, lots, activeLotId, wells, showWells, drawingMode, basemap, language]);
 
   const getFrameWin = (): FarmIframeWindow | null =>
     (iframeRef.current?.contentWindow as FarmIframeWindow | null) ?? null;
@@ -99,9 +104,10 @@ const LeafletFarmWebCanvas: React.FC<
       showWells,
       drawingMode,
       basemap,
+      language,
       forceFit: false,
     });
-  }, [ready, centroid, polygon, lots, activeLotId, wells, showWells, drawingMode, basemap]);
+  }, [ready, centroid, polygon, lots, activeLotId, wells, showWells, drawingMode, basemap, language]);
 
   const handleIframeLoad = () => {
     setReady(true);
@@ -115,7 +121,7 @@ const LeafletFarmWebCanvas: React.FC<
     <View style={[styles.wrap, { height, borderColor: theme.border }]}>
       <iframe
         ref={iframeRef}
-        title="Mapa interativo da roça"
+        title={language === 'en' ? 'Interactive farm map' : 'Mapa interativo da roça'}
         srcDoc={html}
         onLoad={handleIframeLoad}
         onError={onFallbackOffline}

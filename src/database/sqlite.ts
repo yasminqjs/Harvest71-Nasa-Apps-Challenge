@@ -14,7 +14,17 @@ import type { SavedRotationPlan } from '../types/rotationPlan';
 import { ROTATION_PLAN_KEY_PREFIX, rotationPlanKey } from './rotationPlanKey';
 
 const STORAGE_KEY = 'rocaviva_sqlite_web_v1';
+const LANGUAGE_KEY = 'rocaviva.interface-language';
 let memoryStore: LocalDatabaseSnapshot | null = null;
+
+export async function readInterfaceLanguage() {
+  const value = window.localStorage.getItem(LANGUAGE_KEY);
+  return value === 'pt' || value === 'en' ? value : null;
+}
+
+export async function writeInterfaceLanguage(language: 'en' | 'pt') {
+  window.localStorage.setItem(LANGUAGE_KEY, language);
+}
 
 export async function loadRotationPlan(farmId: string, lotId: string): Promise<SavedRotationPlan | null> {
   const raw = window.localStorage.getItem(rotationPlanKey(farmId, lotId));

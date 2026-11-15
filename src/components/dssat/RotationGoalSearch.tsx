@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { TextInput, View } from 'react-native';
+import { View } from 'react-native';
+import { TextInput } from '../../i18n/native';
 import { useDssatJob } from '../../hooks/useDssatJob';
 import { createRotationSearch } from '../../services/dssatApi';
 import type { getAppTheme } from '../../theme/tokens';

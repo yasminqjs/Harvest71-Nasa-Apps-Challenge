@@ -1,12 +1,6 @@
 import React from 'react';
-import {
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, Text } from '../i18n/native';
 import { useAccessibility } from '../context/AccessibilityContext';
 
 export const MobileViewport: React.FC<{ children: React.ReactNode }> = ({ children }) => {

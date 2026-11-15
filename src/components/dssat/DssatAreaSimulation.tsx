@@ -4,7 +4,8 @@
  * POST /simulations → poll. O diagnóstico local do app continua separado.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { View } from 'react-native';
+import { Pressable, Text, TextInput } from '../../i18n/native';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { useDssatCatalog } from '../../hooks/useDssatCatalog';
 import { useDssatJob } from '../../hooks/useDssatJob';
