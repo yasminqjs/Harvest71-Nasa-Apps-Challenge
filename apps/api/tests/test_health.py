@@ -102,6 +102,27 @@ def test_simulation_serializes_weather_event_dates(sim):
     assert request["weather_events"] == [event | {"source_kind": "hypothetical"}]
 
 
+def test_calendar_planning_and_replan(sim):
+    body = {
+        "horizon_start": "2027-01-01", "horizon_end": "2028-12-31",
+        "known_crops": ["milho", "caupi"],
+        "windows": [{"crop": "MZ", "planting_date": "2027-01-10"},
+                    {"crop": "CP", "planting_date": "2028-01-10"}],
+    }
+    response = client.post("/planning/calendar", json=body)
+    assert response.status_code == 200
+    result = response.json()
+    route = result["candidates"][0]["cycles"]
+    assert [cycle["crop"] for cycle in route] == ["MZ", "CP"]
+    assert result["evidence"]["dssat_simulated"] is False
+    response = client.post("/planning/calendar/replan", json={
+        **body, "route": route, "decision_date": "2027-01-11",
+    })
+    assert response.status_code == 200
+    assert response.json()["realized_prefix"] == route[:1]
+    assert response.json()["terminate_and_restart"]["status"] == "unsupported"
+
+
 def test_open_mode_limits_per_ip(sim, monkeypatch):
     m, _, _ = sim
     monkeypatch.setattr(m, "RATE_PER_MINUTE", 2)

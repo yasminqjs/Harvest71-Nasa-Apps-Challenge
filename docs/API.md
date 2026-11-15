@@ -111,6 +111,18 @@ calibração local. Registro completo e o que ficou de fora: `apps/dssat/cultiva
 | `cultivar` | não | id de `GET /crops/{code}`; vazio = cultivar padrão da cultura |
 | `planting_windows` | não | 1 a 3 datas `MM-DD` (sem `02-29`). **Se omitido**, o servidor escolhe pelo clima do ponto (dia 1 do mês que abre o quadrimestre mais chuvoso e dos 2 seguintes) — marcado como suposição |
 | `soil_analysis` | não | **modo padrão é a estimativa** (PronaSolos). Se enviada, cada camada (`top_cm`–`bottom_cm`) substitui a estimativa nas profundidades do modelo cujo ponto médio cai nela |
+| `weather_events` | não | Até 4 eventos hipotéticos de seca, com datas históricas ISO e janelas sem sobreposição |
+
+Exemplo de item em `weather_events`:
+
+```json
+{"id":"seca-1","type":"rainfall_multiplier","start_date":"2024-02-01","end_date":"2024-02-20","factor":0.2}
+```
+
+O fator 0,2 conserva 20% da chuva em cada dia do intervalo inclusivo. A janela
+precisa ter cobertura no histórico NASA POWER. Para comparar com uma simulação
+sem evento, envie as mesmas janelas de plantio explicitamente nos dois pedidos.
+O resultado registra a transformação em `climate.event_transform`.
 
 Campos de cada camada da análise: `areia_g_kg`, `argila_g_kg`, `silte_g_kg`, `carbono_organico_g_kg`
 **ou** `materia_organica_g_kg`, `ph_agua`, `ctc_cmolc_kg`, `densidade_g_cm3` (usados no modelo) e
@@ -297,3 +309,32 @@ curl -s "$BASE/simulations/<id>"
 O app pode guardar a resposta inteira de `/simulations/{id}` e de `/scenarios` para uso sem internet.
 Uma simulação **nova** só roda com conexão; não mostre resultado antigo como se fosse novo
 (use `finished_utc`).
+
+### Planejamento de calendário
+
+`GET /planning/capabilities` lista as capacidades disponíveis. `POST /planning/calendar`
+aceita `horizon_start`, `horizon_end`, `known_crops` e uma lista `windows` com
+`crop`, `planting_date` e `cultivar` opcional. Também aceita `max_cycles`,
+`max_candidates` e `min_gap_days`. Exemplo:
+
+```json
+{
+  "horizon_start": "2027-01-01",
+  "horizon_end": "2028-12-31",
+  "known_crops": ["MZ", "CP"],
+  "windows": [
+    {"crop": "MZ", "planting_date": "2027-01-10"},
+    {"crop": "CP", "planting_date": "2028-01-10"}
+  ]
+}
+```
+
+`POST /planning/calendar/replan` recebe os mesmos campos, mais `decision_date`
+e `route` com os ciclos e respectivas datas de fim. O cliente informa o
+histórico realizado e as janelas futuras atualizadas. A resposta verifica a
+rota anterior e gera calendários alternativos que preservam os ciclos iniciados.
+O encerramento antecipado fica marcado como indisponível quando há cultura ativa.
+
+Essas rotas devolvem estimativas de calendário baseadas no catálogo. O campo
+`evidence.dssat_simulated` fica `false`. Produtividade, continuidade do solo,
+impacto de eventos e comparação agronômica exigem execução no motor.

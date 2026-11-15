@@ -25,6 +25,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from .planning import CalendarReplanRequest, CalendarRequest, generate_calendar, replan_calendar
+
 API_VERSION = "0.3.0"
 DATA_BUCKET = os.environ.get("DATA_BUCKET", "fieldshift-data-fieldshift-harvest71-2026")
 PROJECT_ID = os.environ.get("PROJECT_ID", "fieldshift-harvest71-2026")
@@ -341,6 +343,38 @@ def get_simulation(rid: str, key: str = Depends(require_key)) -> dict:
 
 
 # ----------------------------------------------------------------------------- culturas
+
+@app.get("/planning/capabilities")
+def planning_capabilities() -> dict:
+    return {
+        "schema_version": "1",
+        "calendar": True,
+        "calendar_replan": True,
+        "dssat_sequence": False,
+        "dssat_replan": False,
+        "events": {"rainfall_multiplier": "single_crop_historical", "pest": "unsupported"},
+        "crops": [{"code": crop["code"], "calendar": bool(crop.get("cycle_days_max")),
+                   "single_crop": True, "dssat_sequence": False} for crop in CROPS],
+    }
+
+
+@app.post("/planning/calendar")
+def calendar(req: CalendarRequest, key: str = Depends(require_key)) -> dict:
+    rate_limit(key)
+    try:
+        return generate_calendar(req, find_crop)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/planning/calendar/replan")
+def calendar_replan(req: CalendarReplanRequest, key: str = Depends(require_key)) -> dict:
+    rate_limit(key)
+    try:
+        return replan_calendar(req, find_crop)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
 
 @app.get("/crops")
 def list_crops() -> dict:
