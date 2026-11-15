@@ -51,6 +51,11 @@ def search(power: Path, soil: Path, work: Path, req: dict) -> dict:
     years = req["historical_start_years"]
     limit = req["max_candidates"]
     targets = req["yield_targets_kg_ha"]
+    metrics = {code: ("biomass_kg_ha" if fi.get_crop(code)["yield_variable"] == "CWAM" else "yield_kg_ha")
+               for code in crops}
+    biomass = {code for code, metric in metrics.items() if metric == "biomass_kg_ha"}
+    if biomass != set(req.get("biomass_target_crops", [])):
+        raise ValueError("Confirme quais metas representam biomassa seca.")
     if not (2 <= len(years) <= MAX_YEARS and 2 <= limit <= MAX_CANDIDATES):
         raise ValueError("Pedido excede o orçamento de simulação.")
     calendars = [
@@ -72,9 +77,7 @@ def search(power: Path, soil: Path, work: Path, req: dict) -> dict:
                 ratios = []
                 for cycle in sample["cycles"]:
                     code = cycle["crop"]
-                    variable = fi.get_crop(code)["yield_variable"]
-                    key = "biomass_kg_ha" if variable == "CWAM" else "yield_kg_ha"
-                    value = cycle[key]
+                    value = cycle[metrics[code]]
                     if value is None or value < 0:
                         raise ValueError(f"Produção ausente para {code}.")
                     ratios.append(min(value / targets[code], 1.0))
@@ -102,6 +105,7 @@ def search(power: Path, soil: Path, work: Path, req: dict) -> dict:
         "ranked_alternatives": ranked,
         "incomplete_alternatives": incomplete,
         "excluded_crops": req["excluded_crops"],
+        "target_metrics": metrics,
         "search": {"calendar_eligible": eligible, "calendar_filtered": discarded,
                    "pair_filtered": unsupported, "attempted_candidates": len(orders), "budget_omitted": eligible - len(orders),
                    "historical_start_years": years,

@@ -346,6 +346,7 @@ class RotationSearchRequest(BaseModel):
         Annotated[str, Field(min_length=1, max_length=80)],
         Annotated[float, Field(strict=True, gt=0, allow_inf_nan=False)],
     ] = Field(min_length=2, max_length=23)
+    biomass_target_crops: set[str] = Field(default_factory=set, max_length=23)
     max_candidates: int = Field(default=8, ge=2, le=8)
 
     @model_validator(mode="after")
@@ -368,6 +369,9 @@ class RotationSearchRequest(BaseModel):
             targets[crop["code"]] = target
         if not supported <= targets.keys():
             raise ValueError(f"informe as metas de rendimento para {', '.join(sorted(supported - targets.keys()))}")
+        biomass = {code for code in supported if find_crop(code)["yield_variable"] == "CWAM"}
+        if self.biomass_target_crops != biomass:
+            raise ValueError(f"biomass_target_crops deve declarar os códigos com meta de biomassa seca: {sorted(biomass)}")
 
         dates = self.planting_dates
         if not dates[0] < dates[1] < dates[2] or dates[-1].year - dates[0].year > 1:
@@ -494,7 +498,9 @@ def planning_capabilities() -> dict:
         "dssat_replan": False,
         "events": {"rainfall_multiplier": "single_crop_historical", "pest": "unsupported"},
         "crops": [{"code": crop["code"], "calendar": bool(crop.get("cycle_days_max")),
-                   "single_crop": True, "dssat_sequence": crop["code"] in VERIFIED_SEQUENCE_CROPS} for crop in CROPS],
+                   "single_crop": True, "dssat_sequence": crop["code"] in VERIFIED_SEQUENCE_CROPS,
+                   "rotation_target_metric": "biomass_kg_ha" if crop["yield_variable"] == "CWAM" else "yield_kg_ha"}
+                  for crop in CROPS],
     }
 
 

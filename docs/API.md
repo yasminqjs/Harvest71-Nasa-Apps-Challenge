@@ -389,3 +389,8 @@ das metas, limitada a 100% por ciclo. As ordens que falharam em algum ano
 aparecem em `incomplete_alternatives` e ficam fora da classificação. O resultado
 informa as culturas excluídas, ordens descartadas e ordens omitidas pelo
 orçamento. Os números descrevem os anos testados e o manejo de sequeiro.
+
+Consulte `rotation_target_metric` em `/planning/capabilities` para saber qual
+variável cada cultura usa. Para uma cultura cuja meta usa biomassa seca
+(por exemplo cana, `SC`), envie seu código em `biomass_target_crops` e a meta
+em kg/ha de biomassa seca no mapa `yield_targets_kg_ha`.

@@ -172,6 +172,14 @@ def test_rotation_search_has_stricter_quota(sim, monkeypatch):
     assert len(runs) == 1
 
 
+def test_rotation_search_requires_explicit_cane_biomass_target(sim):
+    _, _, runs = sim
+    body = {**SEARCH, "known_crops": ["MZ", "SC"], "yield_targets_kg_ha": {"MZ": 1000, "SC": 7000}}
+    assert client.post("/rotations/search", json=body).status_code == 422
+    assert not runs
+    assert client.post("/rotations/search", json={**body, "biomass_target_crops": ["SC"]}).status_code == 202
+
+
 def test_calendar_planning_and_replan(sim):
     body = {
         "horizon_start": "2027-01-01", "horizon_end": "2028-12-31",
