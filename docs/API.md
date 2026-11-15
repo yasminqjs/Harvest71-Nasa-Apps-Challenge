@@ -339,3 +339,19 @@ O encerramento antecipado fica marcado como indisponível quando há cultura ati
 Essas rotas devolvem estimativas de calendário baseadas no catálogo. O campo
 `evidence.dssat_simulated` fica `false`. Produtividade, continuidade do solo,
 impacto de eventos e comparação agronômica exigem execução no motor.
+
+### Comparação sequencial milho e caupi
+
+Envie a coordenada e duas datas de plantio no mesmo ano histórico (1992 a 2024)
+para `POST /rotations`. O par disponível é milho e feijão-caupi, em sequeiro.
+
+```json
+{"lat":-9.41,"lon":-40.5,"crops":["MZ","CP"],"planting_dates":["1992-01-15","1992-07-15"]}
+```
+
+Consulte a URL `poll` da resposta até `done` ou `failed`. O resultado inclui
+`alternatives` com os dois ciclos de cada ordem, e
+`reversed_minus_baseline` com diferenças por cultura. A ordem invertida troca
+a cultura de cada data. O resultado inclui efeitos de calendário e vale para
+o ano histórico escolhido. Se o motor não executar os plantios nas datas
+pedidas, o pedido falha. Os limites de uso são compartilhados com simulações.

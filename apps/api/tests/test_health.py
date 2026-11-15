@@ -102,6 +102,23 @@ def test_simulation_serializes_weather_event_dates(sim):
     assert request["weather_events"] == [event | {"source_kind": "hypothetical"}]
 
 
+def test_rotation_queues_only_supported_pair(sim):
+    _, store, runs = sim
+    body = {**GOOD, "planting_dates": ["2024-01-15", "2024-07-15"]}
+    rejected = client.post("/rotations", json={**body, "crops": ["MZ", "CS"]})
+    assert rejected.status_code == 422
+    assert not runs
+    response = client.post("/rotations", json={**body, "crops": ["caupi", "milho"]})
+    assert response.status_code == 202
+    result = response.json()
+    assert runs == [result["id"]]
+    request = store[f"requests/{result['id']}.json"]
+    assert request["kind"] == "rotation"
+    assert request["crops"] == ["CP", "MZ"]
+    assert request["planting_dates"] == body["planting_dates"]
+    assert client.get(result["poll"]).json()["status"] == "queued"
+
+
 def test_calendar_planning_and_replan(sim):
     body = {
         "horizon_start": "2027-01-01", "horizon_end": "2028-12-31",

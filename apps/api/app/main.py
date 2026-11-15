@@ -260,6 +260,7 @@ class SimulationRequest(BaseModel):
             self.cultivar = self.cultivar.upper()
         return self
 
+
     @field_validator("planting_windows")
     @classmethod
     def _windows(cls, v):
@@ -277,6 +278,24 @@ class SimulationRequest(BaseModel):
         for previous, current in zip(events, events[1:]):
             if current.start_date <= previous.end_date:
                 raise ValueError("eventos de chuva sobrepostos não são suportados")
+        return self
+
+
+class RotationRequest(BaseModel):
+    lat: float = Field(ge=BRAZIL_BBOX[0], le=BRAZIL_BBOX[1])
+    lon: float = Field(ge=BRAZIL_BBOX[2], le=BRAZIL_BBOX[3])
+    crops: tuple[str, str] = ("MZ", "CP")
+    planting_dates: tuple[date, date]
+
+    @model_validator(mode="after")
+    def _validate_rotation(self):
+        resolved = [find_crop(code) for code in self.crops]
+        if {crop["code"] for crop in resolved if crop} != {"MZ", "CP"}:
+            raise ValueError("a comparação sequencial disponível é milho e caupi")
+        self.crops = tuple(crop["code"] for crop in resolved)
+        first, second = self.planting_dates
+        if not (1992 <= first.year == second.year <= 2024 and first < second):
+            raise ValueError("informe duas datas em ordem no mesmo ano histórico (1992 a 2024)")
         return self
 
 
@@ -326,6 +345,19 @@ def create_simulation(req: SimulationRequest, key: str = Depends(require_key)) -
             "note": "a simulação leva cerca de 15 a 60 s; consulte o endereço em 'poll'"}
 
 
+@app.post("/rotations", status_code=202)
+def create_rotation(req: RotationRequest, key: str = Depends(require_key)) -> dict:
+    rate_limit(key)
+    rid = uuid.uuid4().hex[:16]
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    payload = req.model_dump(mode="json")
+    _put_json(f"requests/{rid}.json", {
+        **payload, "kind": "rotation", "crop": "ROTATION", "id": rid, "created_utc": now,
+    })
+    _run_job(rid)
+    return {"id": rid, "status": "queued", "created_utc": now, "poll": f"/simulations/{rid}"}
+
+
 @app.get("/simulations/{rid}")
 def get_simulation(rid: str, key: str = Depends(require_key)) -> dict:
     if not re.fullmatch(r"[0-9a-f]{16}", rid):
@@ -350,11 +382,12 @@ def planning_capabilities() -> dict:
         "schema_version": "1",
         "calendar": True,
         "calendar_replan": True,
-        "dssat_sequence": False,
+        "dssat_sequence": True,
+        "sequence_pairs": [["MZ", "CP"]],
         "dssat_replan": False,
         "events": {"rainfall_multiplier": "single_crop_historical", "pest": "unsupported"},
         "crops": [{"code": crop["code"], "calendar": bool(crop.get("cycle_days_max")),
-                   "single_crop": True, "dssat_sequence": False} for crop in CROPS],
+                   "single_crop": True, "dssat_sequence": crop["code"] in {"MZ", "CP"}} for crop in CROPS],
     }
 
 

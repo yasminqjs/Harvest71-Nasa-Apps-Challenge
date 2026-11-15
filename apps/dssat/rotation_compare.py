@@ -44,6 +44,12 @@ def compare(power: Path, soil: Path, work: Path, crops: tuple[str, str],
             if len(matches) != 1:
                 raise RuntimeError(f"{name}: esperado um ciclo de {code} em {planting}; obtido {seasons}")
             selected.append(matches[0])
+        unexpected = [
+            row for row in seasons if row not in selected
+            and row["planting_yyyyddd"] and row["planting_yyyyddd"] // 1000 <= dates[0].year
+        ]
+        if unexpected:
+            raise ValueError(f"{name}: o motor registrou plantios extras dentro do ano comparado.")
         alternatives.append({"id": name, "cycles": selected, "engine_rows": len(seasons)})
     deltas = {}
     for base, other in zip(alternatives[0]["cycles"], reversed(alternatives[1]["cycles"])):

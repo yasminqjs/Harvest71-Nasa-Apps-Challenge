@@ -414,6 +414,7 @@ def run_point() -> int:
     rid = os.environ["REQUEST_ID"]
     result_name = f"results/{rid}.json"
     started = datetime.now(timezone.utc)
+    req = None
     try:
         req = gcs_read_json(bucket, f"requests/{rid}.json")
         if req is None:
@@ -432,6 +433,17 @@ def run_point() -> int:
             work = Path(tmp)
             (work / "power.json").write_text(json.dumps(power))
             (work / "soil.csv").write_text(fi.pronasolos_identify_to_csv(ps_doc))
+            if req.get("kind") == "rotation":
+                from rotation_compare import compare
+
+                dates = tuple(datetime.fromisoformat(day).date() for day in req["planting_dates"])
+                result = compare(work / "power.json", work / "soil.csv", work / "rotation",
+                                 tuple(req["crops"]), dates)
+                gcs_put_json(bucket, result_name, {
+                    **result, "id": rid, "status": "done", "kind": "rotation",
+                    "request": {key: req[key] for key in ("lat", "lon", "crops", "planting_dates")},
+                })
+                return 0
             windows = [tuple(int(x) for x in w.split("-")) for w in req.get("planting_windows") or []] or None
             indir = work / "run"
             meta = fi.build_site("FSPT", req.get("label") or f"{lat:.4f},{lon:.4f}", work / "power.json",
@@ -472,7 +484,9 @@ def run_point() -> int:
         log(f"{rid}: ok ({len(seasons)} safras)")
         return 0
     except Exception as e:
-        gcs_put_json(bucket, result_name, {"id": rid, "status": "failed", "error": f"{type(e).__name__}: {e}",
+        public_error = str(e) if isinstance(e, ValueError) else "DSSAT não completou a comparação nos plantios solicitados."
+        try_rotation = req is not None and req.get("kind") == "rotation"
+        gcs_put_json(bucket, result_name, {"id": rid, "status": "failed", "error": public_error if try_rotation else f"{type(e).__name__}: {e}",
                                            "finished_utc": datetime.now(timezone.utc).isoformat(timespec="seconds")})
         log(f"{rid}: ERRO {e}")
         return 1
