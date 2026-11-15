@@ -11,7 +11,9 @@ import {
   WellPoint,
 } from '../types/domain';
 import { LocalDatabaseSnapshot, buildSeedSnapshot } from './seedBuilder';
-import { SqliteRepository } from './sqlite';
+import type { SqliteRepository } from './sqlite';
+import type { SavedRotationPlan } from '../types/rotationPlan';
+import { rotationPlanKey } from './rotationPlanKey';
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -23,6 +25,23 @@ async function getDb(): Promise<SQLite.SQLiteDatabase> {
     });
   }
   return dbPromise;
+}
+
+export async function loadRotationPlan(farmId: string, lotId: string): Promise<SavedRotationPlan | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ value_json: string }>(
+    'SELECT value_json FROM app_meta WHERE key = ?',
+    [rotationPlanKey(farmId, lotId)]
+  );
+  return row ? JSON.parse(row.value_json) as SavedRotationPlan : null;
+}
+
+export async function saveRotationPlan(farmId: string, lotId: string, plan: SavedRotationPlan): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('INSERT OR REPLACE INTO app_meta (key, value_json) VALUES (?, ?)', [
+    rotationPlanKey(farmId, lotId),
+    JSON.stringify(plan),
+  ]);
 }
 
 async function createTables(db: SQLite.SQLiteDatabase): Promise<void> {

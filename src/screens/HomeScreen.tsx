@@ -15,7 +15,6 @@ import { FeatureBadge } from '../components/FeatureBadge';
 import { ClimaDiaSubscreen } from '../components/subscreens/ClimaDiaSubscreen';
 import { HistoricoPlantioSubscreen } from '../components/subscreens/HistoricoPlantioSubscreen';
 import { PrevisaoTrimestreSubscreen } from '../components/subscreens/PrevisaoTrimestreSubscreen';
-import { RotacaoAtualSubscreen } from '../components/subscreens/RotacaoAtualSubscreen';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { FEATURE_COLOR_STYLES } from '../models/farmArchitecture';
 import { getAppTheme } from '../theme/tokens';
@@ -23,11 +22,12 @@ import { formatArea } from '../utils/regionalize';
 
 interface HomeScreenProps {
   onNavigateTab: (tab: MainTabKey) => void;
+  onOpenCurrentRotation: () => void;
   onOpenFeedback?: () => void;
   onOpenTutorial?: () => void;
 }
 
-type HomeSubscreen = 'clima' | 'historico' | 'trimestre' | 'rotacao' | null;
+type HomeSubscreen = 'clima' | 'historico' | 'trimestre' | null;
 
 /**
  * @featureColor AMARELO
@@ -36,6 +36,7 @@ type HomeSubscreen = 'clima' | 'historico' | 'trimestre' | 'rotacao' | null;
  */
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigateTab,
+  onOpenCurrentRotation,
   onOpenFeedback,
   onOpenTutorial,
 }) => {
@@ -129,8 +130,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           onSpeak={(txt) => speak(txt, true)}
           theme={theme}
         />
-      ) : subscreen === 'rotacao' ? (
-        <RotacaoAtualSubscreen onBack={() => setSubscreen(null)} />
       ) : (
         <>
           <View
@@ -202,7 +201,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
           <View style={styles.gridRow}>
             <Pressable
-              onPress={() => setSubscreen('rotacao')}
+              onPress={onOpenCurrentRotation}
               style={[
                 styles.blueBox,
                 { backgroundColor: theme.surface, borderColor: theme.border },

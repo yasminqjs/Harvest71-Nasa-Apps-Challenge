@@ -10,9 +10,20 @@ import {
   WellPoint,
 } from '../types/domain';
 import { LocalDatabaseSnapshot, buildSeedSnapshot } from './seedBuilder';
+import type { SavedRotationPlan } from '../types/rotationPlan';
+import { ROTATION_PLAN_KEY_PREFIX, rotationPlanKey } from './rotationPlanKey';
 
 const STORAGE_KEY = 'rocaviva_sqlite_web_v1';
 let memoryStore: LocalDatabaseSnapshot | null = null;
+
+export async function loadRotationPlan(farmId: string, lotId: string): Promise<SavedRotationPlan | null> {
+  const raw = window.localStorage.getItem(rotationPlanKey(farmId, lotId));
+  return raw === null ? null : JSON.parse(raw) as SavedRotationPlan;
+}
+
+export async function saveRotationPlan(farmId: string, lotId: string, plan: SavedRotationPlan): Promise<void> {
+  window.localStorage.setItem(rotationPlanKey(farmId, lotId), JSON.stringify(plan));
+}
 
 function readStore(): LocalDatabaseSnapshot {
   if (typeof window !== 'undefined' && window.localStorage) {
@@ -152,6 +163,17 @@ export const sqliteDb: SqliteRepository = {
   },
 
   async resetDatabase() {
+    if (typeof window !== 'undefined') {
+      try {
+        const storage = window.localStorage;
+        for (let i = storage.length - 1; i >= 0; i--) {
+          const key = storage.key(i);
+          if (key?.startsWith(ROTATION_PLAN_KEY_PREFIX)) storage.removeItem(key);
+        }
+      } catch {
+        // Em ambientes sem armazenamento, o restante do app usa memória.
+      }
+    }
     const fresh = buildSeedSnapshot();
     writeStore(fresh);
     return fresh;

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FeatureBadge } from '../components/FeatureBadge';
 import { DssatAreaSimulation } from '../components/dssat/DssatAreaSimulation';
@@ -21,40 +21,50 @@ type PlantationBlock =
   | 'atualizar_variaveis'
   | 'atualizar_historico'
   | 'talhao_dssat'
-  | 'comparar_dssat'
-  | 'otimizar_dssat'
+  | 'planejar_rotacao'
   | 'qualidade_atual'
   | null;
 
 /**
  * Aba Plantação ("O que o usuário vê" -> aba plantação):
  * - VERDE:   Atualizar dados da plantação e da fazenda (Pegador de informações da fazenda)
- * - CINZA:   Comparar ordens com o DSSAT
- * - CINZA:   Planejar rotações futuras
+ * - CINZA:   Planejar rotações futuras e comparar opções com o DSSAT
  * - ROXO:    Ver qualidade da plantação atual [PLACEHOLDER Visualizador de qualidade]
  */
-export const DecisionScreen: React.FC = () => {
+export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
+  openCurrentRotation = false,
+}) => {
   const { accessibility, activeFarmer, activeFarm, farmArchitecture } = useAccessibility();
   const theme = getAppTheme(accessibility);
-  const [activeBlock, setActiveBlock] = useState<PlantationBlock>(null);
+  const [activeBlock, setActiveBlock] = useState<PlantationBlock>(
+    openCurrentRotation ? 'atualizar_lotes' : null
+  );
+  const [plannerLotId, setPlannerLotId] = useState<string>();
+
+  const goBack = useCallback(() => {
+    if (
+      activeBlock === 'atualizar_lotes' ||
+      activeBlock === 'atualizar_mapa' ||
+      activeBlock === 'atualizar_variaveis' ||
+      activeBlock === 'atualizar_historico'
+    ) {
+      if (activeBlock === 'atualizar_lotes') setPlannerLotId(undefined);
+      setActiveBlock('atualizar_hub');
+    } else if (activeBlock === 'planejar_rotacao' && plannerLotId) {
+      setActiveBlock('atualizar_lotes');
+    } else {
+      setActiveBlock(null);
+    }
+  }, [activeBlock, plannerLotId]);
 
   useEffect(() => {
     if (!activeBlock) return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (
-        activeBlock === 'atualizar_lotes' ||
-        activeBlock === 'atualizar_mapa' ||
-        activeBlock === 'atualizar_variaveis' ||
-        activeBlock === 'atualizar_historico'
-      ) {
-        setActiveBlock('atualizar_hub');
-      } else {
-        setActiveBlock(null);
-      }
+      goBack();
       return true;
     });
     return () => sub.remove();
-  }, [activeBlock]);
+  }, [activeBlock, goBack]);
 
   if (!activeFarm || !activeFarmer || !farmArchitecture) return null;
 
@@ -74,9 +84,13 @@ export const DecisionScreen: React.FC = () => {
       >
         {activeBlock === 'atualizar_lotes' ? (
           <RotacaoAtualSubscreen
-            onBack={() => setActiveBlock('atualizar_hub')}
+            onBack={goBack}
+            initialLotId={plannerLotId}
+            onPlanRotation={(lotId) => {
+              setPlannerLotId(lotId);
+              setActiveBlock('planejar_rotacao');
+            }}
             title="Lotes e Cultura Atual"
-            showProgressInput={false}
           />
         ) : activeBlock === 'atualizar_historico' ? (
           <HistoricoPlantioSubscreen
@@ -226,10 +240,8 @@ export const DecisionScreen: React.FC = () => {
           </View>
         ) : activeBlock === 'talhao_dssat' ? (
           <DssatAreaSimulation onBack={() => setActiveBlock(null)} />
-        ) : activeBlock === 'comparar_dssat' ? (
-          <DssatRotationSearch initialMode="compare" onBack={() => setActiveBlock(null)} />
-        ) : activeBlock === 'otimizar_dssat' ? (
-          <DssatRotationSearch onBack={() => setActiveBlock(null)} />
+        ) : activeBlock === 'planejar_rotacao' ? (
+          <DssatRotationSearch initialLotId={plannerLotId} onBack={goBack} />
         ) : activeBlock === 'qualidade_atual' ? (
           <PlantationQualityPlaceholder
             farmArchitecture={farmArchitecture}
@@ -293,8 +305,7 @@ export const DecisionScreen: React.FC = () => {
             </Pressable>
 
             {([
-              ['otimizar_dssat', 'calendar-outline', 'Planejar rotações', 'Monte o calendário dos próximos plantios com as culturas que você conhece.'],
-              ['comparar_dssat', 'git-compare-outline', 'Comparar ordens com DSSAT', 'Compare sequências de culturas com clima histórico.'],
+              ['planejar_rotacao', 'calendar-outline', 'Planejar rotação', 'Monte, compare e salve opções para os próximos plantios.'],
               ['talhao_dssat', 'earth-outline', 'Meu Talhão no DSSAT', 'Simule uma cultura com o solo e o clima da área cadastrada.'],
             ] as const).map(([block, icon, title, description]) => (
               <Pressable key={block} accessibilityRole="button" onPress={() => setActiveBlock(block)}

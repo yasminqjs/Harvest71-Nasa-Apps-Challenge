@@ -5,20 +5,21 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { analyzeLeafImageOffline } from '../../services/leafAnalyzer';
 import { getAppTheme } from '../../theme/tokens';
-import {
-  buildRotationComparisonOptions,
-  createDefaultLotsForFarm,
-} from '../../utils/agronomyHelpers';
+import { createDefaultLotsForFarm } from '../../utils/agronomyHelpers';
 import { formatArea, formatCurrencyBRL } from '../../utils/regionalize';
 
 interface RotacaoAtualSubscreenProps {
   onBack?: () => void;
+  onPlanRotation: (lotId: string) => void;
+  initialLotId?: string;
   title?: string;
   showProgressInput?: boolean;
 }
 
 export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
   onBack,
+  onPlanRotation,
+  initialLotId,
   title = 'Rotação atual',
   showProgressInput = true,
 }) => {
@@ -26,7 +27,6 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
     accessibility,
     activeFarm,
     updateLotDetails,
-    simulateRotation,
     saveLeafAnalysis,
     speak,
   } = useAccessibility();
@@ -43,14 +43,12 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
         )
       : [];
 
-  const [selectedLotId, setSelectedLotId] = useState(lots[0]?.id ?? 'lot-1');
+  const [selectedLotId, setSelectedLotId] = useState(initialLotId ?? lots[0]?.id ?? 'lot-1');
   const [photoBusy, setPhotoBusy] = useState(false);
-  const [expandedStrategyId, setExpandedStrategyId] = useState<string | null>(null);
 
   if (!activeFarm) return null;
 
   const activeLot = lots.find((l) => l.id === selectedLotId) ?? lots[0];
-  const strategies = buildRotationComparisonOptions(activeFarm, activeLot);
 
   const handleAddValidationPhoto = async () => {
     if (!activeLot) return;
@@ -101,20 +99,6 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
     const clamped = Math.max(0, Math.min(100, nextPct));
     await updateLotDetails(activeLot.id, { progressoRealPct: clamped });
     speak(`Progresso do ${activeLot.nome} atualizado para ${clamped}%.`);
-  };
-
-  const handleAdoptStrategy = async (strategyName: string, plants: string[]) => {
-    if (!activeLot) return;
-    const cleanName = strategyName.replace(' (Atual)', '');
-    await updateLotDetails(activeLot.id, {
-      sistema: plants.length > 1 ? 'rotacao' : 'monocultura',
-      culturaAtual: cleanName,
-      plantasRotacao: plants,
-      culturasFuturas: plants,
-      cronogramaPlantacao: `Plano adotado: ${cleanName}`,
-    });
-    await simulateRotation(cleanName);
-    speak(`Rotação ${cleanName} aplicada ao ${activeLot.nome}.`);
   };
 
   const progressDiff = activeLot
@@ -398,110 +382,16 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
             </Text>
           </View>
 
-          {/* Sticky note: Comparar a atual rotação com outras opções */}
-          <View
-            style={[
-              styles.compareCard,
-              { backgroundColor: theme.warningBg, borderColor: theme.warningBorder },
-            ]}
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onPlanRotation(activeLot.id)}
+            style={[styles.planButton, { backgroundColor: theme.primary }]}
           >
-            <Text style={[styles.sectionTitle, { color: theme.warningText }]}>
-              Comparar rotação atual vs outras opções
+            <Ionicons name="calendar-outline" size={18} color={theme.primaryText} />
+            <Text style={{ fontSize: 13, fontWeight: '900', color: theme.primaryText }}>
+              Planejar a partir deste lote
             </Text>
-            <Text style={{ fontSize: 12, color: theme.warningText }}>
-              Compare pelo menos 3 estratégias de rotação com base em água, nitrogênio, pragas e
-              retorno no seu terreno (apoio à decisão local).
-            </Text>
-
-            {strategies.map((strat) => {
-              const isOpen = expandedStrategyId === strat.id;
-              return (
-                <View
-                  key={strat.id}
-                  style={[
-                    styles.stratCard,
-                    {
-                      backgroundColor: theme.surface,
-                      borderColor: strat.isAtual ? '#2563EB' : theme.primary,
-                    },
-                  ]}
-                >
-                  <View style={styles.stratTop}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '900', color: theme.text }}>
-                        {strat.nome}
-                      </Text>
-                      <Text style={{ fontSize: 11, color: theme.textMuted }}>
-                        Resiliência: {strat.scoreResiliencia}/100 • Água: {strat.demandaAgua} •
-                        Erosão -{strat.reducaoErosaoPct}%
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.scoreBadge,
-                        {
-                          backgroundColor: strat.isAtual ? '#2563EB' : theme.primary,
-                        },
-                      ]}
-                    >
-                      <Text style={{ fontSize: 11, fontWeight: '900', color: '#FFFFFF' }}>
-                        {strat.scoreResiliencia}%
-                      </Text>
-                    </View>
-                  </View>
-
-                  <Text style={{ fontSize: 12, color: theme.text }}>
-                    Fixa Nitrogênio: {strat.fixacaoNitrogenio ? 'Sim' : 'Não'} • Forragem:{' '}
-                    {strat.valorForragem} • Retorno: {formatCurrencyBRL(strat.retornoLiquidoEstHaR$)}/ha
-                  </Text>
-
-                  <Pressable
-                    onPress={() => setExpandedStrategyId(isOpen ? null : strat.id)}
-                    style={{ alignSelf: 'flex-start' }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: '900', color: '#2563EB' }}>
-                      {isOpen ? '▲ Ocultar justificativa e riscos' : '▼ Ver evidências, lacunas e riscos'}
-                    </Text>
-                  </Pressable>
-
-                  {isOpen && (
-                    <View style={{ gap: 4, paddingTop: 4 }}>
-                      <Text style={styles.detailLine}>
-                        • <Text style={{ fontWeight: '900' }}>Por que sugerida:</Text>{' '}
-                        {strat.porqueSugerida}
-                      </Text>
-                      <Text style={styles.detailLine}>
-                        • <Text style={{ fontWeight: '900' }}>Evidências NASA/Solo:</Text>{' '}
-                        {strat.evidencias}
-                      </Text>
-                      <Text style={styles.detailLine}>
-                        • <Text style={{ fontWeight: '900' }}>Benefícios:</Text> {strat.beneficios}
-                      </Text>
-                      <Text style={styles.detailLine}>
-                        • <Text style={{ fontWeight: '900' }}>Lacuna de informação:</Text>{' '}
-                        {strat.lacunasInformacao}
-                      </Text>
-                      <Text style={styles.detailLine}>
-                        • <Text style={{ fontWeight: '900' }}>Risco / revisão local:</Text>{' '}
-                        {strat.riscosRevisaoLocal}
-                      </Text>
-                    </View>
-                  )}
-
-                  {!strat.isAtual && (
-                    <Pressable
-                      onPress={() => handleAdoptStrategy(strat.nome, strat.plantas)}
-                      style={[styles.adoptBtn, { backgroundColor: theme.primary }]}
-                    >
-                      <Text style={{ fontSize: 12, fontWeight: '900', color: theme.primaryText }}>
-                        Adotar esta opção no {activeLot.nome}
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
-              );
-            })}
-          </View>
+          </Pressable>
         </>
       )}
     </View>
@@ -567,16 +457,13 @@ const styles = StyleSheet.create({
   barGroup: { gap: 4 },
   barTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
   barFill: { height: '100%', borderRadius: 4 },
-  compareCard: { borderRadius: 18, borderWidth: 2, padding: 14, gap: 10 },
-  stratCard: { borderRadius: 14, borderWidth: 1.5, padding: 12, gap: 6 },
-  stratTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  scoreBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-  detailLine: { fontSize: 11, color: '#1F2937', lineHeight: 16 },
-  adoptBtn: {
-    minHeight: 38,
-    borderRadius: 10,
+  planButton: {
+    minHeight: 46,
+    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
+    gap: 8,
+    paddingHorizontal: 12,
   },
 });

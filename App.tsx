@@ -36,6 +36,7 @@ const RoçaVivaRoot: React.FC = () => {
     closeTutorial,
   } = useAccessibility();
   const [activeTab, setActiveTab] = useState<MainTabKey>('resumo');
+  const [openCurrentRotation, setOpenCurrentRotation] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTabKey>('perfil');
 
@@ -64,6 +65,7 @@ const RoçaVivaRoot: React.FC = () => {
         nordesteMapCompleted &&
         activeTab !== 'resumo'
       ) {
+        setOpenCurrentRotation(false);
         setActiveTab('resumo');
         return true;
       }
@@ -82,6 +84,12 @@ const RoçaVivaRoot: React.FC = () => {
   const openSettingsAt = (tab: SettingsTabKey = 'perfil') => {
     setSettingsTab(tab);
     setSettingsOpen(true);
+  };
+
+  const navigateTab = (tab: MainTabKey) => {
+    if (tab === activeTab) return;
+    setOpenCurrentRotation(false);
+    setActiveTab(tab);
   };
 
   const theme = getAppTheme(accessibility);
@@ -115,15 +123,19 @@ const RoçaVivaRoot: React.FC = () => {
           <View style={styles.body}>
             {activeTab === 'resumo' && (
               <HomeScreen
-                onNavigateTab={setActiveTab}
+                onNavigateTab={navigateTab}
+                onOpenCurrentRotation={() => {
+                  setOpenCurrentRotation(true);
+                  setActiveTab('plantacao');
+                }}
                 onOpenFeedback={() => openSettingsAt('feedback')}
                 onOpenTutorial={openTutorial}
               />
             )}
-            {activeTab === 'plantacao' && <DecisionScreen />}
+            {activeTab === 'plantacao' && <DecisionScreen openCurrentRotation={openCurrentRotation} />}
             {activeTab === 'comunidade' && <CommunityScreen />}
           </View>
-          <BottomTabBar activeTab={activeTab} onChangeTab={setActiveTab} />
+          <BottomTabBar activeTab={activeTab} onChangeTab={navigateTab} />
           {settingsOpen && (
             <SettingsModal
               visible={settingsOpen}
