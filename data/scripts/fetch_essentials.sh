@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 # Baixa os dados essenciais do DSSAT para o bucket privado do Field Shift.
-# Rodar no Cloud Shell, na raiz do repositorio:  bash data/scripts/fetch_essentials.sh
+# Roda no GitHub Actions (workflow ingest-data) ou no Cloud Shell:  bash data/scripts/fetch_essentials.sh
 #
-# O que baixa:
-#   1. DSSAT-CSM (codigo + biblioteca de cultivares .CUL/.ECO/.SPE) e dssat-csm-data
-#      (experimentos de referencia, solos genericos), em commits fixos.
-#   2. NASA POWER diario (comunidade AG) para cada ponto de data/points.csv,
-#      em JSON (bruto) e ICASA (formato proximo do .WTH).
-#   3. SoilGrids v2 (ISRIC) por ponto: textura, carbono, densidade, pH, CTC e agua retida.
-#   4. manifest.json com origem, URL, data de acesso e sha256 de cada arquivo.
+# Otimizado:
+#   - INCREMENTAL: caminhos estaveis no bucket; o que ja existe nao e baixado de novo.
+#   - PARALELO: NASA POWER dos pontos em paralelo; SoilGrids em paralelo.
+#   - SoilGrids lido direto dos mapas (GDAL /vsicurl nos VRT do ISRIC), sem a API REST
+#     (lenta e limitada a ~5 consultas/min). A API REST so e usada se o GDAL falhar.
 #
-# Variaveis opcionais: BUCKET, START (AAAAMMDD), END (AAAAMMDD), POINTS (csv).
+# Layout no bucket (gs://$BUCKET/raw/...):
+#   dssat/<commit>/...                     codigo, cultivares, experimentos (por commit)
+#   nasa-power/<START>_<END>/<ID>.json     + <ID>.icasa.txt
+#   soilgrids/v2/<ID>.csv                  propriedade,profundidade,estatistica,valor
+#   manifests/<data-hora>.json             proveniencia + sha256 do que esta execucao gravou
+#
+# Variaveis opcionais: BUCKET, START, END, POINTS, JOBS (paralelismo), FORCE=1 (rebaixar tudo).
 set -euo pipefail
 
 PROJECT="fieldshift-harvest71-2026"
@@ -18,90 +22,153 @@ BUCKET="${BUCKET:-fieldshift-data-${PROJECT}}"
 START="${START:-19910101}"
 END="${END:-20251231}"
 POINTS="${POINTS:-data/points.csv}"
+JOBS="${JOBS:-16}"
+FORCE="${FORCE:-0}"
 DSSAT_OS_COMMIT="25c93b9a2f73f8ec45bf441b198dac5fb7b22849"
 DSSAT_DATA_COMMIT="99c95b340acb9515c2d0a8ab582f5fbbf076f345"
 POWER_PARAMS="ALLSKY_SFC_SW_DWN,T2M_MAX,T2M_MIN,PRECTOTCORR,T2M,T2MDEW,RH2M,WS2M"
 SOIL_PROPS="clay sand silt soc bdod phh2o cec nitrogen wv0010 wv0033 wv1500"
+SOIL_DEPTHS="0-5cm 5-15cm 15-30cm 30-60cm 60-100cm 100-200cm"
+SOIL_STATS="mean Q0.05 Q0.95"
+SG_URL="https://files.isric.org/soilgrids/latest/data"
 
+RAW="gs://$BUCKET/raw"
 WORK="$(mktemp -d)"
-OUT="$WORK/out"
-mkdir -p "$OUT"/{dssat,nasa-power,soilgrids}
+OUT="$WORK/out"            # espelha raw/ ; so contem o que e novo nesta execucao
+mkdir -p "$OUT"
 ACCESSED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-echo "Bucket: gs://$BUCKET | periodo $START-$END | trabalho em $WORK"
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+T0=$SECONDS
+echo "Bucket: $RAW | periodo $START-$END | paralelismo $JOBS"
 
-gcloud storage buckets describe "gs://$BUCKET" --format='value(name)' >/dev/null
+# Inventario do que ja existe (uma listagem so) -> decide o que pular
+gcloud storage ls -r "$RAW/**" 2>/dev/null | sed "s#^$RAW/##" > "$WORK/existing.txt" || true
+have() { [ "$FORCE" != 1 ] && grep -qxF "$1" "$WORK/existing.txt"; }
 
 fetch() {  # fetch URL DESTINO
-  curl -fsS --retry 5 --retry-delay 10 --retry-all-errors -m 300 -o "$2" "$1"
+  mkdir -p "$(dirname "$2")"
+  curl -fsS --retry 4 --retry-delay 5 --retry-all-errors -m 300 -o "$2" "$1"
 }
+export -f fetch
 
-# ---------- 1. DSSAT ----------
-clone_at() {  # clone_at REPO COMMIT DIR
-  git init -q "$3"
-  git -C "$3" fetch -q --depth 1 "https://github.com/DSSAT/$1" "$2"
-  git -C "$3" checkout -q FETCH_HEAD
+# ---------- 1. DSSAT (pula se o commit ja esta no bucket) ----------
+OS7="${DSSAT_OS_COMMIT:0:7}"; DATA7="${DSSAT_DATA_COMMIT:0:7}"
+if have "dssat/$OS7/dssat-csm-os.tar.gz" && have "dssat/$DATA7/dssat-csm-data.tar.gz"; then
+  echo "[1/3] DSSAT: ja no bucket ($OS7, $DATA7)"
+else
+  echo "[1/3] DSSAT: baixando"
+  clone_at() { git init -q "$3"; git -C "$3" fetch -q --depth 1 "https://github.com/DSSAT/$1" "$2"; git -C "$3" checkout -q FETCH_HEAD; }
+  clone_at dssat-csm-os   "$DSSAT_OS_COMMIT"   "$WORK/dssat-csm-os" &
+  clone_at dssat-csm-data "$DSSAT_DATA_COMMIT" "$WORK/dssat-csm-data" &
+  wait
+  mkdir -p "$OUT/dssat/$OS7/genotype" "$OUT/dssat/$DATA7/soil"
+  tar -czf "$OUT/dssat/$OS7/dssat-csm-os.tar.gz"     -C "$WORK" --exclude=.git dssat-csm-os
+  tar -czf "$OUT/dssat/$DATA7/dssat-csm-data.tar.gz" -C "$WORK" --exclude=.git dssat-csm-data
+  cp "$WORK"/dssat-csm-os/Data/Genotype/* "$OUT/dssat/$OS7/genotype/"
+  cp "$WORK"/dssat-csm-data/Soil/*        "$OUT/dssat/$DATA7/soil/" 2>/dev/null || true
+  cp "$WORK"/dssat-csm-os/license.txt     "$OUT/dssat/$OS7/LICENSE.txt"
+fi
+
+# ---------- 2. NASA POWER (pontos em paralelo) ----------
+echo "[2/3] NASA POWER"
+tail -n +2 "$POINTS" | { while IFS=, read -r id name lat lon note; do
+  [ -z "$id" ] && continue
+  rel="nasa-power/${START}_${END}/$id"
+  if have "$rel.json" && have "$rel.icasa.txt"; then echo "  $id: ja no bucket"; continue; fi
+  base="https://power.larc.nasa.gov/api/temporal/daily/point?parameters=$POWER_PARAMS&community=AG&latitude=$lat&longitude=$lon&start=$START&end=$END&time-standard=LST"
+  ( fetch "$base&format=JSON"  "$OUT/$rel.json" && fetch "$base&format=ICASA" "$OUT/$rel.icasa.txt" \
+      && echo "  $id: ok" ) || echo "  aviso: NASA POWER falhou para $id" &
+done; wait; }   # espera todos os downloads dentro do mesmo subshell do pipe
+
+# ---------- 3. SoilGrids (GDAL direto nos mapas, em paralelo) ----------
+echo "[3/3] SoilGrids"
+command -v gdallocationinfo >/dev/null || { echo "  instalando GDAL"; (sudo apt-get -qq update && sudo apt-get -qq install -y gdal-bin) >/dev/null; }
+export GDAL_HTTP_MAX_RETRY=4 GDAL_HTTP_RETRY_DELAY=2 GDAL_DISABLE_READDIR_ON_OPEN=EMPTY_DIR \
+       CPL_VSIL_CURL_ALLOWED_EXTENSIONS=".vrt,.tif,.ovr" VSI_CACHE=TRUE
+
+sg_value() {  # sg_value ID LAT LON PROP DEPTH STAT  -> "ID,PROP,DEPTH,STAT,VALOR"
+  local id=$1 lat=$2 lon=$3 p=$4 d=$5 s=$6 v="" name
+  # o nome do quantil varia entre "Q0.05" e "Q05" nos arquivos do ISRIC: tenta os dois
+  for name in "${p}_${d}_${s}" "${p}_${d}_${s/0./}"; do
+    v="$(gdallocationinfo -valonly -wgs84 "/vsicurl/$SG_URL/$p/$name.vrt" "$lon" "$lat" 2>/dev/null | head -1 || true)"
+    [ -n "$v" ] && break
+  done
+  echo "$id,$p,$d,$s,$v"
 }
-echo "[1/3] DSSAT"
-clone_at dssat-csm-os   "$DSSAT_OS_COMMIT"   "$WORK/dssat-csm-os"
-clone_at dssat-csm-data "$DSSAT_DATA_COMMIT" "$WORK/dssat-csm-data"
-tar -czf "$OUT/dssat/dssat-csm-os-${DSSAT_OS_COMMIT:0:7}.tar.gz"     -C "$WORK" --exclude=.git dssat-csm-os
-tar -czf "$OUT/dssat/dssat-csm-data-${DSSAT_DATA_COMMIT:0:7}.tar.gz" -C "$WORK" --exclude=.git dssat-csm-data
-mkdir -p "$OUT/dssat/genotype" "$OUT/dssat/soil"
-cp "$WORK"/dssat-csm-os/Data/Genotype/* "$OUT/dssat/genotype/"
-cp "$WORK"/dssat-csm-data/Soil/*        "$OUT/dssat/soil/" 2>/dev/null || true
-cp "$WORK"/dssat-csm-os/license.txt     "$OUT/dssat/LICENSE-dssat-csm-os.txt"
+export -f sg_value; export SG_URL
 
-# ---------- 2 e 3. NASA POWER + SoilGrids por ponto ----------
 tail -n +2 "$POINTS" | while IFS=, read -r id name lat lon note; do
   [ -z "$id" ] && continue
-  echo "[2/3] NASA POWER  $id ($name)"
-  base="https://power.larc.nasa.gov/api/temporal/daily/point?parameters=$POWER_PARAMS&community=AG&latitude=$lat&longitude=$lon&start=$START&end=$END&time-standard=LST"
-  fetch "$base&format=JSON"  "$OUT/nasa-power/${id}_${START}_${END}.json"
-  fetch "$base&format=ICASA" "$OUT/nasa-power/${id}_${START}_${END}.icasa.txt"
-  sleep ${SLEEP_PW:-2}
+  rel="soilgrids/v2/$id.csv"
+  if have "$rel"; then echo "  $id: ja no bucket" >&2; continue; fi
+  for p in $SOIL_PROPS; do for d in $SOIL_DEPTHS; do for s in $SOIL_STATS; do
+    echo "$id $lat $lon $p $d $s"
+  done; done; done
+done > "$WORK/sg_tasks.txt"
 
-  echo "[3/3] SoilGrids   $id ($name)"
-  q="https://rest.isric.org/soilgrids/v2.0/properties/query?lon=$lon&lat=$lat"
-  for p in $SOIL_PROPS; do q="$q&property=$p"; done
-  for d in 0-5cm 5-15cm 15-30cm 30-60cm 60-100cm 100-200cm; do q="$q&depth=$d"; done
-  q="$q&value=mean&value=Q0.05&value=Q0.95&value=uncertainty"
-  fetch "$q" "$OUT/soilgrids/${id}.json" || echo "  aviso: SoilGrids falhou para $id (rode de novo depois)"
-  sleep ${SLEEP_SG:-13}   # limite publico do SoilGrids: ~5 consultas/min
-done
+if [ -s "$WORK/sg_tasks.txt" ]; then
+  xargs -P "$JOBS" -L 1 bash -c 'sg_value "$@"' _ < "$WORK/sg_tasks.txt" > "$WORK/sg_values.csv"
+  mkdir -p "$OUT/soilgrids/v2"
+  for id in $(cut -d, -f1 "$WORK/sg_values.csv" | sort -u); do
+    f="$OUT/soilgrids/v2/$id.csv"
+    echo "propriedade,profundidade,estatistica,valor" > "$f"
+    grep "^$id," "$WORK/sg_values.csv" | cut -d, -f2- | sort >> "$f"
+    total=$(($(wc -l < "$f") - 1)); vazios=$(grep -c ',$' "$f" || true)
+    echo "  $id: $((total - vazios))/$total valores"
+    # Reserva: propriedades que o GDAL nao leu vao pela API REST (uma consulta por propriedade)
+    if [ "$vazios" -gt 0 ]; then
+      read -r lat lon < <(awk -F, -v k="$id" '$1==k{print $3, $4}' "$POINTS")
+      for p in $(grep ',$' "$f" | cut -d, -f1 | sort -u); do
+        q="https://rest.isric.org/soilgrids/v2.0/properties/query?lon=$lon&lat=$lat&property=$p&value=mean&value=Q0.05&value=Q0.95"
+        for d in $SOIL_DEPTHS; do q="$q&depth=$d"; done
+        curl -fsS --retry 2 --retry-delay 15 --retry-all-errors -m 90 -o "$OUT/soilgrids/v2/${id}_rest_$p.json" "$q" \
+          && echo "    $p: via API REST" || { rm -f "$OUT/soilgrids/v2/${id}_rest_$p.json"; echo "    aviso: $p sem dados"; }
+      done
+    fi
+  done
+fi
 
-# ---------- 4. Manifesto de proveniencia ----------
-python3 - "$OUT" "$POINTS" "$ACCESSED" "$START" "$END" "$DSSAT_OS_COMMIT" "$DSSAT_DATA_COMMIT" "$POWER_PARAMS" <<'PY'
+# ---------- Manifesto + envio (so o que e novo) ----------
+if [ -z "$(find "$OUT" -type f | head -1)" ]; then
+  echo; echo "Nada novo: tudo ja estava no bucket. ($((SECONDS - T0)) s)"; exit 0
+fi
+
+python3 - "$OUT" "$POINTS" "$ACCESSED" "$START" "$END" "$DSSAT_OS_COMMIT" "$DSSAT_DATA_COMMIT" "$POWER_PARAMS" "$STAMP" <<'PY'
 import csv, hashlib, json, os, sys
-out, points, accessed, start, end, os_c, data_c, params = sys.argv[1:]
+out, points, accessed, start, end, os_c, data_c, params, stamp = sys.argv[1:]
 files = []
 for root, _, names in os.walk(out):
     for n in sorted(names):
         p = os.path.join(root, n)
-        files.append({"path": os.path.relpath(p, out), "bytes": os.path.getsize(p),
-                      "sha256": hashlib.sha256(open(p, "rb").read()).hexdigest()})
+        h = hashlib.sha256()
+        with open(p, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                h.update(chunk)
+        files.append({"path": os.path.relpath(p, out), "bytes": os.path.getsize(p), "sha256": h.hexdigest()})
 manifest = {
     "accessed_utc": accessed,
     "points": list(csv.DictReader(open(points))),
     "sources": {
-        "nasa_power": {"provider": "NASA LaRC POWER", "api": "temporal/daily/point",
-                       "community": "AG", "parameters": params.split(","), "start": start, "end": end,
-                       "time_standard": "LST", "docs": "https://power.larc.nasa.gov/docs/services/api/temporal/daily/",
-                       "nature": "dado em grade/modelado (~0.5 x 0.625 graus), nao medicao na propriedade"},
-        "soilgrids": {"provider": "ISRIC - World Soil Information", "version": "v2.0",
-                      "docs": "https://www.isric.org/explore/soilgrids", "resolution": "~250 m",
-                      "nature": "estimativa global por aprendizado de maquina; nao substitui analise local; nao fornece P/K disponiveis"},
+        "nasa_power": {"provider": "NASA LaRC POWER", "api": "temporal/daily/point", "community": "AG",
+                       "parameters": params.split(","), "start": start, "end": end, "time_standard": "LST",
+                       "docs": "https://power.larc.nasa.gov/docs/services/api/temporal/daily/",
+                       "nature": "dado em grade/modelado, nao medicao na propriedade"},
+        "soilgrids": {"provider": "ISRIC - World Soil Information", "version": "v2.0", "license": "CC BY 4.0",
+                      "access": "GDAL /vsicurl em https://files.isric.org/soilgrids/latest/data/ (reserva: API REST)",
+                      "units": "unidades mapeadas do SoilGrids (inteiros escalonados; converter conforme a documentacao do ISRIC)",
+                      "docs": "https://docs.isric.org/globaldata/soilgrids/",
+                      "nature": "estimativa ~250 m; nao substitui analise local; nao fornece P/K disponiveis"},
         "dssat": {"repos": {"dssat-csm-os": os_c, "dssat-csm-data": data_c},
-                  "license": "BSD-3-Clause (DSSAT Foundation)",
-                  "provenance_audit": "pendente (ver docs de contexto, secao 10.3)"},
+                  "license": "BSD-3-Clause (DSSAT Foundation)", "provenance_audit": "pendente"},
     },
-    "files": files,
+    "files_written_this_run": files,
 }
-json.dump(manifest, open(os.path.join(out, "manifest.json"), "w"), indent=2, ensure_ascii=False)
-print(f"manifest: {len(files)} arquivos")
+os.makedirs(os.path.join(out, "manifests"), exist_ok=True)
+json.dump(manifest, open(os.path.join(out, "manifests", f"{stamp}.json"), "w"), indent=2, ensure_ascii=False)
+print(f"manifest: {len(files)} arquivos novos")
 PY
 
-DEST="gs://$BUCKET/raw/$(date -u +%Y%m%d)"
-gcloud storage cp -r "$OUT"/* "$DEST/"
+gcloud storage cp -r "$OUT"/* "$RAW/"
 echo
-echo "Pronto: $DEST"
-gcloud storage du -s "$DEST"
+echo "Pronto em $((SECONDS - T0)) s: $RAW"
+gcloud storage du -s "$RAW"
