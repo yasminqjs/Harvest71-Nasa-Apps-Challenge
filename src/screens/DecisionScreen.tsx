@@ -3,7 +3,6 @@ import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import {
   Image,
-  Modal,
   Pressable,
   ScrollView,
   Share,
@@ -153,10 +152,11 @@ export const DecisionScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.bg }}
-      contentContainerStyle={styles.container}
-    >
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: theme.bg }}
+        contentContainerStyle={styles.container}
+      >
       {/* Cartão de Decisão da Safra */}
       <View
         style={[
@@ -549,12 +549,9 @@ export const DecisionScreen: React.FC = () => {
         </View>
       </View>
 
-      <Modal
-        visible={Boolean(pronafPreview)}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPronafPreview(null)}
-      >
+      </ScrollView>
+
+      {Boolean(pronafPreview) && (
         <View style={styles.modalOverlay}>
           <View
             style={[
@@ -577,8 +574,8 @@ export const DecisionScreen: React.FC = () => {
             </ScrollView>
           </View>
         </View>
-      </Modal>
-    </ScrollView>
+      )}
+    </View>
   );
 };
 
@@ -723,7 +720,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   modalOverlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 60,
+    elevation: 18,
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
     padding: 20,

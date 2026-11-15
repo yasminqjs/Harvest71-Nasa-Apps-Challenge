@@ -7,8 +7,9 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { AppState } from 'react-native';
 import { NORDESTE_REGIONS } from '../data/seedData';
-import { DEFAULT_ACCESSIBILITY } from '../database/seedBuilder';
+import { DEFAULT_ACCESSIBILITY, buildSeedSnapshot } from '../database/seedBuilder';
 import { sqliteDb } from '../database/sqlite';
 import { runLocalAgronomicEngine } from '../services/localAgronomicEngine';
 import { triggerLocalPreventiveAlert } from '../services/notificationService';
@@ -116,26 +117,78 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     let mounted = true;
-    sqliteDb.seedInitialData().then((snap) => {
-      if (!mounted) return;
+    const applySnapshot = (snap: ReturnType<typeof buildSeedSnapshot>) => {
+      const fallback = buildSeedSnapshot();
+      const safeFarmers = snap.usuarios.length > 0 ? snap.usuarios : fallback.usuarios;
+      const safeFarms = snap.fazendas.length > 0 ? snap.fazendas : fallback.fazendas;
       setAccessibility(snap.accessibility);
-      setFarmers(snap.usuarios);
-      setFarms(snap.fazendas);
-      setPancs(snap.catalogoPancs);
-      setWells(snap.pocosSiagas);
+      setFarmers(safeFarmers);
+      setFarms(safeFarms);
+      setPancs(
+        snap.catalogoPancs.length > 0 ? snap.catalogoPancs : fallback.catalogoPancs
+      );
+      setWells(snap.pocosSiagas.length > 0 ? snap.pocosSiagas : fallback.pocosSiagas);
       setAlerts(snap.alertas);
       setFieldLogs(snap.fieldLogs);
       setFeedbacks(snap.feedbacks ?? []);
       setSyncQueue(snap.syncQueue);
-      setActiveFarmerId(snap.activeFarmerId);
-      setActiveFarmId(snap.activeFarmId);
-      setNordesteMapCompleted(snap.accessibility.voiceOnboardingCompleted);
+      setActiveFarmerId(snap.activeFarmerId || safeFarmers[0]?.id || 'farmer-maria');
+      setActiveFarmId(snap.activeFarmId || safeFarms[0]?.id || 'farm-maria');
+      setNordesteMapCompleted(
+        Boolean(
+          snap.accessibility.registrationCompleted ??
+            snap.accessibility.voiceOnboardingCompleted
+        )
+      );
       setReady(true);
-    });
+    };
+
+    sqliteDb
+      .seedInitialData()
+      .then((snap) => {
+        if (!mounted) return;
+        applySnapshot(snap);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        applySnapshot(buildSeedSnapshot());
+      });
+
     return () => {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') {
+        stopSpeaking();
+      } else if (!ready || farmers.length === 0 || farms.length === 0) {
+        sqliteDb
+          .seedInitialData()
+          .then((snap) => {
+            const fallback = buildSeedSnapshot();
+            setAccessibility(snap.accessibility);
+            setFarmers(snap.usuarios.length > 0 ? snap.usuarios : fallback.usuarios);
+            setFarms(snap.fazendas.length > 0 ? snap.fazendas : fallback.fazendas);
+            setNordesteMapCompleted(
+              Boolean(
+                snap.accessibility.registrationCompleted ??
+                  snap.accessibility.voiceOnboardingCompleted
+              )
+            );
+            setReady(true);
+          })
+          .catch(() => {
+            const fallback = buildSeedSnapshot();
+            setFarmers((prev) => (prev.length > 0 ? prev : fallback.usuarios));
+            setFarms((prev) => (prev.length > 0 ? prev : fallback.fazendas));
+            setReady(true);
+          });
+      }
+    });
+    return () => sub.remove();
+  }, [ready, farmers.length, farms.length]);
 
   useEffect(() => {
     const unsub = NetInfo.addEventListener((state) => {
@@ -182,11 +235,17 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const speak = useCallback(
     (text: string, force = false) => {
+      const cadastrado =
+        accessibility.registrationCompleted &&
+        activeFarmer?.tratamento &&
+        activeFarmer.tratamento !== 'Agricultor(a)'
+          ? activeFarmer.tratamento
+          : undefined;
       speakText(text, {
         enabled: accessibility.voiceGuidanceEnabled,
         rate: accessibility.speechRate,
         languageLevel: accessibility.languageLevel,
-        tratamento: activeFarmer?.tratamento,
+        tratamento: cadastrado,
         force,
       });
     },
@@ -246,6 +305,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       const next: AccessibilityProfile = {
         ...accessibility,
         voiceOnboardingCompleted: true,
+        registrationCompleted: accessibility.registrationCompleted ?? false,
         voiceGuidanceEnabled: enableVoice,
       };
       setAccessibility(next);
@@ -336,12 +396,19 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         setFarms((prev) => prev.map((f) => (f.id === updatedFarm.id ? updatedFarm : f)));
       }
 
+      const nextAcc: AccessibilityProfile = {
+        ...accessibility,
+        registrationCompleted: true,
+      };
+      setAccessibility(nextAcc);
+      await sqliteDb.saveAccessibility(nextAcc);
+
       setNordesteMapCompleted(true);
       if (!accessibility.tutorialCompleted) {
         setTutorialVisible(true);
       }
     },
-    [activeFarm, dryStressBoost, accessibility.tutorialCompleted]
+    [activeFarm, dryStressBoost, accessibility]
   );
 
   const openTutorial = useCallback(() => {

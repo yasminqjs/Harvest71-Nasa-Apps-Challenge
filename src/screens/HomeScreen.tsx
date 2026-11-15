@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Modal,
+  BackHandler,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -55,7 +55,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [sinaisErosao, setSinaisErosao] = useState(false);
   const [pragaOuObs, setPragaOuObs] = useState('');
 
+  useEffect(() => {
+    if (!showFieldDetailModal && !showClimateDetail) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setShowFieldDetailModal(false);
+      setShowClimateDetail(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [showFieldDetailModal, showClimateDetail]);
+
   if (!activeFarm || !activeFarmer) return null;
+
+  const nomeCadastrado =
+    accessibility.registrationCompleted &&
+    activeFarmer.tratamento &&
+    activeFarmer.tratamento !== 'Agricultor(a)'
+      ? activeFarmer.tratamento
+      : undefined;
 
   const diag = activeFarm.diagnostico;
   const level = accessibility.languageLevel;
@@ -174,15 +191,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       : theme.warningBorder;
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.bg }}
-      contentContainerStyle={styles.container}
-    >
-      <View style={styles.greetingRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.greeting, { color: theme.text, fontSize: 16 * theme.scale }]}>
-            Olá, {activeFarmer.tratamento}
-          </Text>
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: theme.bg }}
+        contentContainerStyle={styles.container}
+      >
+        <View style={styles.greetingRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.greeting, { color: theme.text, fontSize: 16 * theme.scale }]}>
+              {nomeCadastrado ? `Olá, ${nomeCadastrado}` : 'Olá! Sua roça hoje'}
+            </Text>
           <Text style={[styles.farmTag, { color: theme.textMuted }]}>
             {activeFarm.nome} • {formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)}
           </Text>
@@ -227,7 +245,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <View style={styles.cardBody}>
           <View style={styles.cardTitleRow}>
             <Text style={[styles.cardTitle, { color: theme.text, fontSize: 20 * theme.scale }]}>
-              clima do dia
+              Clima do dia
             </Text>
             <Text style={[styles.tempBadge, { color: theme.primary }]}>
               {diag.climaDia.tempMaxC}° / {diag.climaDia.tempMinC}°C
@@ -301,7 +319,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </View>
         <View style={styles.cardBody}>
           <Text style={[styles.cardTitle, { color: theme.text, fontSize: 20 * theme.scale }]}>
-            previsão trimestre
+            Previsão do tempo
           </Text>
           <View style={styles.emojiAlertRow}>
             <Text style={styles.reactiveFace}>{diag.modeloB.emoji}</Text>
@@ -358,7 +376,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </View>
         <View style={styles.cardBody}>
           <Text style={[styles.cardTitle, { color: theme.text, fontSize: 20 * theme.scale }]}>
-            rotação atual
+            Rotação atual
           </Text>
           <Text style={[styles.cropTitle, { color: theme.primary, fontSize: 14 * theme.scale }]}>
             {diag.rotacaoAtual.culturas}
@@ -533,15 +551,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </Text>
           </Pressable>
         )}
-      </View>
+        </View>
+      </ScrollView>
 
       {/* Modal de Validação Completa do Campo */}
-      <Modal
-        visible={showFieldDetailModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowFieldDetailModal(false)}
-      >
+      {showFieldDetailModal && (
         <View style={styles.modalOverlay}>
           <View
             style={[
@@ -767,15 +781,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </ScrollView>
           </View>
         </View>
-      </Modal>
+      )}
 
       {/* Modal do Balanço Hídrico Semanal */}
-      <Modal
-        visible={showClimateDetail}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowClimateDetail(false)}
-      >
+      {showClimateDetail && (
         <View style={styles.modalOverlay}>
           <View
             style={[
@@ -798,7 +807,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   ? diag.modeloA.resumoAcessivel
                   : diag.modeloA.resumoTecnico,
                 level,
-                activeFarmer.tratamento
+                nomeCadastrado
               )}
             </Text>
 
@@ -839,8 +848,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </Pressable>
           </View>
         </View>
-      </Modal>
-    </ScrollView>
+      )}
+    </View>
   );
 };
 
@@ -1067,7 +1076,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   modalOverlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 60,
+    elevation: 18,
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
     padding: 20,

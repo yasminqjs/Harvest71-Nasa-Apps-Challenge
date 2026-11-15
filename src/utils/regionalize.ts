@@ -81,7 +81,11 @@ export function regionalizarTexto(
     }
   }
 
-  if (tratamento && !resultado.toLowerCase().includes(tratamento.toLowerCase())) {
+  if (
+    tratamento &&
+    tratamento !== 'Agricultor(a)' &&
+    !resultado.toLowerCase().includes(tratamento.toLowerCase())
+  ) {
     return `${tratamento}, ${resultado.charAt(0).toLowerCase()}${resultado.slice(1)}`;
   }
 

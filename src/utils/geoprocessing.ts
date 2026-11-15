@@ -56,6 +56,22 @@ export function distanceKm(a: GeoPoint, b: GeoPoint): number {
   return Number(turf.distance(from, to, { units: 'kilometers' }).toFixed(2));
 }
 
+export function findNearestRegion<T extends { centroid: GeoPoint }>(
+  point: GeoPoint,
+  regions: T[]
+): { region: T; distanceKm: number } {
+  let best = regions[0];
+  let bestDist = Infinity;
+  for (const reg of regions) {
+    const d = distanceKm(point, reg.centroid);
+    if (d < bestDist) {
+      bestDist = d;
+      best = reg;
+    }
+  }
+  return { region: best, distanceKm: bestDist };
+}
+
 export function filterWellsByRadius(
   wells: WellPoint[],
   center: GeoPoint,

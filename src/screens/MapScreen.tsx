@@ -432,7 +432,9 @@ export const MapScreen: React.FC = () => {
           {regionalizarTexto(
             wellSum.orientacaoBaixaRenda,
             accessibility.languageLevel,
-            activeFarmer.tratamento
+            accessibility.registrationCompleted && activeFarmer.tratamento !== 'Agricultor(a)'
+              ? activeFarmer.tratamento
+              : undefined
           )}
         </Text>
 

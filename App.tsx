@@ -1,6 +1,13 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  AppState,
+  BackHandler,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { AlertTopBanner } from './src/components/AlertTopBanner';
 import { AppHeader } from './src/components/AppHeader';
@@ -32,6 +39,46 @@ const RoçaVivaRoot: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MainTabKey>('inicio');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTabKey>('perfil');
+
+  useEffect(() => {
+    const appSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        // Garante que modais transitórios não fiquem travando cliques após recriação da Activity no Android
+        setSettingsOpen(false);
+      }
+    });
+    return () => appSub.remove();
+  }, []);
+
+  useEffect(() => {
+    const backSub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (settingsOpen) {
+        setSettingsOpen(false);
+        return true;
+      }
+      if (tutorialVisible) {
+        void closeTutorial(true);
+        return true;
+      }
+      if (
+        accessibility.voiceOnboardingCompleted &&
+        nordesteMapCompleted &&
+        activeTab !== 'inicio'
+      ) {
+        setActiveTab('inicio');
+        return true;
+      }
+      return false;
+    });
+    return () => backSub.remove();
+  }, [
+    settingsOpen,
+    tutorialVisible,
+    closeTutorial,
+    accessibility.voiceOnboardingCompleted,
+    nordesteMapCompleted,
+    activeTab,
+  ]);
 
   const openSettingsAt = (tab: SettingsTabKey = 'perfil') => {
     setSettingsTab(tab);
@@ -79,15 +126,19 @@ const RoçaVivaRoot: React.FC = () => {
             {activeTab === 'pancs' && <FoodSecurityScreen />}
           </View>
           <BottomTabBar activeTab={activeTab} onChangeTab={setActiveTab} />
-          <SettingsModal
-            visible={settingsOpen}
-            initialTab={settingsTab}
-            onClose={() => setSettingsOpen(false)}
-          />
-          <AppTutorialModal
-            visible={tutorialVisible}
-            onClose={() => closeTutorial(true)}
-          />
+          {settingsOpen && (
+            <SettingsModal
+              visible={settingsOpen}
+              initialTab={settingsTab}
+              onClose={() => setSettingsOpen(false)}
+            />
+          )}
+          {tutorialVisible && (
+            <AppTutorialModal
+              visible={tutorialVisible}
+              onClose={() => closeTutorial(true)}
+            />
+          )}
         </View>
       )}
     </SafeAreaView>

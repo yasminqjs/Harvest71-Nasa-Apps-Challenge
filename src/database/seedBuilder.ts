@@ -34,6 +34,7 @@ export interface LocalDatabaseSnapshot {
 
 export const DEFAULT_ACCESSIBILITY: AccessibilityProfile = {
   voiceOnboardingCompleted: false,
+  registrationCompleted: false,
   tutorialCompleted: false,
   voiceGuidanceEnabled: false,
   speechRate: 0.85,

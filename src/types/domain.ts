@@ -49,6 +49,7 @@ export type ErosionRiskLevel = 'baixo' | 'moderado' | 'alto';
 
 export interface AccessibilityProfile {
   voiceOnboardingCompleted: boolean;
+  registrationCompleted?: boolean;
   tutorialCompleted?: boolean;
   voiceGuidanceEnabled: boolean;
   speechRate: number; // 0.85 padrão para cadência clara no campo

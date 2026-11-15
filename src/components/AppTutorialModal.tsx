@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { getAppTheme } from '../theme/tokens';
 
@@ -110,8 +110,10 @@ export const AppTutorialModal: React.FC<AppTutorialModalProps> = ({
     onClose();
   };
 
+  if (!visible) return null;
+
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
+    <View style={[styles.overlayRoot, { backgroundColor: theme.bg }]}>
       <View style={[styles.root, { backgroundColor: theme.bg }]}>
         <View
           style={[
@@ -243,11 +245,20 @@ export const AppTutorialModal: React.FC<AppTutorialModalProps> = ({
           </Pressable>
         </View>
       </View>
-    </Modal>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  overlayRoot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 999,
+    elevation: 24,
+  },
   root: {
     flex: 1,
   },

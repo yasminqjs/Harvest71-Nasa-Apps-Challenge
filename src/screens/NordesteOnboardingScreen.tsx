@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import * as Location from 'expo-location';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,8 +12,9 @@ import {
 } from 'react-native';
 import { NordesteSvgMap } from '../components/NordesteSvgMap';
 import { useAccessibility } from '../context/AccessibilityContext';
-import { BahiaRegionPreset } from '../data/seedData';
+import { BahiaRegionPreset, NORDESTE_REGIONS } from '../data/seedData';
 import { getAppTheme } from '../theme/tokens';
+import { findNearestRegion } from '../utils/geoprocessing';
 import {
   FarmObjective,
   FarmingTenureOption,
@@ -177,8 +180,21 @@ export const NordesteOnboardingScreen: React.FC = () => {
 
   const [stage, setStage] = useState<OnboardingStage>('mapa');
   const [activeParamIdx, setActiveParamIdx] = useState(0);
+  const [gpsStatus, setGpsStatus] = useState<
+    'idle' | 'locating' | 'found' | 'denied' | 'error'
+  >('idle');
+  const [gpsMatch, setGpsMatch] = useState<{
+    region: BahiaRegionPreset;
+    distanceKm: number;
+  } | null>(null);
+  const [gpsUserCoords, setGpsUserCoords] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
-  const [tratamento, setTratamento] = useState(activeFarmer?.tratamento ?? 'Dona Maria');
+  const [tratamento, setTratamento] = useState(
+    accessibility.registrationCompleted ? activeFarmer?.tratamento ?? '' : ''
+  );
   const [genero, setGenero] = useState<GenderOption>(
     activeFarmer?.genero ?? 'feminino'
   );
@@ -217,11 +233,66 @@ export const NordesteOnboardingScreen: React.FC = () => {
 
   const currentTab = PARAM_TABS[activeParamIdx];
 
+  const detectRegionViaGps = useCallback(async () => {
+    setGpsStatus('locating');
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setGpsStatus('denied');
+        return;
+      }
+
+      const lastKnown = await Location.getLastKnownPositionAsync({
+        maxAge: 300000,
+      }).catch(() => null);
+
+      const timeoutPromise = new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), 5500)
+      );
+      const currentPos =
+        lastKnown ??
+        (await Promise.race([
+          Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          }).catch(() => null),
+          timeoutPromise,
+        ]));
+
+      if (!currentPos) {
+        setGpsStatus('error');
+        return;
+      }
+
+      const coords = {
+        latitude: currentPos.coords.latitude,
+        longitude: currentPos.coords.longitude,
+      };
+      const match = findNearestRegion(coords, NORDESTE_REGIONS);
+      setGpsUserCoords(coords);
+      setGpsMatch(match);
+      setGpsStatus('found');
+      await selectBahiaRegion(match.region.id);
+      speak(
+        `Local detectado pelo GPS: ${match.region.nome}, em ${match.region.municipio}. Toque em confirmar se estiver correto ou escolha outra região no mapa.`
+      );
+    } catch {
+      setGpsStatus('error');
+    }
+  }, [selectBahiaRegion, speak]);
+
+  useEffect(() => {
+    if (stage !== 'mapa' || gpsStatus !== 'idle') return undefined;
+    const timer = setTimeout(() => {
+      void detectRegionViaGps();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [stage, gpsStatus, detectRegionViaGps]);
+
   useEffect(() => {
     if (!accessibility.voiceGuidanceEnabled) return;
     if (stage === 'mapa') {
       speak(
-        'Primeiro, escolha onde fica a sua roça no mapa da Bahia e Nordeste.'
+        'Primeiro, confirme sua região detectada pelo GPS ou toque em outro ponto no mapa do Nordeste.'
       );
     } else {
       speak(currentTab.voice);
@@ -231,7 +302,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
 
   const handleSelectRegion = async (reg: BahiaRegionPreset) => {
     await selectBahiaRegion(reg.id);
-    speak(`Região selecionada: ${reg.nome}, ${reg.municipio}, na Bahia.`);
+    speak(`Região selecionada: ${reg.nome}, ${reg.municipio} - ${reg.estado}.`);
   };
 
   const toggleDesafio = (id: string) => {
@@ -245,7 +316,8 @@ export const NordesteOnboardingScreen: React.FC = () => {
       await applyRegistrationSetup(
         {
           ...activeFarmer,
-          tratamento: tratamento.trim() || activeFarmer.tratamento,
+          tratamento: tratamento.trim() || 'Agricultor(a)',
+          nome: tratamento.trim() || activeFarmer.nome,
           genero,
           faixaEtaria,
           tempoAgriculturaFamiliar: tempoAgricultura,
@@ -437,8 +509,106 @@ export const NordesteOnboardingScreen: React.FC = () => {
               { backgroundColor: theme.surface, borderColor: theme.border },
             ]}
           >
+            {/* Card de detecção automática por GPS com confirmação */}
+            <View
+              style={[
+                styles.gpsBox,
+                {
+                  backgroundColor:
+                    gpsStatus === 'found' ? theme.successBg : theme.surfaceMuted,
+                  borderColor:
+                    gpsStatus === 'found' ? theme.successBorder : theme.border,
+                },
+              ]}
+            >
+              <View style={styles.gpsHeaderRow}>
+                {gpsStatus === 'locating' ? (
+                  <ActivityIndicator size="small" color={theme.primary} />
+                ) : (
+                  <Ionicons
+                    name={gpsStatus === 'found' ? 'navigate-circle' : 'locate-outline'}
+                    size={22}
+                    color={gpsStatus === 'found' ? theme.successText : theme.primary}
+                  />
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 13 * theme.scale,
+                      fontWeight: '900',
+                      color: gpsStatus === 'found' ? theme.successText : theme.text,
+                    }}
+                  >
+                    {gpsStatus === 'locating'
+                      ? 'Detectando sua região pelo GPS...'
+                      : gpsStatus === 'found' && gpsMatch
+                      ? `GPS detectou: ${gpsMatch.region.nome} (${gpsMatch.region.estado})`
+                      : gpsStatus === 'denied'
+                      ? 'GPS sem permissão — selecione no mapa abaixo'
+                      : 'Usar GPS para localizar sua região'}
+                  </Text>
+                  {gpsStatus === 'found' && gpsMatch && (
+                    <Text
+                      style={{
+                        fontSize: 11 * theme.scale,
+                        fontWeight: '700',
+                        color: theme.textMuted,
+                      }}
+                    >
+                      Polo próximo: {gpsMatch.region.municipio} (~
+                      {Math.round(gpsMatch.distanceKm)} km). Confirme ou toque em outra
+                      região.
+                    </Text>
+                  )}
+                </View>
+
+                <Pressable
+                  onPress={() => void detectRegionViaGps()}
+                  disabled={gpsStatus === 'locating'}
+                  style={[
+                    styles.gpsRetryBtn,
+                    { backgroundColor: theme.surface, borderColor: theme.border },
+                  ]}
+                >
+                  <Ionicons name="refresh" size={15} color={theme.primary} />
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: theme.primary }}>
+                    GPS
+                  </Text>
+                </Pressable>
+              </View>
+
+              {gpsStatus === 'found' &&
+                gpsMatch &&
+                activeFarm?.regiaoNome === gpsMatch.region.nome && (
+                  <Pressable
+                    onPress={() => {
+                      setStage('cadastro');
+                      setActiveParamIdx(0);
+                    }}
+                    style={[styles.gpsConfirmBtn, { backgroundColor: theme.primary }]}
+                  >
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={18}
+                      color={theme.primaryText}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '900',
+                        color: theme.primaryText,
+                      }}
+                    >
+                      Confirmar região detectada e continuar
+                    </Text>
+                  </Pressable>
+                )}
+            </View>
+
             <NordesteSvgMap
               selectedRegionName={activeFarm?.regiaoNome ?? 'Recôncavo Baiano'}
+              gpsDetectedRegionId={gpsMatch?.region.id ?? null}
+              gpsUserCoords={gpsUserCoords}
               onSelectRegion={handleSelectRegion}
               theme={theme}
             />
@@ -454,8 +624,8 @@ export const NordesteOnboardingScreen: React.FC = () => {
             >
               <Ionicons name="location" size={22} color={theme.successText} />
               <Text style={[styles.selectedHint, { color: theme.successText }]}>
-                {activeFarm?.regiaoNome} ({activeFarm?.municipio} - {activeFarm?.estado}) •
-                Bioma {activeFarm?.bioma}
+                Selecionado: {activeFarm?.regiaoNome} ({activeFarm?.municipio} -{' '}
+                {activeFarm?.estado}) • Bioma {activeFarm?.bioma}
               </Text>
             </View>
           </View>
@@ -1273,5 +1443,35 @@ const styles = StyleSheet.create({
   nextText: {
     fontSize: 14,
     fontWeight: '900',
+  },
+  gpsBox: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 10,
+    gap: 8,
+  },
+  gpsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  gpsRetryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  gpsConfirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    minHeight: 42,
   },
 });

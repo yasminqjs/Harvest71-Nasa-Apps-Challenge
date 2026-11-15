@@ -123,7 +123,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         >
           <Ionicons name="person" size={19} color={theme.text} />
           <Text style={[styles.userTinyLabel, { color: theme.textMuted }]} numberOfLines={1}>
-            {activeFarmer?.tratamento?.split(' ')[0] ?? 'Perfil'}
+            {accessibility.registrationCompleted &&
+            activeFarmer?.tratamento &&
+            activeFarmer.tratamento !== 'Agricultor(a)'
+              ? activeFarmer.tratamento.split(' ')[0]
+              : 'Perfil'}
           </Text>
           {unreadAlertsCount > 0 && (
             <View style={styles.alertBadge}>
