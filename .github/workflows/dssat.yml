@@ -54,7 +54,7 @@ jobs:
       - name: Teste de fumaça local (experimento de referência)
         run: docker run --rm "$IMAGE_REPO:$SHORT"
 
-      - name: Comparar milho–caupi e caupi–milho
+      - name: Comparar rotações com duas e três culturas
         continue-on-error: true
         run: |
           mkdir -p sequence-probe
@@ -74,6 +74,7 @@ jobs:
             sequence-probe/**/*.v48
             sequence-probe/**/*.*X
             sequence-probe/comparison.json
+            sequence-probe/trio-comparison.json
           if-no-files-found: ignore
 
       # Roda a suíte completa DENTRO da imagem: todas as culturas do catálogo precisam simular todas as safras

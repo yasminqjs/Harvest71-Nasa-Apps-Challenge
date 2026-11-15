@@ -340,18 +340,20 @@ Essas rotas devolvem estimativas de calendário baseadas no catálogo. O campo
 `evidence.dssat_simulated` fica `false`. Produtividade, continuidade do solo,
 impacto de eventos e comparação agronômica exigem execução no motor.
 
-### Comparação sequencial milho e caupi
+### Comparação de rotações com duas ou três culturas
 
-Envie a coordenada e duas datas de plantio no mesmo ano histórico (1992 a 2024)
-para `POST /rotations`. O par disponível é milho e feijão-caupi, em sequeiro.
+Envie a coordenada, duas ou três culturas distintas entre milho, caupi e sorgo
+e uma data por cultura, em ordem no mesmo ano histórico (1992 a 2024), para
+`POST /rotations`. O DSSAT tenta todas as permutações em sequeiro.
 
 ```json
 {"lat":-9.41,"lon":-40.5,"crops":["MZ","CP"],"planting_dates":["1992-01-15","1992-07-15"]}
 ```
 
-Consulte a URL `poll` da resposta até `done` ou `failed`. O resultado inclui
-`alternatives` com os dois ciclos de cada ordem, e
-`reversed_minus_baseline` com diferenças por cultura. A ordem invertida troca
-a cultura de cada data. O resultado inclui efeitos de calendário e vale para
-o ano histórico escolhido. Se o motor não executar os plantios nas datas
-pedidas, o pedido falha. Os limites de uso são compartilhados com simulações.
+Consulte a URL `poll` da resposta até `done` ou `failed`. Cada permutação troca a cultura associada a cada data.
+`alternatives` contém as ordens que completaram os plantios e `failed_alternatives`
+lista as demais. Quando a ordem original foi concluída, `minus_baseline` mostra
+as diferenças por cultura em cada alternativa. Para duas culturas, o campo
+`reversed_minus_baseline` continua disponível. O resultado inclui efeitos de
+calendário e vale para o ano histórico escolhido. Se nenhuma ordem completar
+os plantios, o pedido falha. Os limites de uso são compartilhados com simulações.

@@ -284,18 +284,21 @@ class SimulationRequest(BaseModel):
 class RotationRequest(BaseModel):
     lat: float = Field(ge=BRAZIL_BBOX[0], le=BRAZIL_BBOX[1])
     lon: float = Field(ge=BRAZIL_BBOX[2], le=BRAZIL_BBOX[3])
-    crops: tuple[str, str] = ("MZ", "CP")
-    planting_dates: tuple[date, date]
+    crops: tuple[str, ...] = Field(default=("MZ", "CP"), min_length=2, max_length=3)
+    planting_dates: tuple[date, ...] = Field(min_length=2, max_length=3)
 
     @model_validator(mode="after")
     def _validate_rotation(self):
         resolved = [find_crop(code) for code in self.crops]
-        if {crop["code"] for crop in resolved if crop} != {"MZ", "CP"}:
-            raise ValueError("a comparação sequencial disponível é milho e caupi")
-        self.crops = tuple(crop["code"] for crop in resolved)
-        first, second = self.planting_dates
-        if not (1992 <= first.year == second.year <= 2024 and first < second):
-            raise ValueError("informe duas datas em ordem no mesmo ano histórico (1992 a 2024)")
+        codes = tuple(crop["code"] for crop in resolved if crop)
+        if (len(codes) != len(self.crops) or len(set(codes)) != len(codes)
+                or not set(codes) <= {"MZ", "CP", "SG"}):
+            raise ValueError("escolha culturas distintas entre milho, caupi e sorgo")
+        self.crops = codes
+        dates = self.planting_dates
+        if (len(dates) != len(codes) or tuple(sorted(set(dates))) != dates
+                or not 1992 <= dates[0].year == dates[-1].year <= 2024):
+            raise ValueError("informe uma data por cultura, em ordem, no mesmo ano histórico (1992 a 2024)")
         return self
 
 
@@ -383,11 +386,12 @@ def planning_capabilities() -> dict:
         "calendar": True,
         "calendar_replan": True,
         "dssat_sequence": True,
-        "sequence_pairs": [["MZ", "CP"]],
+        "sequence_pairs": [["MZ", "CP"], ["MZ", "SG"], ["CP", "SG"]],
+        "sequence_max_crops": 3,
         "dssat_replan": False,
         "events": {"rainfall_multiplier": "single_crop_historical", "pest": "unsupported"},
         "crops": [{"code": crop["code"], "calendar": bool(crop.get("cycle_days_max")),
-                   "single_crop": True, "dssat_sequence": crop["code"] in {"MZ", "CP"}} for crop in CROPS],
+                   "single_crop": True, "dssat_sequence": crop["code"] in {"MZ", "CP", "SG"}} for crop in CROPS],
     }
 
 

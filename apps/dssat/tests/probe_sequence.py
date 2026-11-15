@@ -19,3 +19,8 @@ if __name__ == "__main__":
     result = compare(power, soil, work, ("MZ", "CP"), (date(1992, 1, 15), date(1992, 7, 15)))
     (work / "comparison.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(result))
+    trio = compare(power, soil, work / "trio", ("MZ", "CP", "SG"),
+                   (date(1992, 1, 15), date(1992, 5, 20), date(1992, 9, 20)))
+    assert len(trio["alternatives"]) + len(trio["failed_alternatives"]) == 6
+    (work / "trio-comparison.json").write_text(json.dumps(trio, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps(trio))

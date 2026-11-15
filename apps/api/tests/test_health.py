@@ -119,6 +119,17 @@ def test_rotation_queues_only_supported_pair(sim):
     assert client.get(result["poll"]).json()["status"] == "queued"
 
 
+def test_rotation_accepts_trio_with_one_date_per_crop(sim):
+    _, store, runs = sim
+    body = {**GOOD, "crops": ["milho", "caupi", "sorgo"],
+            "planting_dates": ["2024-01-15", "2024-05-20", "2024-09-20"]}
+    assert client.post("/rotations", json={**body, "planting_dates": body["planting_dates"][:2]}).status_code == 422
+    assert client.post("/rotations", json={**body, "crops": ["milho", "MZ", "sorgo"]}).status_code == 422
+    response = client.post("/rotations", json=body)
+    assert response.status_code == 202
+    assert store[f"requests/{runs[0]}.json"]["crops"] == ["MZ", "CP", "SG"]
+
+
 def test_calendar_planning_and_replan(sim):
     body = {
         "horizon_start": "2027-01-01", "horizon_end": "2028-12-31",
