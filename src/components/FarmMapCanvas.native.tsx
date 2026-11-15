@@ -5,11 +5,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Circle, MapPressEvent, Marker, Polygon } from 'react-native-maps';
 import { WebView, WebViewMessageEvent, WebViewProps } from 'react-native-webview';
 import { useAccessibility } from '../context/AccessibilityContext';
-import { LEAFLET_CSS, LEAFLET_JS } from '../data/leafletInline';
+import { sortPolygonPoints } from '../utils/geoprocessing';
+import { buildFarmLeafletHtml } from '../utils/leafletHtml';
 import {
-  FarmMapCanvas as VectorFallbackCanvas,
   FarmMapCanvasProps,
-} from './FarmMapCanvas';
+  VectorFarmCanvas as VectorFallbackCanvas,
+} from './VectorFarmCanvas';
 
 type WebViewHandle = { injectJavaScript: (script: string) => void };
 const LeafletWebView = WebView as unknown as React.ForwardRefExoticComponent<
@@ -28,180 +29,6 @@ class MapErrorBoundary extends React.Component<
     if (this.state.hasError) return this.props.fallback;
     return this.props.children;
   }
-}
-
-function buildFarmLeafletHtml(): string {
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<style>
-${LEAFLET_CSS}
-html, body, #map {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  background: #DCEEF8;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  overflow: hidden;
-}
-.leaflet-control-attribution {
-  font-size: 9px !important;
-  background: rgba(255,255,255,0.78) !important;
-}
-</style>
-</head>
-<body>
-<div id="map"></div>
-<script>
-${LEAFLET_JS}
-</script>
-<script>
-(function() {
-  var state = {
-    centroid: { latitude: -12.9714, longitude: -38.5014 },
-    polygon: [],
-    wells: [],
-    showWells: true,
-    drawingMode: false,
-    basemap: 'satellite'
-  };
-
-  var map = L.map('map', {
-    center: [-12.9714, -38.5014],
-    zoom: 16,
-    minZoom: 5,
-    maxZoom: 19,
-    zoomControl: false
-  });
-
-  var satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19,
-    attribution: 'Esri Satélite'
-  });
-  var satLabelsLayer = L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19
-  });
-  var osmLayer = L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
-    attribution: 'OSM/Carto'
-  });
-
-  satLayer.addTo(map);
-  satLabelsLayer.addTo(map);
-
-  var polyLayer = L.layerGroup().addTo(map);
-  var wellsLayer = L.layerGroup().addTo(map);
-
-  map.on('click', function(e) {
-    if (!state.drawingMode) return;
-    if (window.ReactNativeWebView) {
-      window.ReactNativeWebView.postMessage(JSON.stringify({
-        type: 'addPoint',
-        latitude: Number(e.latlng.lat.toFixed(6)),
-        longitude: Number(e.latlng.lng.toFixed(6))
-      }));
-    }
-  });
-
-  function renderOverlays(shouldFit) {
-    polyLayer.clearLayers();
-    wellsLayer.clearLayers();
-
-    if (state.polygon && state.polygon.length >= 3) {
-      var latlngs = state.polygon.map(function(p) { return [p.latitude, p.longitude]; });
-      var poly = L.polygon(latlngs, {
-        color: '#22C55E',
-        weight: 3,
-        fillColor: '#1B6B40',
-        fillOpacity: 0.34
-      }).addTo(polyLayer);
-      if (shouldFit && !state.drawingMode) {
-        try {
-          if (state.showWells && state.wells.length > 0) {
-            map.setView([state.centroid.latitude, state.centroid.longitude], 12);
-          } else {
-            map.fitBounds(poly.getBounds(), { padding: [24, 24], maxZoom: 17 });
-          }
-        } catch (e) {}
-      }
-    } else if (shouldFit) {
-      map.setView([state.centroid.latitude, state.centroid.longitude], state.showWells ? 12 : 16);
-    }
-
-    (state.polygon || []).forEach(function(pt, idx) {
-      L.circleMarker([pt.latitude, pt.longitude], {
-        radius: 5.5,
-        color: '#FFFFFF',
-        weight: 2,
-        fillColor: '#16A34A',
-        fillOpacity: 1
-      }).bindTooltip('Ponto ' + (idx + 1)).addTo(polyLayer);
-    });
-
-    if (state.showWells) {
-      (state.wells || []).forEach(function(w) {
-        var fill = w.salinidade === 'doce' ? '#0EA5E9' : (w.salinidade === 'salobra' ? '#F59E0B' : '#EF4444');
-        L.circle([w.latitude, w.longitude], {
-          radius: 1400,
-          color: fill,
-          weight: 1.2,
-          fillColor: fill,
-          fillOpacity: 0.16
-        }).addTo(wellsLayer);
-        L.circleMarker([w.latitude, w.longitude], {
-          radius: 6,
-          color: '#FFFFFF',
-          weight: 1.8,
-          fillColor: fill,
-          fillOpacity: 0.95
-        }).bindPopup(
-          '<strong>' + w.codigoSiagas + '</strong><br/>' +
-          w.profundidadeM + ' m · ' + w.vazaoLph + ' L/h<br/>' +
-          'Água: ' + w.salinidade + ' (' + w.sucessoHistoricoPct + '% sucesso)'
-        ).addTo(wellsLayer);
-      });
-    }
-  }
-
-  window.__updateFarmMap = function(next) {
-    var prevBasemap = state.basemap;
-    var prevCentroid = state.centroid;
-    var prevShowWells = state.showWells;
-    state = Object.assign({}, state, next);
-
-    if (prevBasemap !== state.basemap) {
-      if (state.basemap === 'satellite') {
-        map.removeLayer(osmLayer);
-        satLayer.addTo(map);
-        satLabelsLayer.addTo(map);
-      } else {
-        map.removeLayer(satLayer);
-        map.removeLayer(satLabelsLayer);
-        osmLayer.addTo(map);
-      }
-    }
-
-    var moved =
-      Math.abs((prevCentroid.latitude || 0) - state.centroid.latitude) > 0.01 ||
-      Math.abs((prevCentroid.longitude || 0) - state.centroid.longitude) > 0.01 ||
-      prevShowWells !== state.showWells;
-    renderOverlays(moved || Boolean(next.forceFit));
-  };
-
-  window.__recenterFarm = function() {
-    renderOverlays(true);
-  };
-
-  if (window.ReactNativeWebView) {
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
-  }
-})();
-</script>
-</body>
-</html>`;
 }
 
 const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () => void }> = ({
@@ -264,7 +91,20 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
 
   return (
     <View style={[styles.wrap, { borderColor: theme.border }]}>
-      <View style={styles.hudRow}>
+      <LeafletWebView
+        ref={webViewRef}
+        originWhitelist={['*']}
+        source={{ html, baseUrl: 'https://rocaviva.app/' }}
+        javaScriptEnabled
+        domStorageEnabled
+        nestedScrollEnabled
+        androidLayerType="hardware"
+        onMessage={handleMessage}
+        onError={onFallbackOffline}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <View pointerEvents="box-none" style={[styles.hudRow, { elevation: 10 }]}>
         <View style={[styles.hudGroup, { borderColor: theme.border }]}>
           <Pressable
             onPress={() => setBasemap('satellite')}
@@ -314,26 +154,15 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
         </Pressable>
       </View>
 
-      <LeafletWebView
-        ref={webViewRef}
-        originWhitelist={['*']}
-        source={{ html, baseUrl: 'https://rocaviva.app/' }}
-        javaScriptEnabled
-        domStorageEnabled
-        nestedScrollEnabled
-        androidLayerType="hardware"
-        onMessage={handleMessage}
-        onError={onFallbackOffline}
-        style={StyleSheet.absoluteFill}
-      />
-
-      <View style={styles.badge}>
+      <View style={[styles.badge, { elevation: 10 }]}>
         <Text style={styles.badgeText}>
           {drawingMode
-            ? 'Toque no satélite para demarcar cantos da roça'
+            ? 'Toque no mapa para demarcar cantos da roça'
             : showWells
-            ? 'Satélite + Poços (SIAGAS + GRACE-FO)'
-            : 'Talhão em Satélite (Esri/OSM)'}
+            ? `${basemap === 'streets' ? 'Cartográfico' : 'Satélite'} + Poços (SIAGAS)`
+            : basemap === 'streets'
+            ? 'Talhão Cartográfico (Esri/OSM)'
+            : 'Talhão em Satélite (Esri)'}
         </Text>
       </View>
     </View>
@@ -387,7 +216,7 @@ export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
         >
           {polygon.length >= 3 && (
             <Polygon
-              coordinates={polygon}
+              coordinates={sortPolygonPoints(polygon)}
               fillColor="rgba(31, 110, 67, 0.34)"
               strokeColor="#22C55E"
               strokeWidth={3}

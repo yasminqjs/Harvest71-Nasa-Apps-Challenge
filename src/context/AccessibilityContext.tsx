@@ -14,7 +14,7 @@ import { sqliteDb } from '../database/sqlite';
 import { runLocalAgronomicEngine } from '../services/localAgronomicEngine';
 import { triggerLocalPreventiveAlert } from '../services/notificationService';
 import { syncPendingDataWithCloud } from '../services/syncService';
-import { speakText, stopSpeaking } from '../services/voiceAssistant';
+import { initSpeechBackgroundSync, speakText, stopSpeaking } from '../services/voiceAssistant';
 import {
   AccessibilityProfile,
   AppFeedbackItem,
@@ -200,6 +200,10 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       setRealOnline(connected);
     });
     return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    return initSpeechBackgroundSync();
   }, []);
 
   const activeFarmer = useMemo(

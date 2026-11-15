@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, {
   Circle,
   G,
@@ -136,7 +136,7 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
   const { isOnline } = useAccessibility();
   const [preferOfflineSvg, setPreferOfflineSvg] = useState(false);
 
-  const canUseInteractiveMap = Platform.OS !== 'web' && isOnline && !preferOfflineSvg;
+  const canUseInteractiveMap = isOnline && !preferOfflineSvg;
   const isHighContrastDark = theme.bg === '#0D1117';
 
   const ibgePaths = useMemo(
@@ -166,7 +166,7 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
 
   return (
     <View style={styles.wrap}>
-      {Platform.OS !== 'web' && isOnline && (
+      {isOnline && (
         <View style={styles.modeSwitchRow}>
           <Pressable
             onPress={() => setPreferOfflineSvg(false)}

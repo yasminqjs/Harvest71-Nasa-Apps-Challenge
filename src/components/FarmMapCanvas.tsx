@@ -1,247 +1,329 @@
-import React, { useState } from 'react';
-import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Line, Polygon, Rect, Text as SvgText } from 'react-native-svg';
-import { AppTheme } from '../theme/tokens';
-import { GeoPoint, NdviZonePatch, WellPoint } from '../types/domain';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useAccessibility } from '../context/AccessibilityContext';
+import { buildFarmLeafletHtml } from '../utils/leafletHtml';
+import { FarmMapCanvasProps, VectorFarmCanvas } from './VectorFarmCanvas';
 
-export interface FarmMapCanvasProps {
-  centroid: GeoPoint;
-  polygon: GeoPoint[];
-  wells: WellPoint[];
-  ndviZones?: NdviZonePatch[];
-  showWells: boolean;
-  showNdvi?: boolean;
-  drawingMode: boolean;
-  onAddPoint: (point: GeoPoint) => void;
-  theme: AppTheme;
-}
+export type { FarmMapCanvasProps } from './VectorFarmCanvas';
 
-export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = ({
+type FarmIframeWindow = Window & {
+  __updateFarmMap?: (next: Record<string, unknown>) => void;
+  __recenterFarm?: () => void;
+};
+
+const LeafletFarmWebCanvas: React.FC<
+  FarmMapCanvasProps & { onFallbackOffline: () => void }
+> = ({
   centroid,
   polygon,
   wells,
-  ndviZones = [],
   showWells,
-  showNdvi = true,
   drawingMode,
   onAddPoint,
+  onFallbackOffline,
   theme,
 }) => {
-  const [size, setSize] = useState({ width: 340, height: 255 });
-  const spanDeg = showWells ? 0.16 : 0.0045;
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const onAddPointRef = useRef(onAddPoint);
+  const [ready, setReady] = useState(false);
+  const [basemap, setBasemap] = useState<'satellite' | 'streets'>('satellite');
+  const html = useMemo(() => buildFarmLeafletHtml(), []);
 
-  const project = (pt: GeoPoint): { x: number; y: number } => {
-    const x =
-      ((pt.longitude - (centroid.longitude - spanDeg / 2)) / spanDeg) * size.width;
-    const y =
-      ((centroid.latitude + spanDeg / 2 - pt.latitude) / spanDeg) * size.height;
-    return { x, y };
-  };
+  useEffect(() => {
+    onAddPointRef.current = onAddPoint;
+  }, [onAddPoint]);
 
-  const unproject = (x: number, y: number): GeoPoint => {
-    const lon = centroid.longitude - spanDeg / 2 + (x / size.width) * spanDeg;
-    const lat = centroid.latitude + spanDeg / 2 - (y / size.height) * spanDeg;
-    return {
-      latitude: Number(lat.toFixed(6)),
-      longitude: Number(lon.toFixed(6)),
+  const latestStateRef = useRef({
+    centroid,
+    polygon,
+    wells,
+    showWells,
+    drawingMode,
+    basemap,
+  });
+
+  useEffect(() => {
+    latestStateRef.current = {
+      centroid,
+      polygon,
+      wells,
+      showWells,
+      drawingMode,
+      basemap,
     };
-  };
+  }, [centroid, polygon, wells, showWells, drawingMode, basemap]);
 
-  const handleLayout = (e: LayoutChangeEvent) => {
-    const { width, height } = e.nativeEvent.layout;
-    if (width > 0 && height > 0) setSize({ width, height });
-  };
+  const getFrameWin = (): FarmIframeWindow | null =>
+    (iframeRef.current?.contentWindow as FarmIframeWindow | null) ?? null;
 
-  const handlePress = (evt: { nativeEvent: { locationX: number; locationY: number } }) => {
-    if (!drawingMode) return;
-    onAddPoint(unproject(evt.nativeEvent.locationX, evt.nativeEvent.locationY));
-  };
+  useEffect(() => {
+    const handleWindowMessage = (event: MessageEvent) => {
+      if (iframeRef.current && event.source !== iframeRef.current.contentWindow) return;
+      const data = event.data as {
+        source?: string;
+        channel?: string;
+        payload?: { type?: string; latitude?: number; longitude?: number };
+      } | null;
+      if (!data || data.source !== 'rocaviva-leaflet' || data.channel !== 'farm') return;
+      const msg = data.payload;
+      if (!msg) return;
+      if (msg.type === 'ready') {
+        setReady(true);
+        return;
+      }
+      if (msg.type === 'addPoint' && msg.latitude !== undefined && msg.longitude !== undefined) {
+        onAddPointRef.current({ latitude: msg.latitude, longitude: msg.longitude });
+      }
+    };
 
-  const polygonPointsAttr = polygon
-    .map((p) => {
-      const { x, y } = project(p);
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(' ');
+    window.addEventListener('message', handleWindowMessage);
+    return () => window.removeEventListener('message', handleWindowMessage);
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    getFrameWin()?.__updateFarmMap?.({
+      centroid,
+      polygon,
+      wells,
+      showWells,
+      drawingMode,
+      basemap,
+      forceFit: false,
+    });
+  }, [ready, centroid, polygon, wells, showWells, drawingMode, basemap]);
+
+  const handleIframeLoad = () => {
+    setReady(true);
+    getFrameWin()?.__updateFarmMap?.({
+      ...latestStateRef.current,
+      forceFit: true,
+    });
+  };
 
   return (
-    <Pressable
-      onLayout={handleLayout}
-      onPress={handlePress}
-      style={[
-        styles.canvasWrap,
-        { backgroundColor: '#E8F0E3', borderColor: theme.border },
-      ]}
-    >
-      <Svg width="100%" height="100%">
-        <Rect x="0" y="0" width={size.width} height={size.height} fill="#E6EFE0" />
-        {[0.25, 0.5, 0.75].map((f) => (
-          <React.Fragment key={f}>
-            <Line
-              x1={size.width * f}
-              y1={0}
-              x2={size.width * f}
-              y2={size.height}
-              stroke="#C9D8C0"
-              strokeWidth={1}
-              strokeDasharray="4,4"
+    <View style={[styles.wrap, { borderColor: theme.border }]}>
+      <iframe
+        ref={iframeRef}
+        title="Mapa interativo da roça"
+        srcDoc={html}
+        onLoad={handleIframeLoad}
+        onError={onFallbackOffline}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          border: 'none',
+          display: 'block',
+          backgroundColor: '#DCEEF8',
+        }}
+      />
+
+      <View pointerEvents="box-none" style={styles.hudRow}>
+        <View style={[styles.hudGroup, { borderColor: theme.border }]}>
+          <Pressable
+            onPress={() => setBasemap('satellite')}
+            style={[styles.hudBtn, basemap === 'satellite' && { backgroundColor: theme.primary }]}
+          >
+            <Ionicons
+              name="planet-outline"
+              size={12}
+              color={basemap === 'satellite' ? theme.primaryText : '#19221C'}
             />
-            <Line
-              x1={0}
-              y1={size.height * f}
-              x2={size.width}
-              y2={size.height * f}
-              stroke="#C9D8C0"
-              strokeWidth={1}
-              strokeDasharray="4,4"
+            <Text
+              style={[
+                styles.hudText,
+                { color: basemap === 'satellite' ? theme.primaryText : '#19221C' },
+              ]}
+            >
+              Satélite
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setBasemap('streets')}
+            style={[styles.hudBtn, basemap === 'streets' && { backgroundColor: theme.primary }]}
+          >
+            <Ionicons
+              name="map-outline"
+              size={12}
+              color={basemap === 'streets' ? theme.primaryText : '#19221C'}
             />
-          </React.Fragment>
-        ))}
+            <Text
+              style={[
+                styles.hudText,
+                { color: basemap === 'streets' ? theme.primaryText : '#19221C' },
+              ]}
+            >
+              Cartográfico
+            </Text>
+          </Pressable>
+        </View>
 
-        {/* Drenagem SRTM */}
-        <Line
-          x1={0}
-          y1={size.height * 0.78}
-          x2={size.width}
-          y2={size.height * 0.28}
-          stroke="#60A5FA"
-          strokeWidth={showWells ? 4 : 2}
-          opacity={0.45}
-        />
+        <View style={styles.rightActions}>
+          <Pressable
+            onPress={onFallbackOffline}
+            style={[styles.offlineBtn, { borderColor: theme.border }]}
+          >
+            <Ionicons name="grid-outline" size={12} color="#19221C" />
+            <Text style={styles.offlineBtnText}>Offline</Text>
+          </Pressable>
 
-        {/* Manchas de vigor NDVI (verde, amarelo, vermelho) dentro da área quando em zoom local */}
-        {showNdvi &&
-          !showWells &&
-          ndviZones.map((z) => {
-            const fill =
-              z.vigor === 'verde'
-                ? 'rgba(34, 197, 94, 0.42)'
-                : z.vigor === 'amarelo'
-                ? 'rgba(234, 179, 8, 0.45)'
-                : 'rgba(239, 68, 68, 0.45)';
-            return (
-              <Rect
-                key={z.id}
-                x={(z.relativeBox.xPct / 100) * size.width}
-                y={(z.relativeBox.yPct / 100) * size.height}
-                width={(z.relativeBox.wPct / 100) * size.width}
-                height={(z.relativeBox.hPct / 100) * size.height}
-                rx={14}
-                fill={fill}
-              />
-            );
-          })}
+          <Pressable
+            onPress={() => getFrameWin()?.__recenterFarm?.()}
+            style={[styles.recenterBtn, { borderColor: theme.border }]}
+          >
+            <Ionicons name="locate" size={14} color="#19221C" />
+          </Pressable>
+        </View>
+      </View>
 
-        {/* Heatmap de poços (SIAGAS + GRACE-FO) */}
-        {showWells &&
-          wells.map((w) => {
-            const pt = project({ latitude: w.latitude, longitude: w.longitude });
-            const color =
-              w.salinidade === 'doce'
-                ? '#0EA5E9'
-                : w.salinidade === 'salobra'
-                ? '#F59E0B'
-                : '#EF4444';
-            return (
-              <React.Fragment key={w.id}>
-                <Circle cx={pt.x} cy={pt.y} r={34} fill={color} opacity={0.18} />
-                <Circle cx={pt.x} cy={pt.y} r={18} fill={color} opacity={0.28} />
-                <Circle
-                  cx={pt.x}
-                  cy={pt.y}
-                  r={7}
-                  fill={color}
-                  stroke="#FFFFFF"
-                  strokeWidth={2}
-                />
-                <SvgText
-                  x={pt.x}
-                  y={pt.y - 12}
-                  fontSize="10"
-                  fontWeight="800"
-                  fill="#111827"
-                  textAnchor="middle"
-                >
-                  {w.profundidadeM}m ({w.salinidade})
-                </SvgText>
-              </React.Fragment>
-            );
-          })}
-
-        {polygon.length >= 3 && (
-          <Polygon
-            points={polygonPointsAttr}
-            fill="rgba(31, 110, 67, 0.24)"
-            stroke="#1F6E43"
-            strokeWidth={3}
-          />
-        )}
-
-        {polygon.map((p, idx) => {
-          const { x, y } = project(p);
-          return (
-            <Circle
-              key={`${idx}-${p.latitude}`}
-              cx={x}
-              cy={y}
-              r={5.5}
-              fill="#1F6E43"
-              stroke="#FFFFFF"
-              strokeWidth={2}
-            />
-          );
-        })}
-      </Svg>
-
-      <View style={styles.overlayTop}>
-        <Text style={styles.coordTag}>
-          Lat {centroid.latitude.toFixed(4)} • Lon {centroid.longitude.toFixed(4)}
-        </Text>
-        <Text style={styles.modeTag}>
+      <View style={styles.badge}>
+        <Text style={styles.badgeText}>
           {drawingMode
-            ? '👆 Toque para marcar cantos'
+            ? 'Clique no mapa para demarcar cantos da roça'
             : showWells
-            ? '💧 Heatmap SIAGAS + GRACE-FO'
-            : '🛰️ Zonas NDVI (Bahia)'}
+            ? `${basemap === 'streets' ? 'Cartográfico' : 'Satélite'} + Poços (SIAGAS)`
+            : basemap === 'streets'
+            ? 'Talhão Cartográfico (Esri/OSM)'
+            : 'Talhão em Satélite (Esri)'}
         </Text>
       </View>
-    </Pressable>
+    </View>
+  );
+};
+
+/** Mapa da propriedade na Web com Leaflet (Satélite/Cartográfico) e fallback vetorial offline. */
+export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
+  const { isOnline } = useAccessibility();
+  const [forceVectorOffline, setForceVectorOffline] = useState(false);
+
+  if (isOnline && !forceVectorOffline) {
+    return (
+      <LeafletFarmWebCanvas
+        {...props}
+        onFallbackOffline={() => setForceVectorOffline(true)}
+      />
+    );
+  }
+
+  return (
+    <View style={{ gap: 6 }}>
+      {isOnline && forceVectorOffline && (
+        <Pressable
+          onPress={() => setForceVectorOffline(false)}
+          style={[
+            styles.backOnlineBtn,
+            { backgroundColor: props.theme.surfaceMuted, borderColor: props.theme.border },
+          ]}
+        >
+          <Ionicons name="planet-outline" size={14} color={props.theme.primary} />
+          <Text style={[styles.backOnlineText, { color: props.theme.text }]}>
+            Voltar para Satélite / Cartográfico (Online)
+          </Text>
+        </Pressable>
+      )}
+      <VectorFarmCanvas {...props} />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  canvasWrap: {
-    height: 255,
-    borderRadius: 20,
+  wrap: {
+    width: '100%',
+    height: 280,
+    borderRadius: 18,
     borderWidth: 2,
     overflow: 'hidden',
     position: 'relative',
   },
-  overlayTop: {
+  hudRow: {
     position: 'absolute',
     top: 8,
     left: 8,
     right: 8,
+    zIndex: 30,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 6,
+    alignItems: 'center',
   },
-  coordTag: {
-    backgroundColor: 'rgba(255,255,255,0.92)',
+  hudGroup: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderRadius: 10,
+    borderWidth: 1.2,
+    padding: 2,
+    gap: 2,
+  },
+  hudBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#111827',
   },
-  modeTag: {
-    backgroundColor: 'rgba(17,24,39,0.82)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+  hudText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  offlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    height: 28,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderWidth: 1.2,
+  },
+  offlineBtnText: {
     fontSize: 10,
     fontWeight: '800',
+    color: '#19221C',
+  },
+  recenterBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderWidth: 1.2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    zIndex: 30,
+    backgroundColor: 'rgba(25, 34, 28, 0.85)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  badgeText: {
     color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  backOnlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  backOnlineText: {
+    fontSize: 11.5,
+    fontWeight: '800',
   },
 });

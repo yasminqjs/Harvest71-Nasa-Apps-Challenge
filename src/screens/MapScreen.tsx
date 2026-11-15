@@ -19,6 +19,7 @@ import {
   calculatePolygonMetrics,
   createMicroPlotAroundPoint,
   filterWellsByRadius,
+  sortPolygonPoints,
 } from '../utils/geoprocessing';
 import { formatArea, formatCurrencyBRL, regionalizarTexto } from '../utils/regionalize';
 
@@ -73,7 +74,9 @@ export const MapScreen: React.FC = () => {
 
   const handleSavePolygon = async () => {
     if (draftPoints.length < 3) return;
-    await updateFarmPolygon(draftPoints);
+    const orderedPoints = sortPolygonPoints(draftPoints);
+    setDraftPoints(orderedPoints);
+    await updateFarmPolygon(orderedPoints);
     setDrawingMode(false);
     speak(
       `Roça demarcada com ${liveMetrics.areaHectares.toFixed(1)} hectares e ${liveMetrics.areaTarefasBa.toFixed(1)} tarefas. Diagnóstico atualizado.`
@@ -286,6 +289,19 @@ export const MapScreen: React.FC = () => {
               ? `Área calculada: ${formatArea(liveMetrics.areaHectares, liveMetrics.areaTarefasBa)}`
               : 'Toque em pelo menos 3 cantos do terreno.'}
           </Text>
+          {draftPoints.length > 0 && (
+            <Pressable
+              onPress={() => setDraftPoints((prev) => prev.slice(0, -1))}
+              style={[
+                styles.savePolyBtn,
+                { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 },
+              ]}
+            >
+              <Text style={{ color: theme.text, fontWeight: '800', fontSize: 12 }}>
+                Desfazer último ponto
+              </Text>
+            </Pressable>
+          )}
           {draftPoints.length >= 3 && (
             <Pressable
               onPress={handleSavePolygon}
