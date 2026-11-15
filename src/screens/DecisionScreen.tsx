@@ -12,7 +12,10 @@ import {
   View,
 } from 'react-native';
 import { useAccessibility } from '../context/AccessibilityContext';
-import { analyzeLeafImageOffline } from '../services/leafAnalyzer';
+import {
+  SimulatedLeafProfile,
+  analyzeLeafImageOffline,
+} from '../services/leafAnalyzer';
 import { getAppTheme } from '../theme/tokens';
 import { formatArea, formatCurrencyBRL, regionalizarTexto } from '../utils/regionalize';
 
@@ -102,7 +105,7 @@ export const DecisionScreen: React.FC = () => {
     }
   };
 
-  const handleSimulateLeafTest = async (profile: 'saudavel' | 'amarelada') => {
+  const handleSimulateLeafTest = async (profile: SimulatedLeafProfile) => {
     const analysis = await analyzeLeafImageOffline(
       `sample-${profile}://folha`,
       profile
@@ -328,7 +331,25 @@ export const DecisionScreen: React.FC = () => {
             style={[styles.leafSimBtn, { borderColor: theme.border, backgroundColor: theme.warningBg }]}
           >
             <Text style={{ fontSize: 11, fontWeight: '800', color: theme.warningText }}>
-              Teste folha amarelada
+              Teste amarelada
+            </Text>
+          </Pressable>
+        </View>
+        <View style={styles.leafSimRow}>
+          <Pressable
+            onPress={() => handleSimulateLeafTest('seca_total')}
+            style={[styles.leafSimBtn, { borderColor: theme.border, backgroundColor: theme.dangerBg }]}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '800', color: theme.dangerText }}>
+              Teste folha seca
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleSimulateLeafTest('pontos_pretos')}
+            style={[styles.leafSimBtn, { borderColor: theme.border, backgroundColor: theme.surfaceMuted }]}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '800', color: theme.text }}>
+              Teste pontos pretos
             </Text>
           </Pressable>
         </View>
@@ -365,6 +386,12 @@ export const DecisionScreen: React.FC = () => {
                 {level === 'acessivel'
                   ? lastLeafAnalysis.diagnosticoAcessivel
                   : lastLeafAnalysis.diagnosticoTecnico}
+              </Text>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textMuted }}>
+                Verde: {lastLeafAnalysis.indiceVerdePct}% • Amarelo:{' '}
+                {lastLeafAnalysis.amarelamentoPct}% • Seco:{' '}
+                {lastLeafAnalysis.necrosePct ?? 0}% • Pontos pretos:{' '}
+                {lastLeafAnalysis.pontosPretosPct ?? 0}%
               </Text>
               <Text style={{ fontSize: 11, fontWeight: '800', color: theme.primary }}>
                 Orientação: {lastLeafAnalysis.acaoRecomendada}

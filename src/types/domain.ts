@@ -7,11 +7,37 @@ export type WaterAccess =
   | 'acude'
   | 'cisterna';
 
-export type LaborType = 'familiar' | 'tracao_animal' | 'maquinario';
+export type LaborType =
+  | 'familiar'
+  | 'mutirao_diarista'
+  | 'tracao_animal'
+  | 'maquinario';
 
-export type FinancialTier = 'recursos_proprios' | 'pronaf' | 'emprestimo_local';
+export type FinancialTier =
+  | 'recursos_proprios'
+  | 'pronaf'
+  | 'emprestimo_local'
+  | 'programa_social';
 
 export type FarmObjective = 'subsistencia' | 'misto' | 'comercial';
+
+export type WaterStorageType =
+  | 'nenhum'
+  | 'cisterna_placa'
+  | 'barreiro'
+  | 'caixa_dagua';
+
+export type GenderOption =
+  | 'feminino'
+  | 'masculino'
+  | 'nao_binario'
+  | 'prefiro_nao_informar';
+
+export type FarmingTenureOption =
+  | 'menos_2'
+  | '2_a_5'
+  | '5_a_15'
+  | 'mais_15';
 
 export type DroughtAlertLevel =
   | 'normal'
@@ -23,6 +49,7 @@ export type ErosionRiskLevel = 'baixo' | 'moderado' | 'alto';
 
 export interface AccessibilityProfile {
   voiceOnboardingCompleted: boolean;
+  tutorialCompleted?: boolean;
   voiceGuidanceEnabled: boolean;
   speechRate: number; // 0.85 padrão para cadência clara no campo
   highContrast: boolean;
@@ -35,10 +62,16 @@ export interface FarmerProfile {
   tratamento: string; // Ex.: "Dona Maria", "Seu João"
   nome: string;
   faixaEtaria: '18-35' | '36-55' | '56+';
+  genero?: GenderOption;
+  tempoAgriculturaFamiliar?: FarmingTenureOption;
   waterAccess: WaterAccess;
+  armazenamentoAgua?: WaterStorageType;
   laborType: LaborType;
   financialTier: FinancialTier;
   objective: FarmObjective;
+  tamanhoEstimadoHa?: number;
+  culturaDesejada?: string;
+  desafiosPrincipais?: string[];
   limitacoes: string[];
   historicoCultivo: string[];
 }
@@ -64,7 +97,13 @@ export interface LeafAnalysisResult {
   indiceVerdePct: number;
   amarelamentoPct: number;
   necrosePct?: number;
-  status: 'saudavel' | 'estresse_leve' | 'clorose_ou_seca';
+  pontosPretosPct?: number;
+  status:
+    | 'saudavel'
+    | 'estresse_leve'
+    | 'clorose_ou_seca'
+    | 'seca_total'
+    | 'manchas_pretas';
   titulo: string;
   diagnosticoAcessivel: string;
   diagnosticoTecnico: string;
@@ -195,6 +234,7 @@ export interface ProactiveAlertItem {
   mensagemTecnica: string;
   criadoEm: string;
   lido: boolean;
+  confirmadoCienteEm?: string;
 }
 
 export interface NasaDiagnosticsPackage {
@@ -251,12 +291,36 @@ export interface FarmProperty {
 export interface FieldValidationLog {
   id: string;
   farmId: string;
-  tipo: 'chuva_hoje' | 'terra_umida' | 'poco_perfurado' | 'analise_foliar';
+  tipo:
+    | 'chuva_hoje'
+    | 'terra_umida'
+    | 'poco_perfurado'
+    | 'analise_foliar'
+    | 'inspecao_completa';
   choveuHoje?: boolean;
+  intensidadeChuva?: 'sem_chuva' | 'garoa_fraca' | 'chuva_boa' | 'temporal_forte';
+  milimetrosEstimados?: number;
   terraUmida?: boolean;
+  umidadeSoloCampo?: 'seca_rachando' | 'seca_solta' | 'umida_boa' | 'encharcada';
+  estadoLavoura?: 'vigorosa' | 'murcha_sol' | 'amarelada' | 'com_pragas';
+  sinaisErosao?: boolean;
+  temperaturaPercebida?: 'amena' | 'quente' | 'calor_extremo';
+  pragaOuDoenca?: string;
   pocoDeuAgua?: boolean;
   pocoProfundidadeM?: number;
   observacao: string;
+  criadoEm: string;
+  sincronizado: boolean;
+}
+
+export interface AppFeedbackItem {
+  id: string;
+  farmerId: string;
+  farmId: string;
+  categoria: 'previsao' | 'folha' | 'mapa_pocos' | 'voz_clareza' | 'sugestao';
+  previsaoBateu: 'sim' | 'parcial' | 'nao';
+  nota: 1 | 2 | 3 | 4 | 5;
+  comentario: string;
   criadoEm: string;
   sincronizado: boolean;
 }

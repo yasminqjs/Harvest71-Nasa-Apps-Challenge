@@ -48,10 +48,6 @@ export const MapScreen: React.FC = () => {
   const gpsSubRef = useRef<Location.LocationSubscription | null>(null);
 
   useEffect(() => {
-    if (activeFarm) setDraftPoints(activeFarm.polygon);
-  }, [activeFarm]);
-
-  useEffect(() => {
     return () => {
       gpsSubRef.current?.remove();
     };
@@ -223,7 +219,7 @@ export const MapScreen: React.FC = () => {
 
       <FarmMapCanvas
         centroid={activeFarm.centroid}
-        polygon={draftPoints}
+        polygon={drawingMode ? draftPoints : activeFarm.polygon}
         wells={nearbyWells.length > 0 ? nearbyWells : wells.slice(0, 4)}
         ndviZones={activeFarm.diagnostico.ndviZonas}
         showWells={showWells}

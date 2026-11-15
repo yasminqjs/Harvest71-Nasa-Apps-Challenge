@@ -16,6 +16,7 @@ import { syncPendingDataWithCloud } from '../services/syncService';
 import { speakText, stopSpeaking } from '../services/voiceAssistant';
 import {
   AccessibilityProfile,
+  AppFeedbackItem,
   EdiblePlantPANC,
   FarmProperty,
   FarmerProfile,
@@ -40,6 +41,7 @@ interface AccessibilityContextValue {
   alerts: ProactiveAlertItem[];
   unreadAlertsCount: number;
   fieldLogs: FieldValidationLog[];
+  feedbacks: AppFeedbackItem[];
   syncQueue: SyncQueueItem[];
   pendingSyncCount: number;
   lastLeafAnalysis: LeafAnalysisResult | null;
@@ -48,14 +50,21 @@ interface AccessibilityContextValue {
   dryStressBoost: number;
   lastSyncMessage: string | null;
   nordesteMapCompleted: boolean;
+  tutorialVisible: boolean;
 
   setSimulatedOffline: (offline: boolean) => void;
   setNordesteMapCompleted: (done: boolean) => void;
+  openTutorial: () => void;
+  closeTutorial: (markDone?: boolean) => Promise<void>;
   completeVoiceOnboarding: (enableVoice: boolean) => Promise<void>;
   toggleVoiceGuidance: () => Promise<void>;
   updateAccessibility: (partial: Partial<AccessibilityProfile>) => Promise<void>;
   selectFarmer: (farmerId: string) => Promise<void>;
   saveFarmerProfile: (farmer: FarmerProfile) => Promise<void>;
+  applyRegistrationSetup: (
+    farmer: FarmerProfile,
+    options: { tamanhoEstimadoHa?: number; culturaPrincipal?: string }
+  ) => Promise<void>;
   updateFarmPolygon: (polygon: GeoPoint[], customName?: string) => Promise<void>;
   selectBahiaRegion: (regionId: string) => Promise<void>;
   updateFarmRadius: (raioKm: number) => Promise<void>;
@@ -65,6 +74,9 @@ interface AccessibilityContextValue {
   markAlertRead: (alertId: string) => Promise<void>;
   registerFieldLog: (
     input: Omit<FieldValidationLog, 'id' | 'criadoEm' | 'sincronizado' | 'farmId'>
+  ) => Promise<void>;
+  submitAppFeedback: (
+    input: Omit<AppFeedbackItem, 'id' | 'criadoEm' | 'sincronizado' | 'farmerId' | 'farmId'>
   ) => Promise<void>;
   triggerSyncNow: () => Promise<void>;
   speak: (text: string, force?: boolean) => void;
@@ -86,6 +98,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
   const [wells, setWells] = useState<WellPoint[]>([]);
   const [alerts, setAlerts] = useState<ProactiveAlertItem[]>([]);
   const [fieldLogs, setFieldLogs] = useState<FieldValidationLog[]>([]);
+  const [feedbacks, setFeedbacks] = useState<AppFeedbackItem[]>([]);
   const [syncQueue, setSyncQueue] = useState<SyncQueueItem[]>([]);
   const [lastLeafAnalysis, setLastLeafAnalysis] = useState<LeafAnalysisResult | null>(
     null
@@ -97,6 +110,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
   const [dryStressBoost, setDryStressBoost] = useState(0);
   const [lastSyncMessage, setLastSyncMessage] = useState<string | null>(null);
   const [nordesteMapCompleted, setNordesteMapCompleted] = useState(false);
+  const [tutorialVisible, setTutorialVisible] = useState(false);
 
   const isOnline = realOnline && !simulatedOffline;
 
@@ -111,6 +125,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       setWells(snap.pocosSiagas);
       setAlerts(snap.alertas);
       setFieldLogs(snap.fieldLogs);
+      setFeedbacks(snap.feedbacks ?? []);
       setSyncQueue(snap.syncQueue);
       setActiveFarmerId(snap.activeFarmerId);
       setActiveFarmId(snap.activeFarmId);
@@ -211,14 +226,19 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         prev.map((q) => (idSet.has(q.id) ? { ...q, status: 'sincronizado' } : q))
       );
       setFieldLogs((prev) => prev.map((l) => ({ ...l, sincronizado: true })));
+      setFeedbacks((prev) => prev.map((fb) => ({ ...fb, sincronizado: true })));
     }
     setLastSyncMessage(result.message);
   }, [activeFarm, syncQueue, isOnline, dryStressBoost]);
 
   useEffect(() => {
     if (ready && isOnline && pendingSyncCount > 0) {
-      triggerSyncNow();
+      const timer = setTimeout(() => {
+        void triggerSyncNow();
+      }, 0);
+      return () => clearTimeout(timer);
     }
+    return undefined;
   }, [ready, isOnline, pendingSyncCount, triggerSyncNow]);
 
   const completeVoiceOnboarding = useCallback(
@@ -283,6 +303,62 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
     await sqliteDb.upsertUsuario(farmer);
     setFarmers((prev) => prev.map((f) => (f.id === farmer.id ? farmer : f)));
   }, []);
+
+  const applyRegistrationSetup = useCallback(
+    async (
+      farmer: FarmerProfile,
+      options: { tamanhoEstimadoHa?: number; culturaPrincipal?: string }
+    ) => {
+      await sqliteDb.upsertUsuario(farmer);
+      setFarmers((prev) => prev.map((f) => (f.id === farmer.id ? farmer : f)));
+
+      if (activeFarm) {
+        const targetHa = options.tamanhoEstimadoHa ?? activeFarm.areaHectares;
+        const targetCrop = options.culturaPrincipal ?? activeFarm.culturaPrincipal;
+        const polygon = createMicroPlotAroundPoint(activeFarm.centroid, targetHa);
+        const metrics = calculatePolygonMetrics(polygon);
+        const diag = runLocalAgronomicEngine(
+          metrics.centroid,
+          targetCrop,
+          activeFarm.raioBuscaKm,
+          { dryStressBoost }
+        );
+        const updatedFarm: FarmProperty = {
+          ...activeFarm,
+          culturaPrincipal: targetCrop,
+          polygon,
+          centroid: metrics.centroid,
+          areaHectares: metrics.areaHectares,
+          areaTarefasBa: metrics.areaTarefasBa,
+          diagnostico: diag,
+        };
+        await sqliteDb.upsertFazenda(updatedFarm);
+        setFarms((prev) => prev.map((f) => (f.id === updatedFarm.id ? updatedFarm : f)));
+      }
+
+      setNordesteMapCompleted(true);
+      if (!accessibility.tutorialCompleted) {
+        setTutorialVisible(true);
+      }
+    },
+    [activeFarm, dryStressBoost, accessibility.tutorialCompleted]
+  );
+
+  const openTutorial = useCallback(() => {
+    setTutorialVisible(true);
+  }, []);
+
+  const closeTutorial = useCallback(
+    async (markDone = true) => {
+      setTutorialVisible(false);
+      if (markDone && !accessibility.tutorialCompleted) {
+        const next = { ...accessibility, tutorialCompleted: true };
+        setAccessibility(next);
+        await sqliteDb.saveAccessibility(next);
+      }
+    },
+    [accessibility]
+  );
 
   const updateFarmPolygon = useCallback(
     async (polygon: GeoPoint[], customName?: string) => {
@@ -447,9 +523,14 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const markAlertRead = useCallback(async (alertId: string) => {
+    const now = new Date().toISOString();
     await sqliteDb.markAlertRead(alertId);
     setAlerts((prev) =>
-      prev.map((a) => (a.id === alertId ? { ...a, lido: true } : a))
+      prev.map((a) =>
+        a.id === alertId
+          ? { ...a, lido: true, confirmadoCienteEm: a.confirmadoCienteEm ?? now }
+          : a
+      )
     );
   }, []);
 
@@ -478,25 +559,120 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       setFieldLogs((prev) => [log, ...prev]);
       setSyncQueue((prev) => [queueItem, ...prev]);
 
-      if (input.tipo === 'chuva_hoje' && input.choveuHoje) {
+      const chuvaCampoMm =
+        input.milimetrosEstimados ??
+        (input.intensidadeChuva === 'temporal_forte'
+          ? 42
+          : input.intensidadeChuva === 'chuva_boa'
+          ? 18
+          : input.intensidadeChuva === 'garoa_fraca'
+          ? 5
+          : input.tipo === 'chuva_hoje' && input.choveuHoje
+          ? 16
+          : 0);
+
+      const soloCampoSeco =
+        input.umidadeSoloCampo === 'seca_rachando' ||
+        input.umidadeSoloCampo === 'seca_solta' ||
+        (input.tipo === 'terra_umida' && input.terraUmida === false);
+
+      const soloEncharcado = input.umidadeSoloCampo === 'encharcada';
+      const estressePlantaCampo =
+        input.estadoLavoura === 'murcha_sol' ||
+        input.estadoLavoura === 'amarelada' ||
+        input.estadoLavoura === 'com_pragas';
+      const sinaisErosaoCampo = Boolean(input.sinaisErosao);
+
+      if (
+        chuvaCampoMm > 0 ||
+        soloCampoSeco ||
+        soloEncharcado ||
+        estressePlantaCampo ||
+        sinaisErosaoCampo
+      ) {
         const diag = runLocalAgronomicEngine(
           activeFarm.centroid,
           activeFarm.culturaPrincipal,
           activeFarm.raioBuscaKm,
-          { dryStressBoost, chuvaCampoMm: 16 }
+          {
+            dryStressBoost,
+            chuvaCampoMm,
+            soloCampoSeco,
+            soloEncharcado,
+            estressePlantaCampo,
+            sinaisErosaoCampo,
+          }
         );
         const updated: FarmProperty = { ...activeFarm, diagnostico: diag };
         await sqliteDb.upsertFazenda(updated);
         setFarms((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+
+        if (sinaisErosaoCampo || input.estadoLavoura === 'com_pragas') {
+          const alertItem: ProactiveAlertItem = {
+            id: `alert-campo-${Date.now()}`,
+            categoria: input.estadoLavoura === 'com_pragas' ? 'fitossanitario' : 'seca',
+            severidade: 'atencao',
+            titulo: sinaisErosaoCampo
+              ? 'Sinais de enxurrada/erosão no terreno'
+              : 'Praga ou doença observada na lavoura',
+            mensagemAcessivel: sinaisErosaoCampo
+              ? 'Você marcou água levando terra no campo. Proteja o solo com palha ou barreiras vivas de palma.'
+              : `Atenção às plantas (${input.pragaOuDoenca || 'pragas/manchas'}). Use a câmera na aba Safra para examinar uma folha.`,
+            mensagemTecnica: sinaisErosaoCampo
+              ? 'Validação de campo indicou escoamento superficial erosivo. Recomenda-se plantio em contorno e cobertura morta.'
+              : `Ocorrência fitossanitária registrada em campo: ${input.pragaOuDoenca || 'sintoma foliar'}.`,
+            criadoEm: now,
+            lido: false,
+          };
+          await sqliteDb.addAlert(alertItem);
+          setAlerts((prev) => [alertItem, ...prev.slice(0, 8)]);
+        }
       }
 
       setLastSyncMessage(
         isOnline
-          ? 'Sincronizado: registro enviado automaticamente.'
-          : 'Modo Roça Offline: salvo no aparelho para enviar quando houver sinal.'
+          ? 'Sincronizado: validação de campo salva e enviada.'
+          : 'Modo Roça Offline: validação salva no aparelho para enviar quando houver sinal.'
       );
     },
     [activeFarm, isOnline, dryStressBoost]
+  );
+
+  const submitAppFeedback = useCallback(
+    async (
+      input: Omit<
+        AppFeedbackItem,
+        'id' | 'criadoEm' | 'sincronizado' | 'farmerId' | 'farmId'
+      >
+    ) => {
+      if (!activeFarm || !activeFarmer) return;
+      const now = new Date().toISOString();
+      const feedbackItem: AppFeedbackItem = {
+        ...input,
+        id: `fb-${Date.now()}`,
+        farmerId: activeFarmer.id,
+        farmId: activeFarm.id,
+        criadoEm: now,
+        sincronizado: isOnline,
+      };
+      const queueItem: SyncQueueItem = {
+        id: `sync-fb-${Date.now()}`,
+        endpoint: '/api/app/feedback',
+        payloadJson: JSON.stringify(feedbackItem),
+        status: isOnline ? 'sincronizado' : 'pendente',
+        criadoEm: now,
+        tentativas: isOnline ? 1 : 0,
+      };
+      await sqliteDb.addFeedbackAndEnqueue(feedbackItem, queueItem);
+      setFeedbacks((prev) => [feedbackItem, ...prev]);
+      setSyncQueue((prev) => [queueItem, ...prev]);
+      setLastSyncMessage(
+        isOnline
+          ? 'Obrigado! Sua opinião foi registrada e enviada.'
+          : 'Obrigado! Sua opinião foi salva offline e será enviada quando houver sinal.'
+      );
+    },
+    [activeFarm, activeFarmer, isOnline]
   );
 
   const resetDemoData = useCallback(async () => {
@@ -508,12 +684,14 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
     setWells(snap.pocosSiagas);
     setAlerts(snap.alertas);
     setFieldLogs(snap.fieldLogs);
+    setFeedbacks(snap.feedbacks ?? []);
     setSyncQueue(snap.syncQueue);
     setActiveFarmerId(snap.activeFarmerId);
     setActiveFarmId(snap.activeFarmId);
     setDryStressBoost(0);
     setLastLeafAnalysis(null);
     setNordesteMapCompleted(false);
+    setTutorialVisible(false);
     setLastSyncMessage(null);
   }, []);
 
@@ -530,6 +708,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       alerts,
       unreadAlertsCount,
       fieldLogs,
+      feedbacks,
       syncQueue,
       pendingSyncCount,
       lastLeafAnalysis,
@@ -538,13 +717,17 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       dryStressBoost,
       lastSyncMessage,
       nordesteMapCompleted,
+      tutorialVisible,
       setSimulatedOffline,
       setNordesteMapCompleted,
+      openTutorial,
+      closeTutorial,
       completeVoiceOnboarding,
       toggleVoiceGuidance,
       updateAccessibility,
       selectFarmer,
       saveFarmerProfile,
+      applyRegistrationSetup,
       updateFarmPolygon,
       selectBahiaRegion,
       updateFarmRadius,
@@ -553,6 +736,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       saveLeafAnalysis,
       markAlertRead,
       registerFieldLog,
+      submitAppFeedback,
       triggerSyncNow,
       speak,
       stopVoice,
@@ -570,6 +754,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       alerts,
       unreadAlertsCount,
       fieldLogs,
+      feedbacks,
       syncQueue,
       pendingSyncCount,
       lastLeafAnalysis,
@@ -578,11 +763,15 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       dryStressBoost,
       lastSyncMessage,
       nordesteMapCompleted,
+      tutorialVisible,
+      openTutorial,
+      closeTutorial,
       completeVoiceOnboarding,
       toggleVoiceGuidance,
       updateAccessibility,
       selectFarmer,
       saveFarmerProfile,
+      applyRegistrationSetup,
       updateFarmPolygon,
       selectBahiaRegion,
       updateFarmRadius,
@@ -591,6 +780,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       saveLeafAnalysis,
       markAlertRead,
       registerFieldLog,
+      submitAppFeedback,
       triggerSyncNow,
       speak,
       stopVoice,

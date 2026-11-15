@@ -55,81 +55,152 @@ function rgbToHsv(r: number, g: number, b: number): { h: number; s: number; v: n
   return { h, s, v };
 }
 
+type PixelClass = 'bg' | 'green' | 'yellow' | 'dry_brown' | 'dark';
+
+function classifyPixel(r: number, g: number, b: number): PixelClass {
+  const { h, s, v } = rgbToHsv(r, g, b);
+  const exG = 2 * g - r - b;
+
+  // Pixels muito escuros (candidatos a pontos pretos / necrose escura se estiverem dentro da folha)
+  if (v <= 0.22) {
+    return 'dark';
+  }
+
+  // Ignora branco estourado, cinza neutro claro e azul de céu
+  if ((v > 0.95 && s < 0.14) || (h > 175 && h < 340)) {
+    return 'bg';
+  }
+
+  // Folha verde saudável
+  if (s >= 0.14 && h >= 68 && h <= 172 && (g > r || exG > 8)) {
+    return 'green';
+  }
+
+  // Amarelo (clorose): matiz amarela com vermelho próximo ou acima do verde e saturação viva
+  if (s >= 0.24 && v >= 0.38 && h >= 42 && h < 68 && r >= g * 0.92) {
+    return 'yellow';
+  }
+
+  // Folha seca / palha / marrom (cobre de marrom escuro até palha/bege claro seco)
+  if (h >= 10 && h < 45 && r >= g && s >= 0.13 && v > 0.22 && v <= 0.88) {
+    return 'dry_brown';
+  }
+
+  // Folha seca cinza-palha muito desbotada (baixa saturação, tom quente)
+  if (s >= 0.07 && s < 0.14 && v >= 0.35 && v <= 0.82 && r >= g && g >= b) {
+    return 'dry_brown';
+  }
+
+  return 'bg';
+}
+
+export interface FoliarPixelMetrics {
+  greenPct: number;
+  yellowPct: number;
+  dryBrownPct: number;
+  blackSpotPct: number;
+  leafCoveragePct: number;
+}
+
 /**
- * Segmenta apenas os pixels da folha (ignorando fundo branco, cinza, céu ou sombra extrema)
- * na região central da foto e classifica em Verde (clorofila), Amarelo (clorose) e Marrom (necrose/queima).
+ * Analisa pixels RGBA em duas passadas:
+ * 1) Mapeia o tecido foliar (verde, amarelo, seco/marrom) e suas bordas por linha/coluna;
+ * 2) Conta pontos pretos/manchas escuras apenas DENTRO do contorno da folha (ignorando fundo preto ao redor).
  */
 export function analyzeRgbaPixels(
   data: Uint8ClampedArray | Uint8Array,
   width: number,
   height: number
-): { greenPct: number; yellowPct: number; brownPct: number; leafCoveragePct: number } {
-  // Foca nos 70% centrais onde o agricultor enquadra a folha
-  const xStart = Math.floor(width * 0.15);
-  const xEnd = Math.ceil(width * 0.85);
-  const yStart = Math.floor(height * 0.15);
-  const yEnd = Math.ceil(height * 0.85);
+): FoliarPixelMetrics {
+  const xStart = Math.floor(width * 0.12);
+  const xEnd = Math.ceil(width * 0.88);
+  const yStart = Math.floor(height * 0.12);
+  const yEnd = Math.ceil(height * 0.88);
 
   const roiPixels = Math.max(1, (xEnd - xStart) * (yEnd - yStart));
-  const step = Math.max(1, Math.floor(Math.sqrt(roiPixels / 4500)));
+  const step = Math.max(1, Math.floor(Math.sqrt(roiPixels / 5500)));
+
+  const cols = Math.ceil((xEnd - xStart) / step);
+  const rows = Math.ceil((yEnd - yStart) / step);
+  const grid: PixelClass[] = new Array(rows * cols);
+
+  const rowMinX = new Array<number>(rows).fill(cols);
+  const rowMaxX = new Array<number>(rows).fill(-1);
+  const colMinY = new Array<number>(cols).fill(rows);
+  const colMaxY = new Array<number>(cols).fill(-1);
 
   let greenCount = 0;
   let yellowCount = 0;
-  let brownCount = 0;
-  let sampledCount = 0;
+  let dryBrownCount = 0;
+  let totalSampled = 0;
 
-  for (let y = yStart; y < yEnd; y += step) {
-    for (let x = xStart; x < xEnd; x += step) {
+  for (let ry = 0; ry < rows; ry++) {
+    const y = yStart + ry * step;
+    if (y >= height) continue;
+    for (let cx = 0; cx < cols; cx++) {
+      const x = xStart + cx * step;
+      if (x >= width) continue;
       const idx = (y * width + x) * 4;
-      const r = data[idx];
-      const g = data[idx + 1];
-      const b = data[idx + 2];
-      sampledCount++;
+      const cls = classifyPixel(data[idx], data[idx + 1], data[idx + 2]);
+      grid[ry * cols + cx] = cls;
+      totalSampled++;
 
-      const { h, s, v } = rgbToHsv(r, g, b);
-      // Ignora fundo neutro (branco/cinza/preto) e azul de céu
-      if (v < 0.09 || (v > 0.96 && s < 0.15) || s < 0.14 || (h > 175 && h < 340)) {
-        continue;
-      }
+      if (cls === 'green' || cls === 'yellow' || cls === 'dry_brown') {
+        if (cx < rowMinX[ry]) rowMinX[ry] = cx;
+        if (cx > rowMaxX[ry]) rowMaxX[ry] = cx;
+        if (ry < colMinY[cx]) colMinY[cx] = ry;
+        if (ry > colMaxY[cx]) colMaxY[cx] = ry;
 
-      const exG = 2 * g - r - b;
-
-      // Folha verde saudável (inclui verde-oliva ao sol onde g > r e matiz >= 68°)
-      if (h >= 68 && h <= 172 && (g > r || exG > 8)) {
-        greenCount++;
-      } else if (h >= 38 && h < 68 && r >= g * 0.92 && s >= 0.22 && v >= 0.35) {
-        // Amarelamento real (clorose): vermelho próximo ou acima do verde
-        yellowCount++;
-      } else if (h >= 10 && h < 42 && r > g && s >= 0.2 && v >= 0.12 && v < 0.52) {
-        // Manchas secas / necrose / queima
-        brownCount++;
+        if (cls === 'green') greenCount++;
+        else if (cls === 'yellow') yellowCount++;
+        else dryBrownCount++;
       }
     }
   }
 
-  const leafTotal = greenCount + yellowCount + brownCount;
+  let blackSpotCount = 0;
+  for (let ry = 0; ry < rows; ry++) {
+    for (let cx = 0; cx < cols; cx++) {
+      if (grid[ry * cols + cx] === 'dark') {
+        const insideRow = cx >= rowMinX[ry] && cx <= rowMaxX[ry];
+        const insideCol = ry >= colMinY[cx] && ry <= colMaxY[cx];
+        if (insideRow && insideCol) {
+          blackSpotCount++;
+        }
+      }
+    }
+  }
+
+  const leafTotal = greenCount + yellowCount + dryBrownCount + blackSpotCount;
   const leafCoveragePct =
-    sampledCount > 0 ? Math.round((leafTotal / sampledCount) * 100) : 0;
+    totalSampled > 0 ? Math.round((leafTotal / totalSampled) * 100) : 0;
 
   if (leafTotal < 15) {
-    return { greenPct: 0, yellowPct: 0, brownPct: 0, leafCoveragePct: 0 };
+    return {
+      greenPct: 0,
+      yellowPct: 0,
+      dryBrownPct: 0,
+      blackSpotPct: 0,
+      leafCoveragePct: 0,
+    };
   }
 
   return {
     greenPct: Math.round((greenCount / leafTotal) * 100),
     yellowPct: Math.round((yellowCount / leafTotal) * 100),
-    brownPct: Math.round((brownCount / leafTotal) * 100),
+    dryBrownPct: Math.round((dryBrownCount / leafTotal) * 100),
+    blackSpotPct: Math.round((blackSpotCount / leafTotal) * 100),
     leafCoveragePct,
   };
 }
 
 function buildResultFromMetrics(
   imageUri: string,
-  greenPct: number,
-  yellowPct: number,
-  brownPct: number = 0
+  m: FoliarPixelMetrics
 ): LeafAnalysisResult {
-  if (greenPct === 0 && yellowPct === 0 && brownPct === 0) {
+  const { greenPct, yellowPct, dryBrownPct, blackSpotPct } = m;
+
+  if (greenPct + yellowPct + dryBrownPct + blackSpotPct === 0) {
     return {
       id: `leaf-${Date.now()}`,
       imageUri,
@@ -137,143 +208,208 @@ function buildResultFromMetrics(
       indiceVerdePct: 0,
       amarelamentoPct: 0,
       necrosePct: 0,
+      pontosPretosPct: 0,
       status: 'estresse_leve',
       titulo: 'Enquadre a folha mais de perto',
       diagnosticoAcessivel:
         'Não consegui enxergar a folha direito no centro da foto. Tente tirar outra foto mais perto da folha, em lugar claro.',
       diagnosticoTecnico:
-        'Baixa cobertura foliar detectada no centro da imagem (ROI). Repita a captura aproximando a câmera.',
+        'Baixa cobertura foliar detectada no centro da imagem. Repita a captura aproximando a câmera.',
       acaoRecomendada:
         'Coloque a folha no meio da tela, evitando muito fundo de terra ou parede.',
     };
   }
 
-  let status: LeafAnalysisResult['status'] = 'saudavel';
-  if (brownPct >= 22 || yellowPct >= 30 || greenPct < 50) {
-    status = 'clorose_ou_seca';
-  } else if (yellowPct >= 14 || brownPct >= 10) {
-    status = 'estresse_leve';
-  }
-
-  if (status === 'saudavel') {
+  // 1) Folha totalmente seca / ressecada (predomínio de marrom/palha e quase sem verde)
+  if (
+    dryBrownPct >= 50 ||
+    (dryBrownPct + blackSpotPct >= 62 && greenPct < 18)
+  ) {
     return {
       id: `leaf-${Date.now()}`,
       imageUri,
       criadoEm: new Date().toISOString(),
       indiceVerdePct: greenPct,
       amarelamentoPct: yellowPct,
-      necrosePct: brownPct,
-      status,
-      titulo: 'Folha saudável (bom vigor)',
-      diagnosticoAcessivel: `A folha está bem verdinha (${greenPct}% verde) e forte! A planta está puxando água e nutrientes direito da terra.`,
-      diagnosticoTecnico: `Clorofila/verde foliar: ${greenPct}% | Amarelamento: ${yellowPct}% | Necrose: ${brownPct}%.`,
+      necrosePct: dryBrownPct,
+      pontosPretosPct: blackSpotPct,
+      status: 'seca_total',
+      titulo: 'Folha totalmente seca',
+      diagnosticoAcessivel: `Essa folha já está seca (${dryBrownPct}% seca e apenas ${greenPct}% verde). Pode ser seca severa, calor forte ou folha velha que já secou no pé.`,
+      diagnosticoTecnico: `Tecido foliar senescente/seco: ${dryBrownPct}% seco, ${blackSpotPct}% necrose escura, ${yellowPct}% amarelo, ${greenPct}% clorofila.`,
       acaoRecomendada:
-        'Continue mantendo cobertura de palha no pé da planta para segurar a umidade.',
+        'Confira também folhas novas do meio do pé; cubra o solo com bastante palha e priorize água nas plantas mais jovens.',
     };
   }
 
-  if (status === 'estresse_leve') {
+  // 2) Pontos pretos / manchas escuras (antracnose, pinta-preta, fungo) — mesmo com folha verde!
+  if (blackSpotPct >= 5) {
+    const withYellow = yellowPct >= 14;
     return {
       id: `leaf-${Date.now()}`,
       imageUri,
       criadoEm: new Date().toISOString(),
       indiceVerdePct: greenPct,
       amarelamentoPct: yellowPct,
-      necrosePct: brownPct,
-      status,
+      necrosePct: dryBrownPct,
+      pontosPretosPct: blackSpotPct,
+      status: 'manchas_pretas',
+      titulo: 'Pontos pretos / manchas escuras na folha',
+      diagnosticoAcessivel: `Foram detectados pontos pretos ou manchas escuras (${blackSpotPct}%)${
+        withYellow ? ` junto com amarelamento (${yellowPct}%)` : ''
+      }. Isso costuma ser sinal de fungo (como pinta-preta ou antracnose) ou mancha de doença.`,
+      diagnosticoTecnico: `Lesões escuras/necrose pontual (${blackSpotPct}% pontos pretos | ${greenPct}% verde | ${yellowPct}% clorose | ${dryBrownPct}% seco).`,
+      acaoRecomendada:
+        'Retire e descarte longe da roça as folhas muito manchadas, evite molhar as folhas à noite e observe se está espalhando pelos pés vizinhos.',
+    };
+  }
+
+  // 3) Queima / necrose parcial (manchas secas sem ser folha toda seca)
+  if (dryBrownPct >= 22 && dryBrownPct > yellowPct) {
+    return {
+      id: `leaf-${Date.now()}`,
+      imageUri,
+      criadoEm: new Date().toISOString(),
+      indiceVerdePct: greenPct,
+      amarelamentoPct: yellowPct,
+      necrosePct: dryBrownPct,
+      pontosPretosPct: blackSpotPct,
+      status: 'clorose_ou_seca',
+      titulo: 'Manchas secas ou queima na folha',
+      diagnosticoAcessivel: `Foram vistas partes secas ou queimadas na folha (${dryBrownPct}%). Pode ser sol forte com pouca água ou mancha de doença.`,
+      diagnosticoTecnico: `Necrose/queima foliar parcial (${dryBrownPct}% seco | ${yellowPct}% clorose | ${greenPct}% verde).`,
+      acaoRecomendada:
+        'Retire folhas muito queimadas, reforce a cobertura morta e evite molhar as folhas no sol quente.',
+    };
+  }
+
+  // 4) Clorose severa (folha bastante amarelada)
+  if (yellowPct >= 30 || (greenPct < 50 && yellowPct >= 15)) {
+    return {
+      id: `leaf-${Date.now()}`,
+      imageUri,
+      criadoEm: new Date().toISOString(),
+      indiceVerdePct: greenPct,
+      amarelamentoPct: yellowPct,
+      necrosePct: dryBrownPct,
+      pontosPretosPct: blackSpotPct,
+      status: 'clorose_ou_seca',
+      titulo: 'Estresse forte ou clorose na folha',
+      diagnosticoAcessivel: `A folha está bastante amarelada (${yellowPct}%). Isso mostra estresse de calor, falta de água ou deficiência de nitrogênio na terra.`,
+      diagnosticoTecnico: `Clorose severa (${yellowPct}% amarelamento | ${dryBrownPct}% seco | ${greenPct}% verde).`,
+      acaoRecomendada:
+        'Reforce a cobertura morta, cheque se há pragas embaixo da folha e evite adubação química no sol quente.',
+    };
+  }
+
+  // 5) Início de amarelamento / estresse leve
+  if (yellowPct >= 12 || dryBrownPct >= 10 || blackSpotPct >= 2) {
+    return {
+      id: `leaf-${Date.now()}`,
+      imageUri,
+      criadoEm: new Date().toISOString(),
+      indiceVerdePct: greenPct,
+      amarelamentoPct: yellowPct,
+      necrosePct: dryBrownPct,
+      pontosPretosPct: blackSpotPct,
+      status: 'estresse_leve',
       titulo: 'Início de amarelamento (atenção)',
-      diagnosticoAcessivel: `A folha mostrou sinais iniciais de amarelamento (${yellowPct}%) ou pontas secas (${brownPct}%). Pode ser início de falta de água ou de adubo orgânico.`,
-      diagnosticoTecnico: `Estresse leve: ${greenPct}% verde | ${yellowPct}% amarelamento | ${brownPct}% necrose.`,
+      diagnosticoAcessivel: `A folha mostrou sinais iniciais de amarelamento (${yellowPct}%) ou pontas secas (${dryBrownPct}%). Pode ser início de falta de água ou de adubo orgânico.`,
+      diagnosticoTecnico: `Estresse leve: ${greenPct}% verde | ${yellowPct}% amarelamento | ${dryBrownPct}% seco | ${blackSpotPct}% pontos pretos.`,
       acaoRecomendada:
         'Cubra o solo ao redor da planta com palha seca ou esterco curtido e observe a umidade da terra.',
     };
   }
 
-  if (brownPct >= 22 && brownPct > yellowPct) {
-    return {
-      id: `leaf-${Date.now()}`,
-      imageUri,
-      criadoEm: new Date().toISOString(),
-      indiceVerdePct: greenPct,
-      amarelamentoPct: yellowPct,
-      necrosePct: brownPct,
-      status,
-      titulo: 'Manchas secas ou queima na folha',
-      diagnosticoAcessivel: `Foram vistas partes secas ou queimadas na folha (${brownPct}%). Pode ser sol muito quente com pouca água ou mancha de fungo.`,
-      diagnosticoTecnico: `Necrose/queima foliar predominante (${brownPct}% necrose | ${yellowPct}% clorose | ${greenPct}% verde).`,
-      acaoRecomendada:
-        'Retire folhas muito queimadas ou manchadas, reforce a cobertura morta e evite molhar as folhas no sol quente.',
-    };
-  }
-
+  // 6) Folha saudável
   return {
     id: `leaf-${Date.now()}`,
     imageUri,
     criadoEm: new Date().toISOString(),
     indiceVerdePct: greenPct,
     amarelamentoPct: yellowPct,
-    necrosePct: brownPct,
-    status,
-    titulo: 'Estresse forte ou clorose na folha',
-    diagnosticoAcessivel: `A folha está bastante amarelada (${yellowPct}%). Isso mostra estresse de calor, falta de água ou deficiência de nitrogênio na terra.`,
-    diagnosticoTecnico: `Clorose severa (${yellowPct}% amarelamento | ${brownPct}% necrose | ${greenPct}% verde).`,
+    necrosePct: dryBrownPct,
+    pontosPretosPct: blackSpotPct,
+    status: 'saudavel',
+    titulo: 'Folha saudável (bom vigor)',
+    diagnosticoAcessivel: `A folha está bem verdinha (${greenPct}% verde) e forte! A planta está puxando água e nutrientes direito da terra.`,
+    diagnosticoTecnico: `Clorofila/verde foliar: ${greenPct}% | Amarelamento: ${yellowPct}% | Seco: ${dryBrownPct}% | Pontos pretos: ${blackSpotPct}%.`,
     acaoRecomendada:
-      'Reforce a cobertura morta, cheque se há pragas embaixo da folha e evite adubação química no sol quente.',
+      'Continue mantendo cobertura de palha no pé da planta para segurar a umidade.',
   };
 }
 
+export type SimulatedLeafProfile =
+  | 'saudavel'
+  | 'amarelada'
+  | 'seca_total'
+  | 'pontos_pretos';
+
 /**
  * Analisa localmente (100% offline) a foto da folha capturada pela câmera.
- * Funciona com pixels reais tanto na Web (Canvas) quanto no Android/iOS (decodificando JPEG via base64).
  */
 export async function analyzeLeafImageOffline(
   imageUri: string,
-  simulatedProfile?: 'saudavel' | 'amarelada',
+  simulatedProfile?: SimulatedLeafProfile,
   base64Data?: string | null
 ): Promise<LeafAnalysisResult> {
   if (simulatedProfile === 'saudavel') {
-    return buildResultFromMetrics(imageUri, 92, 5, 3);
+    return buildResultFromMetrics(imageUri, {
+      greenPct: 92,
+      yellowPct: 4,
+      dryBrownPct: 3,
+      blackSpotPct: 1,
+      leafCoveragePct: 80,
+    });
   }
   if (simulatedProfile === 'amarelada') {
-    return buildResultFromMetrics(imageUri, 34, 54, 12);
+    return buildResultFromMetrics(imageUri, {
+      greenPct: 34,
+      yellowPct: 54,
+      dryBrownPct: 11,
+      blackSpotPct: 1,
+      leafCoveragePct: 80,
+    });
+  }
+  if (simulatedProfile === 'seca_total') {
+    return buildResultFromMetrics(imageUri, {
+      greenPct: 6,
+      yellowPct: 14,
+      dryBrownPct: 74,
+      blackSpotPct: 6,
+      leafCoveragePct: 80,
+    });
+  }
+  if (simulatedProfile === 'pontos_pretos') {
+    return buildResultFromMetrics(imageUri, {
+      greenPct: 68,
+      yellowPct: 12,
+      dryBrownPct: 6,
+      blackSpotPct: 14,
+      leafCoveragePct: 80,
+    });
   }
 
-  // 1) Se tiver base64 (Android/iOS/Web), decodifica os pixels JPEG reais offline
   if (base64Data) {
     try {
       const bytes = decodeBase64ToBytes(base64Data);
-      // Assinatura JPEG começa com 0xFF 0xD8
       if (bytes.length > 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
         const decoded = jpeg.decode(bytes, {
           useTArray: true,
           formatAsRGBA: true,
           tolerantDecoding: true,
         });
-        const metrics = analyzeRgbaPixels(
-          decoded.data,
-          decoded.width,
-          decoded.height
-        );
-        return buildResultFromMetrics(
-          imageUri,
-          metrics.greenPct,
-          metrics.yellowPct,
-          metrics.brownPct
-        );
+        const metrics = analyzeRgbaPixels(decoded.data, decoded.width, decoded.height);
+        return buildResultFromMetrics(imageUri, metrics);
       }
     } catch {
-      // Se não for JPEG ou falhar na decodificação, tenta Canvas na Web abaixo
+      // Fallback para canvas na Web
     }
   }
 
-  // 2) Na Web (PNG/JPEG/WebP/Blob), usa Canvas 128x128 com segmentação HSV + ExG
   if (Platform.OS === 'web' && typeof document !== 'undefined') {
     try {
-      const metrics = await new Promise<{
-        greenPct: number;
-        yellowPct: number;
-        brownPct: number;
-      }>((resolve, reject) => {
+      const metrics = await new Promise<FoliarPixelMetrics>((resolve, reject) => {
         const img = new window.Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => {
@@ -289,26 +425,22 @@ export async function analyzeLeafImageOffline(
           }
           ctx.drawImage(img, 0, 0, w, h);
           const data = ctx.getImageData(0, 0, w, h).data;
-          const res = analyzeRgbaPixels(data, w, h);
-          resolve({
-            greenPct: res.greenPct,
-            yellowPct: res.yellowPct,
-            brownPct: res.brownPct,
-          });
+          resolve(analyzeRgbaPixels(data, w, h));
         };
         img.onerror = () => reject(new Error('img-load-err'));
         img.src = imageUri;
       });
-      return buildResultFromMetrics(
-        imageUri,
-        metrics.greenPct,
-        metrics.yellowPct,
-        metrics.brownPct
-      );
+      return buildResultFromMetrics(imageUri, metrics);
     } catch {
-      // Fallback caso imagem não carregue no canvas
+      // Fallback caso imagem falhe
     }
   }
 
-  return buildResultFromMetrics(imageUri, 0, 0, 0);
+  return buildResultFromMetrics(imageUri, {
+    greenPct: 0,
+    yellowPct: 0,
+    dryBrownPct: 0,
+    blackSpotPct: 0,
+    leafCoveragePct: 0,
+  });
 }

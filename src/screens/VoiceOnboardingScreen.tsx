@@ -1,31 +1,165 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAccessibility } from '../context/AccessibilityContext';
-import { speakText } from '../services/voiceAssistant';
+import {
+  interpretYesNoVoiceReply,
+  speakText,
+  startVoiceCapture,
+  stopSpeaking,
+} from '../services/voiceAssistant';
 import { getAppTheme } from '../theme/tokens';
 
 const ONBOARDING_SPEECH =
-  'Olá! Bem-vindo ao RoçaViva. Gostaria que o aplicativo faça a leitura e ajude com comandos de voz?';
+  'Olá! Bem-vindo ao RoçaViva. Gostaria que o aplicativo faça a leitura e ajude com comandos de voz? Pode dizer Sim ou Não.';
 
 export const VoiceOnboardingScreen: React.FC = () => {
   const { accessibility, completeVoiceOnboarding } = useAccessibility();
   const theme = getAppTheme(accessibility);
 
-  const playQuestion = () => {
+  const [listening, setListening] = useState(false);
+  const [heardText, setHeardText] = useState<string | null>(null);
+  const [voiceFeedback, setVoiceFeedback] = useState<string | null>(null);
+
+  const stopCaptureRef = useRef<(() => void) | null>(null);
+  const listenDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+
+  const stopListening = () => {
+    if (listenDelayRef.current) {
+      clearTimeout(listenDelayRef.current);
+      listenDelayRef.current = null;
+    }
+    if (stopCaptureRef.current) {
+      stopCaptureRef.current();
+      stopCaptureRef.current = null;
+    }
+    setListening(false);
+  };
+
+  const processTranscript = (transcript: string) => {
+    const trimmed = transcript.trim();
+    if (!trimmed) return;
+    setHeardText(trimmed);
+
+    const intent = interpretYesNoVoiceReply(trimmed);
+    if (intent === 'sim') {
+      setVoiceFeedback('Entendido: "Sim". Ativando guia por voz...');
+      completeVoiceOnboarding(true);
+      return;
+    }
+    if (intent === 'nao') {
+      setVoiceFeedback('Entendido: "Não". Continuando apenas lendo...');
+      completeVoiceOnboarding(false);
+      return;
+    }
+    if (intent === 'repetir') {
+      setVoiceFeedback('Repetindo a pergunta...');
+      playQuestion(true);
+      return;
+    }
+
+    setVoiceFeedback(
+      'Não consegui identificar "Sim" ou "Não". Ouvindo novamente...'
+    );
+    speakText(
+      'Não entendi bem. Diga Sim para ativar a leitura por voz, ou Não para continuar apenas lendo.',
+      {
+        enabled: true,
+        rate: accessibility.speechRate,
+        languageLevel: 'acessivel',
+        force: true,
+        onDone: () => {
+          if (!mountedRef.current) return;
+          listenDelayRef.current = setTimeout(() => {
+            if (mountedRef.current) beginVoiceReply();
+          }, 220);
+        },
+      }
+    );
+  };
+
+  const beginVoiceReply = () => {
+    if (listening) {
+      stopListening();
+      setVoiceFeedback('Microfone pausado. Toque para tentar de novo ou escolha um botão.');
+      return;
+    }
+
+    stopSpeaking();
+    setHeardText(null);
+    setVoiceFeedback('Ouvindo... Fale "Sim" ou "Não" perto do microfone.');
+    setListening(true);
+
+    const stopFn = startVoiceCapture(
+      (transcript) => {
+        if (!mountedRef.current) return;
+        stopCaptureRef.current = null;
+        setListening(false);
+        processTranscript(transcript);
+      },
+      (errMessage) => {
+        if (!mountedRef.current) return;
+        stopCaptureRef.current = null;
+        setListening(false);
+        setVoiceFeedback(errMessage);
+      },
+      {
+        onEnd: () => {
+          if (!mountedRef.current) return;
+          stopCaptureRef.current = null;
+          setListening(false);
+        },
+        unsupportedMessage:
+          'O Expo Go não inclui reconhecimento de fala automático em segundo plano (requer Development Build / APK). Você pode tocar em "Sim" ou "Não" abaixo.',
+      }
+    );
+
+    stopCaptureRef.current = stopFn;
+  };
+
+  const playQuestion = (listenAfter = true) => {
+    stopListening();
+    setVoiceFeedback(null);
     speakText(ONBOARDING_SPEECH, {
       enabled: true,
       rate: accessibility.speechRate,
       languageLevel: 'acessivel',
       force: true,
+      onDone: listenAfter
+        ? () => {
+            if (!mountedRef.current) return;
+            listenDelayRef.current = setTimeout(() => {
+              if (mountedRef.current) beginVoiceReply();
+            }, 220);
+          }
+        : undefined,
     });
   };
 
+  const handleManualChoice = (enableVoice: boolean) => {
+    stopListening();
+    stopSpeaking();
+    completeVoiceOnboarding(enableVoice);
+  };
+
   useEffect(() => {
+    mountedRef.current = true;
     const timer = setTimeout(() => {
-      playQuestion();
+      playQuestion(true);
     }, 350);
-    return () => clearTimeout(timer);
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(timer);
+      if (listenDelayRef.current) {
+        clearTimeout(listenDelayRef.current);
+        listenDelayRef.current = null;
+      }
+      if (stopCaptureRef.current) {
+        stopCaptureRef.current();
+        stopCaptureRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -57,7 +191,57 @@ export const VoiceOnboardingScreen: React.FC = () => {
         </Text>
 
         <Pressable
-          onPress={playQuestion}
+          onPress={beginVoiceReply}
+          style={[
+            styles.voiceReplyBtn,
+            {
+              backgroundColor: listening ? theme.dangerBg : theme.primary,
+              borderColor: listening ? theme.dangerBorder : theme.border,
+            },
+          ]}
+        >
+          <Ionicons
+            name={listening ? 'radio-button-on' : 'mic'}
+            size={24}
+            color={listening ? theme.dangerText : theme.primaryText}
+          />
+          <Text
+            style={[
+              styles.voiceReplyText,
+              {
+                color: listening ? theme.dangerText : theme.primaryText,
+                fontSize: 16 * theme.scale,
+              },
+            ]}
+          >
+            {listening ? 'Ouvindo... Diga "Sim" ou "Não"' : 'Responder falando (Sim ou Não)'}
+          </Text>
+        </Pressable>
+
+        {(heardText || voiceFeedback) && (
+          <View
+            style={[
+              styles.feedbackBox,
+              { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
+            ]}
+          >
+            {heardText && (
+              <Text style={[styles.heardLabel, { color: theme.text, fontSize: 14 * theme.scale }]}>
+                Você disse: &ldquo;{heardText}&rdquo;
+              </Text>
+            )}
+            {voiceFeedback && (
+              <Text
+                style={[styles.feedbackText, { color: theme.textMuted, fontSize: 13 * theme.scale }]}
+              >
+                {voiceFeedback}
+              </Text>
+            )}
+          </View>
+        )}
+
+        <Pressable
+          onPress={() => playQuestion(true)}
           style={[
             styles.repeatBtn,
             { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
@@ -72,7 +256,7 @@ export const VoiceOnboardingScreen: React.FC = () => {
 
       <View style={styles.actions}>
         <Pressable
-          onPress={() => completeVoiceOnboarding(true)}
+          onPress={() => handleManualChoice(true)}
           style={[
             styles.choiceBtn,
             { backgroundColor: theme.primary, borderColor: theme.border },
@@ -95,7 +279,7 @@ export const VoiceOnboardingScreen: React.FC = () => {
         </Pressable>
 
         <Pressable
-          onPress={() => completeVoiceOnboarding(false)}
+          onPress={() => handleManualChoice(false)}
           style={[
             styles.choiceBtn,
             { backgroundColor: theme.surface, borderColor: theme.border },
@@ -157,6 +341,38 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
     lineHeight: 28,
+  },
+  voiceReplyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    minHeight: 56,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 2,
+    width: '100%',
+  },
+  voiceReplyText: {
+    fontWeight: '800',
+    textAlign: 'center',
+    flexShrink: 1,
+  },
+  feedbackBox: {
+    width: '100%',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 12,
+    gap: 4,
+  },
+  heardLabel: {
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  feedbackText: {
+    fontWeight: '600',
+    textAlign: 'center',
   },
   repeatBtn: {
     flexDirection: 'row',

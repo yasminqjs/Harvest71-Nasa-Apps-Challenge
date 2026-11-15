@@ -6,18 +6,26 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { MainTabKey } from '../components/BottomTabBar';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { getAppTheme } from '../theme/tokens';
+import { FieldValidationLog } from '../types/domain';
 import { formatArea, regionalizarTexto } from '../utils/regionalize';
 
 interface HomeScreenProps {
   onNavigateTab: (tab: MainTabKey) => void;
+  onOpenFeedback?: () => void;
+  onOpenTutorial?: () => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTab }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({
+  onNavigateTab,
+  onOpenFeedback,
+  onOpenTutorial,
+}) => {
   const {
     accessibility,
     activeFarmer,
@@ -29,6 +37,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTab }) => {
   const theme = getAppTheme(accessibility);
   const [showClimateDetail, setShowClimateDetail] = useState(false);
   const [rainFeedback, setRainFeedback] = useState<string | null>(null);
+
+  // Estado da validação detalhada de campo
+  const [showFieldDetailModal, setShowFieldDetailModal] = useState(false);
+  const [intensidadeChuva, setIntensidadeChuva] = useState<
+    NonNullable<FieldValidationLog['intensidadeChuva']>
+  >('sem_chuva');
+  const [umidadeSoloCampo, setUmidadeSoloCampo] = useState<
+    NonNullable<FieldValidationLog['umidadeSoloCampo']>
+  >('umida_boa');
+  const [estadoLavoura, setEstadoLavoura] = useState<
+    NonNullable<FieldValidationLog['estadoLavoura']>
+  >('vigorosa');
+  const [temperaturaPercebida, setTemperaturaPercebida] = useState<
+    NonNullable<FieldValidationLog['temperaturaPercebida']>
+  >('quente');
+  const [sinaisErosao, setSinaisErosao] = useState(false);
+  const [pragaOuObs, setPragaOuObs] = useState('');
 
   if (!activeFarm || !activeFarmer) return null;
 
@@ -78,6 +103,47 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTab }) => {
     speak(msg);
   };
 
+  const handleSaveDetailedField = async () => {
+    const mmMap = {
+      sem_chuva: 0,
+      garoa_fraca: 5,
+      chuva_boa: 20,
+      temporal_forte: 45,
+    };
+    const mm = mmMap[intensidadeChuva];
+    const resumoObs = [
+      `Chuva: ${intensidadeChuva} (${mm} mm)`,
+      `Solo: ${umidadeSoloCampo}`,
+      `Planta: ${estadoLavoura}`,
+      `Calor: ${temperaturaPercebida}`,
+      sinaisErosao ? 'Com erosão/enxurrada' : 'Sem erosão',
+      pragaOuObs.trim() ? `Obs: ${pragaOuObs.trim()}` : '',
+    ]
+      .filter(Boolean)
+      .join(' • ');
+
+    await registerFieldLog({
+      tipo: 'inspecao_completa',
+      choveuHoje: mm > 0,
+      intensidadeChuva,
+      milimetrosEstimados: mm,
+      terraUmida:
+        umidadeSoloCampo === 'umida_boa' || umidadeSoloCampo === 'encharcada',
+      umidadeSoloCampo,
+      estadoLavoura,
+      sinaisErosao,
+      temperaturaPercebida,
+      pragaOuDoenca: pragaOuObs.trim() || undefined,
+      observacao: resumoObs,
+    });
+
+    setShowFieldDetailModal(false);
+    setPragaOuObs('');
+    const msg = 'Validação completa registrada! Diagnóstico da roça atualizado.';
+    setRainFeedback(msg);
+    speak(msg);
+  };
+
   const handleSpeakSummary = () => {
     const summary = `Hoje em ${activeFarm.regiaoNome}, faz ${diag.climaDia.tempMaxC} graus com ${diag.climaDia.condicao}. ${
       level === 'acessivel'
@@ -90,6 +156,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTab }) => {
     } Na rotação atual de ${diag.rotacaoAtual.culturas}, faltam ${diag.rotacaoAtual.diasRestantes} dias para a colheita.`;
     speak(summary, true);
   };
+
+  const weatherIconName: keyof typeof Ionicons.glyphMap =
+    diag.climaDia.icone === '🌧️' || diag.climaDia.icone === '🌦️'
+      ? 'rainy'
+      : diag.climaDia.icone === '⛅'
+      ? 'partly-sunny'
+      : diag.climaDia.icone === '🔥'
+      ? 'flame'
+      : 'sunny';
+
+  const weatherIconColor =
+    diag.climaDia.icone === '🌧️' || diag.climaDia.icone === '🌦️'
+      ? theme.accent
+      : diag.climaDia.icone === '🔥'
+      ? theme.dangerBorder
+      : theme.warningBorder;
 
   return (
     <ScrollView
@@ -134,8 +216,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTab }) => {
           { backgroundColor: theme.surface, borderColor: theme.border },
         ]}
       >
-        <View style={styles.cardLeftIcon}>
-          <Text style={styles.bigEmojiIcon}>{diag.climaDia.icone}</Text>
+        <View
+          style={[
+            styles.cardLeftIcon,
+            { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
+          ]}
+        >
+          <Ionicons name={weatherIconName} size={32} color={weatherIconColor} />
         </View>
         <View style={styles.cardBody}>
           <View style={styles.cardTitleRow}>
@@ -149,15 +236,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTab }) => {
           <Text style={[styles.cardSub, { color: theme.textMuted, fontSize: 14 * theme.scale }]}>
             {activeFarm.regiaoNome} ({activeFarm.municipio} - {activeFarm.estado})
           </Text>
-          <Text style={[styles.cardHint, { color: theme.text }]}>
-            {diag.modeloA.status === 'deficit_confirmado'
-              ? '⚠️ Terra perdendo água (toque para ver)'
-              : '💧 Água equilibrada na semana • Toque p/ ver'}
-          </Text>
+          <View style={styles.inlineIconRow}>
+            <Ionicons
+              name={
+                diag.modeloA.status === 'deficit_confirmado'
+                  ? 'alert-circle'
+                  : 'water'
+              }
+              size={15}
+              color={
+                diag.modeloA.status === 'deficit_confirmado'
+                  ? theme.warningBorder
+                  : theme.accent
+              }
+            />
+            <Text style={[styles.cardHint, { color: theme.text }]}>
+              {diag.modeloA.status === 'deficit_confirmado'
+                ? 'Terra perdendo água (toque para ver)'
+                : 'Água equilibrada na semana • Toque p/ ver'}
+            </Text>
+          </View>
         </View>
       </Pressable>
 
-      {/* CARD 2 DO WIREFRAME: previsão trimestre + emoji que muda com alertas */}
+      {/* CARD 2 DO WIREFRAME: previsão trimestre + indicador que muda com alertas */}
       <Pressable
         onPress={() => {
           onNavigateTab('safra');
@@ -172,8 +274,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTab }) => {
           { backgroundColor: card2Bg, borderColor: card2Border },
         ]}
       >
-        <View style={styles.cardLeftIcon}>
-          <Text style={styles.bigEmojiIcon}>📅</Text>
+        <View
+          style={[
+            styles.cardLeftIcon,
+            {
+              backgroundColor: isDroughtAlert
+                ? theme.surface
+                : isAttention
+                ? theme.surface
+                : theme.surfaceMuted,
+              borderColor: card2Border,
+            },
+          ]}
+        >
+          <Ionicons
+            name={isDroughtAlert ? 'warning' : isAttention ? 'alert-circle' : 'calendar'}
+            size={30}
+            color={
+              isDroughtAlert
+                ? theme.dangerBorder
+                : isAttention
+                ? theme.warningBorder
+                : theme.primary
+            }
+          />
         </View>
         <View style={styles.cardBody}>
           <Text style={[styles.cardTitle, { color: theme.text, fontSize: 20 * theme.scale }]}>
@@ -224,8 +348,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTab }) => {
           { backgroundColor: theme.surface, borderColor: theme.border },
         ]}
       >
-        <View style={styles.cardLeftIcon}>
-          <Text style={styles.bigEmojiIcon}>🌱</Text>
+        <View
+          style={[
+            styles.cardLeftIcon,
+            { backgroundColor: theme.successBg, borderColor: theme.successBorder },
+          ]}
+        >
+          <Ionicons name="leaf" size={30} color={theme.primary} />
         </View>
         <View style={styles.cardBody}>
           <Text style={[styles.cardTitle, { color: theme.text, fontSize: 20 * theme.scale }]}>
@@ -296,9 +425,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTab }) => {
               { backgroundColor: theme.successBg, borderColor: theme.successBorder },
             ]}
           >
-            <Text style={[styles.fieldBtnText, { color: theme.successText }]}>
-              🌧️ Choveu hoje
-            </Text>
+            <View style={styles.inlineIconCenter}>
+              <Ionicons name="rainy-outline" size={18} color={theme.successText} />
+              <Text style={[styles.fieldBtnText, { color: theme.successText }]}>
+                Choveu hoje
+              </Text>
+            </View>
           </Pressable>
           <Pressable
             onPress={() => handleQuickRain(false)}
@@ -307,9 +439,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTab }) => {
               { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
             ]}
           >
-            <Text style={[styles.fieldBtnText, { color: theme.text }]}>
-              ☀️ Não choveu
-            </Text>
+            <View style={styles.inlineIconCenter}>
+              <Ionicons name="sunny-outline" size={18} color={theme.text} />
+              <Text style={[styles.fieldBtnText, { color: theme.text }]}>
+                Não choveu
+              </Text>
+            </View>
           </Pressable>
         </View>
         <View style={styles.fieldBtnRow}>
@@ -320,9 +455,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTab }) => {
               { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
             ]}
           >
-            <Text style={[styles.fieldBtnText, { color: theme.text }]}>
-              💧 Terra úmida
-            </Text>
+            <View style={styles.inlineIconCenter}>
+              <Ionicons name="water-outline" size={18} color={theme.accent} />
+              <Text style={[styles.fieldBtnText, { color: theme.text }]}>
+                Terra úmida
+              </Text>
+            </View>
           </Pressable>
           <Pressable
             onPress={() => handleQuickSoil(false)}
@@ -331,9 +469,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTab }) => {
               { backgroundColor: theme.warningBg, borderColor: theme.warningBorder },
             ]}
           >
-            <Text style={[styles.fieldBtnText, { color: theme.warningText }]}>
-              🏜️ Terra seca
-            </Text>
+            <View style={styles.inlineIconCenter}>
+              <Ionicons name="layers-outline" size={18} color={theme.warningText} />
+              <Text style={[styles.fieldBtnText, { color: theme.warningText }]}>
+                Terra seca
+              </Text>
+            </View>
           </Pressable>
         </View>
         {(rainFeedback || lastSyncMessage) && (
@@ -341,7 +482,292 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTab }) => {
             ✓ {rainFeedback ?? lastSyncMessage}
           </Text>
         )}
+
+        <Pressable
+          onPress={() => setShowFieldDetailModal(true)}
+          style={[
+            styles.detailFieldBtn,
+            { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
+          ]}
+        >
+          <Ionicons name="clipboard-outline" size={20} color={theme.primary} />
+          <Text style={{ fontSize: 13, fontWeight: '900', color: theme.text }}>
+            + Validação completa (intensidade, plantas, praga, erosão)
+          </Text>
+        </Pressable>
       </View>
+
+      {/* Atalhos rápidos para Feedback e Tutorial */}
+      <View style={styles.supportRow}>
+        {onOpenFeedback && (
+          <Pressable
+            onPress={onOpenFeedback}
+            style={[
+              styles.supportCard,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
+            <Ionicons name="chatbox-ellipses-outline" size={24} color={theme.primary} />
+            <Text style={{ fontSize: 13, fontWeight: '900', color: theme.text }}>
+              Dar Feedback
+            </Text>
+            <Text style={{ fontSize: 11, color: theme.textMuted }}>
+              Avalie se a dica funcionou
+            </Text>
+          </Pressable>
+        )}
+        {onOpenTutorial && (
+          <Pressable
+            onPress={onOpenTutorial}
+            style={[
+              styles.supportCard,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
+            <Ionicons name="book-outline" size={24} color={theme.accent} />
+            <Text style={{ fontSize: 13, fontWeight: '900', color: theme.text }}>
+              Tutorial de Uso
+            </Text>
+            <Text style={{ fontSize: 11, color: theme.textMuted }}>
+              Ver passo a passo do app
+            </Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* Modal de Validação Completa do Campo */}
+      <Modal
+        visible={showFieldDetailModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFieldDetailModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: theme.surface, borderColor: theme.border, maxHeight: '88%' },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
+                📋 Validação Detalhada do Campo
+              </Text>
+              <Pressable onPress={() => setShowFieldDetailModal(false)}>
+                <Ionicons name="close-circle" size={28} color={theme.text} />
+              </Pressable>
+            </View>
+
+            <ScrollView contentContainerStyle={{ gap: 10 }}>
+              <Text style={[styles.detailLabel, { color: theme.text }]}>
+                1. Como foi a chuva hoje?
+              </Text>
+              <View style={styles.chipWrap}>
+                {(
+                  [
+                    { id: 'sem_chuva', label: '☀️ Sem chuva' },
+                    { id: 'garoa_fraca', label: '🌦️ Garoa (~5mm)' },
+                    { id: 'chuva_boa', label: '🌧️ Chuva boa (~20mm)' },
+                    { id: 'temporal_forte', label: '⛈️ Temporal (~45mm)' },
+                  ] as const
+                ).map((opt) => (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setIntensidadeChuva(opt.id)}
+                    style={[
+                      styles.detailChip,
+                      {
+                        backgroundColor:
+                          intensidadeChuva === opt.id ? theme.primary : theme.surfaceMuted,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '800',
+                        color:
+                          intensidadeChuva === opt.id ? theme.primaryText : theme.text,
+                      }}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <Text style={[styles.detailLabel, { color: theme.text }]}>
+                2. Umidade da terra (um palmo fundo):
+              </Text>
+              <View style={styles.chipWrap}>
+                {(
+                  [
+                    { id: 'seca_rachando', label: '🏜️ Seca rachando' },
+                    { id: 'seca_solta', label: '🌾 Seca solta' },
+                    { id: 'umida_boa', label: '💧 Úmida na medida' },
+                    { id: 'encharcada', label: '🌊 Encharcada' },
+                  ] as const
+                ).map((opt) => (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setUmidadeSoloCampo(opt.id)}
+                    style={[
+                      styles.detailChip,
+                      {
+                        backgroundColor:
+                          umidadeSoloCampo === opt.id ? theme.primary : theme.surfaceMuted,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '800',
+                        color:
+                          umidadeSoloCampo === opt.id ? theme.primaryText : theme.text,
+                      }}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <Text style={[styles.detailLabel, { color: theme.text }]}>
+                3. Estado das plantas na roça:
+              </Text>
+              <View style={styles.chipWrap}>
+                {(
+                  [
+                    { id: 'vigorosa', label: '🌿 Verdes e firmes' },
+                    { id: 'murcha_sol', label: '🥀 Murcha no sol' },
+                    { id: 'amarelada', label: '🍂 Amarelando' },
+                    { id: 'com_pragas', label: '🐛 Pragas / Manchas' },
+                  ] as const
+                ).map((opt) => (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setEstadoLavoura(opt.id)}
+                    style={[
+                      styles.detailChip,
+                      {
+                        backgroundColor:
+                          estadoLavoura === opt.id ? theme.primary : theme.surfaceMuted,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '800',
+                        color:
+                          estadoLavoura === opt.id ? theme.primaryText : theme.text,
+                      }}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <Text style={[styles.detailLabel, { color: theme.text }]}>
+                4. Calor e sinais no terreno:
+              </Text>
+              <View style={styles.chipWrap}>
+                {(
+                  [
+                    { id: 'amena', label: '🌤️ Amena' },
+                    { id: 'quente', label: '☀️ Quente' },
+                    { id: 'calor_extremo', label: '🔥 Calor extremo' },
+                  ] as const
+                ).map((opt) => (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setTemperaturaPercebida(opt.id)}
+                    style={[
+                      styles.detailChip,
+                      {
+                        backgroundColor:
+                          temperaturaPercebida === opt.id
+                            ? theme.primary
+                            : theme.surfaceMuted,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '800',
+                        color:
+                          temperaturaPercebida === opt.id
+                            ? theme.primaryText
+                            : theme.text,
+                      }}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                ))}
+
+                <Pressable
+                  onPress={() => setSinaisErosao((v) => !v)}
+                  style={[
+                    styles.detailChip,
+                    {
+                      backgroundColor: sinaisErosao ? theme.dangerBg : theme.surfaceMuted,
+                      borderColor: sinaisErosao ? theme.dangerBorder : theme.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '800',
+                      color: sinaisErosao ? theme.dangerText : theme.text,
+                    }}
+                  >
+                    {sinaisErosao
+                      ? '⚠️ Enxurrada / Erosão marcada'
+                      : '⛰️ Marcar se houver enxurrada'}
+                  </Text>
+                </Pressable>
+              </View>
+
+              <Text style={[styles.detailLabel, { color: theme.text }]}>
+                5. Praga observada ou anotação (opcional):
+              </Text>
+              <TextInput
+                value={pragaOuObs}
+                onChangeText={setPragaOuObs}
+                placeholder="Ex.: Lagarta no milho, solo rachando no alto..."
+                placeholderTextColor={theme.textMuted}
+                style={[
+                  styles.detailInput,
+                  {
+                    backgroundColor: theme.bg,
+                    borderColor: theme.border,
+                    color: theme.text,
+                  },
+                ]}
+              />
+
+              <Pressable
+                onPress={handleSaveDetailedField}
+                style={[styles.speakModalBtn, { backgroundColor: theme.primary }]}
+              >
+                <Ionicons name="checkmark-circle" size={22} color={theme.primaryText} />
+                <Text style={{ color: theme.primaryText, fontWeight: '900', fontSize: 15 }}>
+                  Salvar Validação e Atualizar Roça
+                </Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modal do Balanço Hídrico Semanal */}
       <Modal
@@ -453,20 +879,36 @@ const styles = StyleSheet.create({
   wireframeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 24,
-    borderWidth: 2,
-    padding: 16,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    padding: 15,
     gap: 14,
-    minHeight: 112,
+    minHeight: 110,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   cardLeftIcon: {
     width: 58,
     height: 58,
+    borderRadius: 18,
+    borderWidth: 1.2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bigEmojiIcon: {
-    fontSize: 42,
+  inlineIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 2,
+  },
+  inlineIconCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
   cardBody: {
     flex: 1,
@@ -577,6 +1019,52 @@ const styles = StyleSheet.create({
   feedbackText: {
     fontSize: 12,
     fontWeight: '800',
+  },
+  detailFieldBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 48,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    paddingHorizontal: 12,
+    marginTop: 4,
+  },
+  supportRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  supportCard: {
+    flex: 1,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    padding: 14,
+    gap: 4,
+    alignItems: 'flex-start',
+  },
+  detailLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  detailChip: {
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  detailInput: {
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    paddingHorizontal: 12,
+    fontSize: 13,
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,

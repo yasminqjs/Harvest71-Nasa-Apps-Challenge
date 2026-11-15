@@ -2,7 +2,9 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { AlertTopBanner } from './src/components/AlertTopBanner';
 import { AppHeader } from './src/components/AppHeader';
+import { AppTutorialModal } from './src/components/AppTutorialModal';
 import { BottomTabBar, MainTabKey } from './src/components/BottomTabBar';
 import { MobileViewport } from './src/components/MobileViewport';
 import {
@@ -14,14 +16,27 @@ import { FoodSecurityScreen } from './src/screens/FoodSecurityScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { MapScreen } from './src/screens/MapScreen';
 import { NordesteOnboardingScreen } from './src/screens/NordesteOnboardingScreen';
-import { SettingsModal } from './src/screens/SettingsModal';
+import { SettingsModal, SettingsTabKey } from './src/screens/SettingsModal';
 import { VoiceOnboardingScreen } from './src/screens/VoiceOnboardingScreen';
 import { getAppTheme } from './src/theme/tokens';
 
 const RoçaVivaRoot: React.FC = () => {
-  const { ready, accessibility, nordesteMapCompleted } = useAccessibility();
+  const {
+    ready,
+    accessibility,
+    nordesteMapCompleted,
+    tutorialVisible,
+    openTutorial,
+    closeTutorial,
+  } = useAccessibility();
   const [activeTab, setActiveTab] = useState<MainTabKey>('inicio');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTabKey>('perfil');
+
+  const openSettingsAt = (tab: SettingsTabKey = 'perfil') => {
+    setSettingsTab(tab);
+    setSettingsOpen(true);
+  };
 
   const theme = getAppTheme(accessibility);
 
@@ -46,9 +61,19 @@ const RoçaVivaRoot: React.FC = () => {
         <NordesteOnboardingScreen />
       ) : (
         <View style={styles.shell}>
-          <AppHeader onOpenSettings={() => setSettingsOpen(true)} />
+          <AppHeader
+            onOpenSettings={() => openSettingsAt('perfil')}
+            onOpenTutorial={openTutorial}
+          />
+          <AlertTopBanner onOpenAllAlerts={() => openSettingsAt('alertas')} />
           <View style={styles.body}>
-            {activeTab === 'inicio' && <HomeScreen onNavigateTab={setActiveTab} />}
+            {activeTab === 'inicio' && (
+              <HomeScreen
+                onNavigateTab={setActiveTab}
+                onOpenFeedback={() => openSettingsAt('feedback')}
+                onOpenTutorial={openTutorial}
+              />
+            )}
             {activeTab === 'mapa' && <MapScreen />}
             {activeTab === 'safra' && <DecisionScreen />}
             {activeTab === 'pancs' && <FoodSecurityScreen />}
@@ -56,7 +81,12 @@ const RoçaVivaRoot: React.FC = () => {
           <BottomTabBar activeTab={activeTab} onChangeTab={setActiveTab} />
           <SettingsModal
             visible={settingsOpen}
+            initialTab={settingsTab}
             onClose={() => setSettingsOpen(false)}
+          />
+          <AppTutorialModal
+            visible={tutorialVisible}
+            onClose={() => closeTutorial(true)}
           />
         </View>
       )}

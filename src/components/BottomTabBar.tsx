@@ -11,15 +11,16 @@ interface BottomTabBarProps {
   onChangeTab: (tab: MainTabKey) => void;
 }
 
-const TABS: Array<{
+const TABS: {
   key: MainTabKey;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
-}> = [
-  { key: 'inicio', label: 'Início', icon: 'home' },
-  { key: 'mapa', label: 'Mapa', icon: 'map' },
-  { key: 'safra', label: 'Safra', icon: 'leaf' },
-  { key: 'pancs', label: 'PANCs', icon: 'nutrition' },
+  iconInactive: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { key: 'inicio', label: 'Início', icon: 'home', iconInactive: 'home-outline' },
+  { key: 'mapa', label: 'Mapa', icon: 'map', iconInactive: 'map-outline' },
+  { key: 'safra', label: 'Safra', icon: 'leaf', iconInactive: 'leaf-outline' },
+  { key: 'pancs', label: 'PANCs', icon: 'nutrition', iconInactive: 'nutrition-outline' },
 ];
 
 export const BottomTabBar: React.FC<BottomTabBarProps> = ({
@@ -59,7 +60,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
           >
             <View>
               <Ionicons
-                name={t.icon}
+                name={isActive ? t.icon : t.iconInactive}
                 size={22}
                 color={isActive ? theme.primaryText : theme.text}
               />

@@ -23,6 +23,10 @@ export interface AgronomicSimulationInput {
   dryStressBoost?: number;
   rotacaoSelecionada?: string;
   chuvaCampoMm?: number;
+  soloCampoSeco?: boolean;
+  soloEncharcado?: boolean;
+  sinaisErosaoCampo?: boolean;
+  estressePlantaCampo?: boolean;
 }
 
 function findNearestRegion(centroid: GeoPoint): BahiaRegionPreset {
@@ -102,7 +106,7 @@ export function runLocalAgronomicEngine(
   const chuvaCampo = input.chuvaCampoMm ?? 0;
   const rotacao = input.rotacaoSelecionada ?? culturaPrincipal;
 
-  // Modelo A: Balanço Hídrico Semanal + Confirmação SMAP
+  // Modelo A: Balanço Hídrico Semanal + Confirmação SMAP / Campo
   const chuvaImergMm = Math.max(
     0,
     Number((region.chuvaSemanalBaseMm - dryBoost * 6 + chuvaCampo).toFixed(1))
@@ -110,10 +114,17 @@ export function runLocalAgronomicEngine(
   const et0PowerMm = Number((region.et0SemanalMm + dryBoost * 3.5).toFixed(1));
   const kcAplicado = resolveKcForCrop(rotacao);
   const demandaCulturaMm = Number((et0PowerMm * kcAplicado).toFixed(1));
-  const saldoHidricoMm = Number((chuvaImergMm - demandaCulturaMm).toFixed(1));
+  const ajusteSoloCampo = input.soloCampoSeco ? -6 : input.soloEncharcado ? 8 : 0;
+  const saldoHidricoMm = Number(
+    (chuvaImergMm - demandaCulturaMm + ajusteSoloCampo).toFixed(1)
+  );
 
   const smapTendencia: ModelAWaterBalance['smapTendencia'] =
-    saldoHidricoMm < -10 ? 'caindo' : saldoHidricoMm > 4 ? 'subindo' : 'estavel';
+    input.soloCampoSeco || saldoHidricoMm < -10
+      ? 'caindo'
+      : input.soloEncharcado || saldoHidricoMm > 4
+      ? 'subindo'
+      : 'estavel';
 
   const statusA: ModelAWaterBalance['status'] =
     saldoHidricoMm < -5 && smapTendencia === 'caindo'
@@ -145,7 +156,14 @@ export function runLocalAgronomicEngine(
   };
 
   // Modelo B: Cascata de Seca em 4 Sinais (Chuva -> Solo -> Planta -> Calor)
-  const totalSinais = Math.min(4, Math.max(0, region.sinaisSecaPadrao + dryBoost));
+  const campoBoost =
+    (input.soloCampoSeco ? 1 : 0) +
+    (input.estressePlantaCampo ? 1 : 0) -
+    (chuvaCampo >= 15 ? 1 : 0);
+  const totalSinais = Math.min(
+    4,
+    Math.max(0, region.sinaisSecaPadrao + dryBoost + campoBoost)
+  );
   const s1 = totalSinais >= 1;
   const s2 = totalSinais >= 2;
   const s3 = totalSinais >= 3;
@@ -255,7 +273,8 @@ export function runLocalAgronomicEngine(
   };
 
   // Modelo D: Matriz de Risco de Erosão
-  const chuvaIntensaScore = region.bioma === 'Mata Atlântica' ? 4 : 3;
+  const chuvaIntensaScore =
+    chuvaCampo >= 35 || region.bioma === 'Mata Atlântica' ? 4 : 3;
   const mesesSoloExposto =
     rotacao.toLowerCase().includes('palma') || rotacao.toLowerCase().includes('mandioca')
       ? 2
@@ -265,13 +284,17 @@ export function runLocalAgronomicEngine(
 
   const fatoresAltos = [
     chuvaIntensaScore >= 4,
-    region.declividadePct >= 8,
+    region.declividadePct >= 8 || Boolean(input.sinaisErosaoCampo),
     mesesSoloExposto >= 4,
     erodibilidade === 'alta',
   ].filter(Boolean).length;
 
   const nivelErosao: ErosionRiskLevel =
-    fatoresAltos === 4 ? 'alto' : fatoresAltos >= 2 ? 'moderado' : 'baixo';
+    input.sinaisErosaoCampo || fatoresAltos === 4
+      ? 'alto'
+      : fatoresAltos >= 2
+      ? 'moderado'
+      : 'baixo';
 
   const modeloD: ModelDErosionMatrix = {
     chuvaIntensaScore,

@@ -9,21 +9,30 @@ import {
   Text,
   View,
 } from 'react-native';
+import { FeedbackSection } from '../components/FeedbackSection';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { OFFICIAL_DATA_SOURCES } from '../data/seedData';
 import { getAppTheme } from '../theme/tokens';
 
+export type SettingsTabKey = 'perfil' | 'alertas' | 'sync' | 'feedback' | 'fontes';
+
 interface SettingsModalProps {
   visible: boolean;
+  initialTab?: SettingsTabKey;
   onClose: () => void;
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({
+  visible,
+  initialTab = 'perfil',
+  onClose,
+}) => {
   const {
     accessibility,
     farmers,
     activeFarmer,
     alerts,
+    feedbacks,
     syncQueue,
     fieldLogs,
     isOnline,
@@ -33,17 +42,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }
     updateAccessibility,
     markAlertRead,
     triggerSyncNow,
+    openTutorial,
     speak,
     resetDemoData,
   } = useAccessibility();
 
   const theme = getAppTheme(accessibility);
-  const [tab, setTab] = useState<'perfil' | 'alertas' | 'sync' | 'fontes'>('perfil');
+  const [tabOverride, setTabOverride] = useState<SettingsTabKey | null>(null);
+  const tab = tabOverride ?? initialTab;
+
+  const handleClose = () => {
+    setTabOverride(null);
+    onClose();
+  };
 
   if (!activeFarmer) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
       <View style={[styles.root, { backgroundColor: theme.bg }]}>
         <View
           style={[
@@ -51,24 +67,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }
             { backgroundColor: theme.surface, borderBottomColor: theme.border },
           ]}
         >
-          <Text style={[styles.headerTitle, { color: theme.text }]}>
-            👤 Usuário, Alertas & Fontes
-          </Text>
-          <Pressable onPress={onClose} style={styles.closeBtn}>
+          <View style={styles.titleWithIcon}>
+            <Ionicons name="person-circle-outline" size={24} color={theme.primary} />
+            <Text style={[styles.headerTitle, { color: theme.text }]}>
+              Usuário, Alertas & Fontes
+            </Text>
+          </View>
+          <Pressable onPress={handleClose} style={styles.closeBtn}>
             <Ionicons name="close-circle" size={30} color={theme.text} />
           </Pressable>
         </View>
 
-        <View style={styles.tabRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabRow}
+          style={{ flexGrow: 0 }}
+        >
           {[
             { id: 'perfil' as const, label: 'Perfil' },
             { id: 'alertas' as const, label: `Alertas (${alerts.length})` },
+            { id: 'feedback' as const, label: `Feedback (${feedbacks.length})` },
             { id: 'sync' as const, label: `Fila (${pendingSyncCount})` },
             { id: 'fontes' as const, label: 'Fontes' },
           ].map((item) => (
             <Pressable
               key={item.id}
-              onPress={() => setTab(item.id)}
+              onPress={() => setTabOverride(item.id)}
               style={[
                 styles.tabBtn,
                 {
@@ -88,7 +113,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }
               </Text>
             </Pressable>
           ))}
-        </View>
+        </ScrollView>
 
         <ScrollView contentContainerStyle={styles.scrollBody}>
           {tab === 'perfil' && (
@@ -190,8 +215,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }
                 <View style={styles.rowGap}>
                   {(
                     [
-                      { id: 'acessivel', label: '🗣️ Linguagem do Campo' },
-                      { id: 'tecnico', label: '📊 Modo Técnico' },
+                      { id: 'acessivel', label: 'Linguagem do Campo' },
+                      { id: 'tecnico', label: 'Modo Técnico' },
                     ] as const
                   ).map((opt) => (
                     <Pressable
@@ -258,22 +283,88 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }
                 </View>
               </View>
 
+              <View
+                style={[
+                  styles.card,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                ]}
+              >
+                <View style={styles.titleWithIcon}>
+                  <Ionicons name="document-text-outline" size={20} color={theme.primary} />
+                  <Text style={[styles.cardTitle, { color: theme.text }]}>
+                    Dados do Cadastro Atual
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 12.5, color: theme.text, lineHeight: 20 }}>
+                  • Nome: <Text style={{ fontWeight: '800' }}>{activeFarmer.tratamento}</Text>
+                  {activeFarmer.genero
+                    ? ` • Gênero: ${activeFarmer.genero}`
+                    : ''}
+                  {'\n'}• Tempo na agricultura familiar:{' '}
+                  <Text style={{ fontWeight: '800' }}>
+                    {activeFarmer.tempoAgriculturaFamiliar ?? 'Não informado'}
+                  </Text>
+                  {'\n'}• Tamanho da terra:{' '}
+                  <Text style={{ fontWeight: '800' }}>
+                    {activeFarmer.tamanhoEstimadoHa
+                      ? `${activeFarmer.tamanhoEstimadoHa} ha`
+                      : 'Padrão'}
+                  </Text>
+                  {'\n'}• Água: <Text style={{ fontWeight: '800' }}>{activeFarmer.waterAccess}</Text>
+                  {activeFarmer.armazenamentoAgua
+                    ? ` (Reserva: ${activeFarmer.armazenamentoAgua})`
+                    : ''}
+                  {'\n'}• Força de trabalho:{' '}
+                  <Text style={{ fontWeight: '800' }}>{activeFarmer.laborType}</Text>
+                  {'\n'}• Situação financeira:{' '}
+                  <Text style={{ fontWeight: '800' }}>{activeFarmer.financialTier}</Text>
+                  {'\n'}• Objetivo: <Text style={{ fontWeight: '800' }}>{activeFarmer.objective}</Text>
+                  {activeFarmer.desafiosPrincipais &&
+                  activeFarmer.desafiosPrincipais.length > 0
+                    ? `\n• Desafios: ${activeFarmer.desafiosPrincipais.join(', ')}`
+                    : ''}
+                </Text>
+              </View>
+
+              <Pressable
+                onPress={() => {
+                  handleClose();
+                  openTutorial();
+                }}
+                style={[
+                  styles.resetBtn,
+                  { backgroundColor: theme.primary, borderColor: theme.border },
+                ]}
+              >
+                <View style={styles.titleWithIcon}>
+                  <Ionicons name="book-outline" size={18} color={theme.primaryText} />
+                  <Text style={{ fontWeight: '900', color: theme.primaryText }}>
+                    Ver Tutorial de Uso (Passo a Passo)
+                  </Text>
+                </View>
+              </Pressable>
+
               <Pressable
                 onPress={() => {
                   resetDemoData();
-                  onClose();
+                  handleClose();
                 }}
                 style={[
                   styles.resetBtn,
                   { backgroundColor: theme.surface, borderColor: theme.border },
                 ]}
               >
-                <Text style={{ fontWeight: '800', color: theme.text }}>
-                  ↺ Voltar ao Onboarding Inicial (Voz + Mapa Nordeste)
-                </Text>
+                <View style={styles.titleWithIcon}>
+                  <Ionicons name="refresh-outline" size={18} color={theme.text} />
+                  <Text style={{ fontWeight: '800', color: theme.text }}>
+                    Refazer Cadastro & Onboarding Inicial
+                  </Text>
+                </View>
               </Pressable>
             </>
           )}
+
+          {tab === 'feedback' && <FeedbackSection />}
 
           {tab === 'alertas' && (
             <View
@@ -282,47 +373,103 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }
                 { backgroundColor: theme.surface, borderColor: theme.border },
               ]}
             >
-              <Text style={[styles.cardTitle, { color: theme.text }]}>
-                🔔 Alertas Preventivos Locais (Offline)
-              </Text>
-              {alerts.map((al) => (
-                <Pressable
-                  key={al.id}
-                  onPress={() => {
-                    markAlertRead(al.id);
-                    speak(
-                      accessibility.languageLevel === 'acessivel'
-                        ? al.mensagemAcessivel
-                        : al.mensagemTecnica,
-                      true
-                    );
-                  }}
-                  style={[
-                    styles.alertCard,
-                    {
-                      backgroundColor:
-                        al.severidade === 'urgente'
-                          ? theme.dangerBg
-                          : al.severidade === 'atencao'
-                          ? theme.warningBg
-                          : theme.successBg,
-                      borderColor: theme.border,
-                    },
-                  ]}
-                >
-                  <View style={styles.rowBetween}>
-                    <Text style={{ fontSize: 13, fontWeight: '900', color: theme.text, flex: 1 }}>
-                      {al.titulo}
+              <View style={styles.titleWithIcon}>
+                <Ionicons name="notifications-outline" size={20} color={theme.primary} />
+                <Text style={[styles.cardTitle, { color: theme.text }]}>
+                  Alertas Preventivos Locais (Offline)
+                </Text>
+              </View>
+              {alerts.map((al) => {
+                const body =
+                  accessibility.languageLevel === 'acessivel'
+                    ? al.mensagemAcessivel
+                    : al.mensagemTecnica;
+                const border =
+                  al.severidade === 'urgente'
+                    ? theme.dangerBorder
+                    : al.severidade === 'atencao'
+                    ? theme.warningBorder
+                    : theme.successBorder;
+
+                return (
+                  <View
+                    key={al.id}
+                    style={[
+                      styles.alertCard,
+                      {
+                        backgroundColor:
+                          al.severidade === 'urgente'
+                            ? theme.dangerBg
+                            : al.severidade === 'atencao'
+                            ? theme.warningBg
+                            : theme.successBg,
+                        borderColor: border,
+                      },
+                    ]}
+                  >
+                    <View style={styles.rowBetween}>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: '900',
+                          color: theme.text,
+                          flex: 1,
+                        }}
+                      >
+                        {al.titulo}
+                      </Text>
+                      <Pressable
+                        onPress={() => speak(`${al.titulo}. ${body}`, true)}
+                        accessibilityLabel="Ouvir alerta"
+                      >
+                        <Ionicons name="volume-high" size={20} color={theme.text} />
+                      </Pressable>
+                    </View>
+                    <Text style={{ fontSize: 12, color: theme.text, lineHeight: 18 }}>
+                      {body}
                     </Text>
-                    <Ionicons name="volume-high" size={18} color={theme.text} />
+
+                    {al.lido ? (
+                      <View style={styles.ackDoneRow}>
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={16}
+                          color={theme.successText}
+                        />
+                        <Text
+                          style={{
+                            fontSize: 11.5,
+                            fontWeight: '800',
+                            color: theme.successText,
+                          }}
+                        >
+                          Você confirmou estar ciente
+                          {al.confirmadoCienteEm
+                            ? ` (${new Date(al.confirmadoCienteEm).toLocaleDateString('pt-BR')})`
+                            : ''}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Pressable
+                        onPress={() => {
+                          markAlertRead(al.id);
+                          speak('Confirmado que você está ciente deste alerta.');
+                        }}
+                        style={[styles.ackBtn, { backgroundColor: border }]}
+                      >
+                        <Ionicons
+                          name="checkmark-done-circle"
+                          size={16}
+                          color="#FFFFFF"
+                        />
+                        <Text style={styles.ackBtnText}>
+                          Estou ciente da situação
+                        </Text>
+                      </Pressable>
+                    )}
                   </View>
-                  <Text style={{ fontSize: 12, color: theme.text, lineHeight: 18 }}>
-                    {accessibility.languageLevel === 'acessivel'
-                      ? al.mensagemAcessivel
-                      : al.mensagemTecnica}
-                  </Text>
-                </Pressable>
-              ))}
+                );
+              })}
             </View>
           )}
 
@@ -426,12 +573,13 @@ const styles = StyleSheet.create({
   },
   tabRow: {
     flexDirection: 'row',
-    gap: 6,
-    padding: 12,
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   tabBtn: {
-    flex: 1,
     minHeight: 42,
+    paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1.5,
     alignItems: 'center',
@@ -512,5 +660,31 @@ const styles = StyleSheet.create({
   logRow: {
     borderRadius: 10,
     padding: 10,
+  },
+  titleWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ackDoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 4,
+  },
+  ackBtn: {
+    marginTop: 6,
+    minHeight: 40,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  ackBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '900',
   },
 });

@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import MapView, { Circle, MapPressEvent, Marker, Polygon } from 'react-native-maps';
@@ -23,6 +24,15 @@ class MapErrorBoundary extends React.Component<
 export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
   const { centroid, polygon, wells, showWells, drawingMode, onAddPoint, theme } = props;
   const delta = showWells ? 0.14 : 0.0045;
+  const hasGoogleMapsKey = Boolean(
+    Constants.expoConfig?.android?.config?.googleMaps?.apiKey
+  );
+
+  // Sem API key do Google Maps no AndroidManifest, o MapView nativo fecha o app na hora.
+  // Usar o canvas vetorial offline garante o funcionamento completo da aba Mapa sem chave.
+  if (!hasGoogleMapsKey) {
+    return <VectorFallbackCanvas {...props} />;
+  }
 
   const handleMapPress = (event: MapPressEvent) => {
     if (!drawingMode) return;

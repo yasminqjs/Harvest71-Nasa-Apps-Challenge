@@ -6,9 +6,13 @@ import { getAppTheme } from '../theme/tokens';
 
 interface AppHeaderProps {
   onOpenSettings: () => void;
+  onOpenTutorial?: () => void;
 }
 
-export const AppHeader: React.FC<AppHeaderProps> = ({ onOpenSettings }) => {
+export const AppHeader: React.FC<AppHeaderProps> = ({
+  onOpenSettings,
+  onOpenTutorial,
+}) => {
   const {
     accessibility,
     activeFarmer,
@@ -89,6 +93,22 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onOpenSettings }) => {
           </Text>
         </Pressable>
 
+        {onOpenTutorial && (
+          <Pressable
+            onPress={onOpenTutorial}
+            accessibilityLabel="Abrir tutorial de uso"
+            style={[
+              styles.helpCircle,
+              {
+                backgroundColor: theme.surfaceMuted,
+                borderColor: theme.border,
+              },
+            ]}
+          >
+            <Ionicons name="help" size={18} color={theme.text} />
+          </Pressable>
+        )}
+
         {/* Círculo de USUÁRIO / configurações exatamente como no wireframe */}
         <Pressable
           onPress={onOpenSettings}
@@ -162,6 +182,14 @@ const styles = StyleSheet.create({
   voiceBtnText: {
     fontSize: 11,
     fontWeight: '800',
+  },
+  helpCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   userCircle: {
     width: 44,

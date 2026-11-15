@@ -1,3 +1,5 @@
+import { requireOptionalNativeModule } from 'expo';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Speech from 'expo-speech';
 import { Platform } from 'react-native';
 import { EdiblePlantPANC, FarmProperty, FarmerProfile, LanguageLevel } from '../types/domain';
@@ -33,6 +35,7 @@ export function speakText(
     languageLevel?: LanguageLevel;
     tratamento?: string;
     force?: boolean;
+    onDone?: () => void;
   } = {}
 ): void {
   const {
@@ -41,6 +44,7 @@ export function speakText(
     languageLevel = 'acessivel',
     tratamento,
     force = false,
+    onDone,
   } = options;
 
   if (!enabled && !force) return;
@@ -52,10 +56,74 @@ export function speakText(
       language: 'pt-BR',
       rate,
       pitch: 1.0,
+      onDone,
+      onError: () => onDone?.(),
     });
   } catch {
-    // Fallback silencioso
+    onDone?.();
   }
+}
+
+export type YesNoVoiceIntent = 'sim' | 'nao' | 'repetir' | 'desconhecido';
+
+export function interpretYesNoVoiceReply(transcript: string): YesNoVoiceIntent {
+  const norm = transcript
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!norm) return 'desconhecido';
+
+  if (
+    norm.includes('nao entendi') ||
+    norm.includes('repet') ||
+    norm.includes('de novo') ||
+    norm.includes('outra vez') ||
+    norm.includes('ouvir')
+  ) {
+    return 'repetir';
+  }
+
+  if (
+    /\bnao\b/.test(norm) ||
+    norm.includes('sem voz') ||
+    norm.includes('silencioso') ||
+    norm.includes('so ler') ||
+    norm.includes('apenas ler') ||
+    norm.includes('apenas lendo') ||
+    norm.includes('continuar lendo') ||
+    norm.includes('mudo') ||
+    norm.includes('dispenso') ||
+    norm.includes('desativar') ||
+    norm.includes('negativo')
+  ) {
+    return 'nao';
+  }
+
+  if (
+    /\bsim\b/.test(norm) ||
+    /\bquero\b/.test(norm) ||
+    /\bpode\b/.test(norm) ||
+    norm.includes('ativar') ||
+    norm.includes('ativa') ||
+    norm.includes('liga') ||
+    norm.includes('aceito') ||
+    norm.includes('claro') ||
+    norm.includes('com certeza') ||
+    norm.includes('uhum') ||
+    norm.includes('positivo') ||
+    norm.includes('beleza') ||
+    norm.includes('ajuda') ||
+    norm.includes('leitura') ||
+    /\bvoz\b/.test(norm)
+  ) {
+    return 'sim';
+  }
+
+  return 'desconhecido';
 }
 
 export function answerFarmerVoiceQuery(
@@ -152,10 +220,42 @@ export function answerFarmerVoiceQuery(
   };
 }
 
+export function isRunningInExpoGo(): boolean {
+  return Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+}
+
+function getOptionalSpeechRecognitionLib(): typeof import('expo-speech-recognition') | null {
+  if (Platform.OS === 'web') return null;
+  try {
+    const nativeMod = requireOptionalNativeModule('ExpoSpeechRecognition');
+    if (!nativeMod) return null;
+    // Carregamento dinâmico apenas quando o módulo nativo existe (Development Build / APK)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('expo-speech-recognition') as typeof import('expo-speech-recognition');
+  } catch {
+    return null;
+  }
+}
+
 export function startVoiceCapture(
   onResult: (transcript: string) => void,
-  onError: (message: string) => void
+  onError: (message: string) => void,
+  options: {
+    onEnd?: () => void;
+    onExpoGoFallback?: () => void;
+    unsupportedMessage?: string;
+  } = {}
 ): () => void {
+  const {
+    onEnd,
+    onExpoGoFallback,
+    unsupportedMessage =
+      'O Expo Go não inclui o motor de reconhecimento de voz nativo. Use o microfone (🎤) do teclado do celular abaixo, ou gere um Development Build (eas build).',
+  } = options;
+
+  stopSpeaking();
+
+  // 1) Web (Chrome / Edge via Web Speech API)
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     const win = window as unknown as Record<string, unknown>;
     const SpeechRec = (win.SpeechRecognition || win.webkitSpeechRecognition) as
@@ -165,12 +265,20 @@ export function startVoiceCapture(
           maxAlternatives: number;
           onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
           onerror: (e: { error: string }) => void;
+          onend?: () => void;
           start: () => void;
           stop: () => void;
         })
       | undefined;
 
     if (SpeechRec) {
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        onEnd?.();
+      };
+
       try {
         const rec = new SpeechRec();
         rec.lang = 'pt-BR';
@@ -179,9 +287,24 @@ export function startVoiceCapture(
         rec.onresult = (event) => {
           const text = event.results?.[0]?.[0]?.transcript;
           if (text) onResult(text);
+          finish();
         };
-        rec.onerror = () => {
-          onError('Não foi possível ouvir o microfone agora. Use os botões de pergunta rápida.');
+        rec.onerror = (event) => {
+          if (event?.error === 'not-allowed' || event?.error === 'service-not-allowed') {
+            onError(
+              'Permissão do microfone negada. Libere o microfone no navegador ou toque em um dos botões abaixo.'
+            );
+          } else if (event?.error === 'no-speech') {
+            onError('Não ouvi nenhuma fala. Toque no microfone e fale "Sim" ou "Não".');
+          } else {
+            onError(
+              'Não foi possível ouvir o microfone agora. Tente novamente ou toque em um dos botões.'
+            );
+          }
+          finish();
+        };
+        rec.onend = () => {
+          finish();
         };
         rec.start();
         return () => {
@@ -190,16 +313,101 @@ export function startVoiceCapture(
           } catch {
             // ignore
           }
+          finish();
         };
       } catch {
-        onError('Microfone indisponível neste navegador. Use as perguntas prontas abaixo.');
+        onError('Microfone indisponível neste navegador. Toque em uma das opções abaixo.');
+        onEnd?.();
         return () => {};
       }
     }
   }
 
-  onError(
-    'Para usar o microfone direto no celular use o build nativo, ou no notebook use Chrome/Edge. Você pode tocar em qualquer pergunta rápida abaixo para ouvir a resposta.'
-  );
+  // 2) Nativo Android/iOS quando compilado em Development Build / APK (expo-speech-recognition)
+  if (Platform.OS !== 'web') {
+    const speechLib = getOptionalSpeechRecognitionLib();
+    if (speechLib?.ExpoSpeechRecognitionModule) {
+      const mod = speechLib.ExpoSpeechRecognitionModule;
+      let cancelled = false;
+      let finished = false;
+      const subscriptions: { remove: () => void }[] = [];
+
+      const cleanup = () => {
+        if (finished) return;
+        finished = true;
+        for (const sub of subscriptions) {
+          try {
+            sub.remove();
+          } catch {
+            // ignore
+          }
+        }
+        subscriptions.length = 0;
+        onEnd?.();
+      };
+
+      void (async () => {
+        try {
+          const perm = await mod.requestPermissionsAsync();
+          if (cancelled) return;
+          if (!perm.granted) {
+            onError('Permissão de microfone negada no aparelho. Libere nas configurações ou toque nos botões.');
+            cleanup();
+            return;
+          }
+
+          subscriptions.push(
+            mod.addListener('result', (event) => {
+              const text = event.results?.[0]?.transcript;
+              if (text && event.isFinal) {
+                onResult(text);
+                cleanup();
+              }
+            }),
+            mod.addListener('error', (event) => {
+              onError(
+                event.error === 'no-speech'
+                  ? 'Não ouvi nenhuma fala. Tente novamente perto do microfone.'
+                  : 'Não foi possível capturar a fala agora. Tente de novo ou use os botões.'
+              );
+              cleanup();
+            }),
+            mod.addListener('end', () => {
+              cleanup();
+            })
+          );
+
+          mod.start({
+            lang: 'pt-BR',
+            interimResults: false,
+            maxAlternatives: 1,
+            continuous: false,
+          });
+        } catch {
+          onError('Falha ao iniciar o microfone nativo.');
+          cleanup();
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+        try {
+          mod.stop();
+        } catch {
+          // ignore
+        }
+        cleanup();
+      };
+    }
+
+    // Expo Go (StoreClient): o app padrão da loja não inclui o módulo nativo ExpoSpeechRecognition
+    onExpoGoFallback?.();
+    onError(unsupportedMessage);
+    onEnd?.();
+    return () => {};
+  }
+
+  onError(unsupportedMessage);
+  onEnd?.();
   return () => {};
 }

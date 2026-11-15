@@ -8,6 +8,7 @@ import {
 import { runLocalAgronomicEngine } from '../services/localAgronomicEngine';
 import {
   AccessibilityProfile,
+  AppFeedbackItem,
   EdiblePlantPANC,
   FarmProperty,
   FarmerProfile,
@@ -27,11 +28,13 @@ export interface LocalDatabaseSnapshot {
   pocosSiagas: WellPoint[];
   alertas: ProactiveAlertItem[];
   fieldLogs: FieldValidationLog[];
+  feedbacks: AppFeedbackItem[];
   syncQueue: SyncQueueItem[];
 }
 
 export const DEFAULT_ACCESSIBILITY: AccessibilityProfile = {
   voiceOnboardingCompleted: false,
+  tutorialCompleted: false,
   voiceGuidanceEnabled: false,
   speechRate: 0.85,
   highContrast: false,
@@ -73,6 +76,7 @@ export function buildSeedSnapshot(): LocalDatabaseSnapshot {
     pocosSiagas: [...SEED_WELLS],
     alertas: [...SEED_ALERTS],
     fieldLogs: [],
+    feedbacks: [],
     syncQueue: [],
   };
 }

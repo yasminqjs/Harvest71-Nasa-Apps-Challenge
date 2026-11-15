@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import {
   AccessibilityProfile,
+  AppFeedbackItem,
   EdiblePlantPANC,
   FarmProperty,
   FarmerProfile,
@@ -59,6 +60,12 @@ async function createTables(db: SQLite.SQLiteDatabase): Promise<void> {
       payload_json TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS field_logs (
+      id TEXT PRIMARY KEY NOT NULL,
+      criado_em TEXT NOT NULL,
+      sincronizado INTEGER NOT NULL,
+      payload_json TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS app_feedbacks (
       id TEXT PRIMARY KEY NOT NULL,
       criado_em TEXT NOT NULL,
       sincronizado INTEGER NOT NULL,
@@ -159,6 +166,9 @@ export const sqliteDb: SqliteRepository = {
     const logRows = await db.getAllAsync<{ payload_json: string }>(
       'SELECT payload_json FROM field_logs ORDER BY criado_em DESC'
     );
+    const feedbackRows = await db.getAllAsync<{ payload_json: string }>(
+      'SELECT payload_json FROM app_feedbacks ORDER BY criado_em DESC'
+    );
     const queueRows = await db.getAllAsync<{ payload_json: string }>(
       'SELECT payload_json FROM sync_queue ORDER BY criado_em DESC'
     );
@@ -180,6 +190,7 @@ export const sqliteDb: SqliteRepository = {
       pocosSiagas: wellRows.map((r) => JSON.parse(r.payload_json) as WellPoint),
       alertas: alertRows.map((r) => JSON.parse(r.payload_json) as ProactiveAlertItem),
       fieldLogs: logRows.map((r) => JSON.parse(r.payload_json) as FieldValidationLog),
+      feedbacks: feedbackRows.map((r) => JSON.parse(r.payload_json) as AppFeedbackItem),
       syncQueue: queueRows.map((r) => JSON.parse(r.payload_json) as SyncQueueItem),
     };
   },
@@ -237,6 +248,7 @@ export const sqliteDb: SqliteRepository = {
     if (row) {
       const parsed = JSON.parse(row.payload_json) as ProactiveAlertItem;
       parsed.lido = true;
+      parsed.confirmadoCienteEm = parsed.confirmadoCienteEm ?? new Date().toISOString();
       await db.runAsync('UPDATE alertas SET lido = 1, payload_json = ? WHERE id = ?', [
         JSON.stringify(parsed),
         alertId,
@@ -249,6 +261,18 @@ export const sqliteDb: SqliteRepository = {
     await db.runAsync(
       'INSERT OR REPLACE INTO field_logs (id, criado_em, sincronizado, payload_json) VALUES (?, ?, ?, ?)',
       [log.id, log.criadoEm, log.sincronizado ? 1 : 0, JSON.stringify(log)]
+    );
+    await db.runAsync(
+      'INSERT OR REPLACE INTO sync_queue (id, status, criado_em, payload_json) VALUES (?, ?, ?, ?)',
+      [queueItem.id, queueItem.status, queueItem.criadoEm, JSON.stringify(queueItem)]
+    );
+  },
+
+  async addFeedbackAndEnqueue(feedback, queueItem) {
+    const db = await getDb();
+    await db.runAsync(
+      'INSERT OR REPLACE INTO app_feedbacks (id, criado_em, sincronizado, payload_json) VALUES (?, ?, ?, ?)',
+      [feedback.id, feedback.criadoEm, feedback.sincronizado ? 1 : 0, JSON.stringify(feedback)]
     );
     await db.runAsync(
       'INSERT OR REPLACE INTO sync_queue (id, status, criado_em, payload_json) VALUES (?, ?, ?, ?)',
@@ -280,6 +304,17 @@ export const sqliteDb: SqliteRepository = {
       parsed.sincronizado = true;
       await db.runAsync(
         'UPDATE field_logs SET sincronizado = 1, payload_json = ? WHERE id = ?',
+        [JSON.stringify(parsed), row.id]
+      );
+    }
+    const fbRows = await db.getAllAsync<{ id: string; payload_json: string }>(
+      'SELECT id, payload_json FROM app_feedbacks WHERE sincronizado = 0'
+    );
+    for (const row of fbRows) {
+      const parsed = JSON.parse(row.payload_json) as AppFeedbackItem;
+      parsed.sincronizado = true;
+      await db.runAsync(
+        'UPDATE app_feedbacks SET sincronizado = 1, payload_json = ? WHERE id = ?',
         [JSON.stringify(parsed), row.id]
       );
     }
@@ -315,6 +350,7 @@ export const sqliteDb: SqliteRepository = {
       DELETE FROM catalogo_pancs;
       DELETE FROM alertas;
       DELETE FROM field_logs;
+      DELETE FROM app_feedbacks;
       DELETE FROM sync_queue;
     `);
     await seedIfEmpty(db);

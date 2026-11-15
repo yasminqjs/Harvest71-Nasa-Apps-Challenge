@@ -1,5 +1,6 @@
 import {
   AccessibilityProfile,
+  AppFeedbackItem,
   EdiblePlantPANC,
   FarmProperty,
   FarmerProfile,
@@ -17,7 +18,15 @@ function readStore(): LocalDatabaseSnapshot {
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw) as LocalDatabaseSnapshot;
+      if (raw) {
+        const parsed = JSON.parse(raw) as LocalDatabaseSnapshot;
+        return {
+          ...parsed,
+          feedbacks: parsed.feedbacks ?? [],
+          fieldLogs: parsed.fieldLogs ?? [],
+          syncQueue: parsed.syncQueue ?? [],
+        };
+      }
     } catch {
       // Fallback em memória
     }
@@ -46,6 +55,7 @@ export interface SqliteRepository {
   addAlert(alert: ProactiveAlertItem): Promise<void>;
   markAlertRead(alertId: string): Promise<void>;
   addFieldLogAndEnqueue(log: FieldValidationLog, queueItem: SyncQueueItem): Promise<void>;
+  addFeedbackAndEnqueue(feedback: AppFeedbackItem, queueItem: SyncQueueItem): Promise<void>;
   markQueueSynced(queueIds: string[]): Promise<void>;
   queryPancsByBiomeAndPh(bioma: string, ph: number): Promise<EdiblePlantPANC[]>;
   getAllWells(): Promise<WellPoint[]>;
@@ -96,8 +106,11 @@ export const sqliteDb: SqliteRepository = {
 
   async markAlertRead(alertId) {
     const snap = readStore();
+    const now = new Date().toISOString();
     snap.alertas = snap.alertas.map((a) =>
-      a.id === alertId ? { ...a, lido: true } : a
+      a.id === alertId
+        ? { ...a, lido: true, confirmadoCienteEm: a.confirmadoCienteEm ?? now }
+        : a
     );
     writeStore(snap);
   },
@@ -109,6 +122,13 @@ export const sqliteDb: SqliteRepository = {
     writeStore(snap);
   },
 
+  async addFeedbackAndEnqueue(feedback, queueItem) {
+    const snap = readStore();
+    snap.feedbacks = [feedback, ...(snap.feedbacks ?? [])];
+    snap.syncQueue = [queueItem, ...snap.syncQueue];
+    writeStore(snap);
+  },
+
   async markQueueSynced(queueIds) {
     const snap = readStore();
     const ids = new Set(queueIds);
@@ -116,6 +136,7 @@ export const sqliteDb: SqliteRepository = {
       ids.has(q.id) ? { ...q, status: 'sincronizado' } : q
     );
     snap.fieldLogs = snap.fieldLogs.map((l) => ({ ...l, sincronizado: true }));
+    snap.feedbacks = (snap.feedbacks ?? []).map((fb) => ({ ...fb, sincronizado: true }));
     writeStore(snap);
   },
 

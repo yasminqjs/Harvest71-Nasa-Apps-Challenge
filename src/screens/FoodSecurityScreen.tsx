@@ -37,6 +37,7 @@ export const FoodSecurityScreen: React.FC = () => {
   const [listening, setListening] = useState(false);
   const [voiceReply, setVoiceReply] = useState<VoiceReply | null>(null);
   const [micNote, setMicNote] = useState<string | null>(null);
+  const questionInputRef = React.useRef<React.ComponentRef<typeof TextInput> | null>(null);
 
   if (!activeFarm || !activeFarmer) return null;
 
@@ -74,6 +75,14 @@ export const FoodSecurityScreen: React.FC = () => {
       (err) => {
         setListening(false);
         setMicNote(err);
+      },
+      {
+        onEnd: () => setListening(false),
+        onExpoGoFallback: () => {
+          setTimeout(() => questionInputRef.current?.focus(), 100);
+        },
+        unsupportedMessage:
+          'No Expo Go, toque no microfone (🎤) do teclado que abriu para ditar sua pergunta.',
       }
     );
   };
@@ -111,6 +120,7 @@ export const FoodSecurityScreen: React.FC = () => {
             <Ionicons name="mic" size={24} color="#FFFFFF" />
           </Pressable>
           <TextInput
+            ref={questionInputRef}
             value={questionText}
             onChangeText={setQuestionText}
             placeholder="Ex.: Falta água pra minha roça?"
