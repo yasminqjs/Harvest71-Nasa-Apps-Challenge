@@ -14,12 +14,16 @@ MAX_YEARS = 3
 ORDER_TIMEOUT = 20
 
 
-def _candidate_orders(crops, dates, limit):
+def _candidate_orders(crops, dates, limit, pairs):
     durations = {code: fi.get_crop(code)["cycle_days_max"] for code in crops}
     valid = {size: [] for size in (2, 3)}
     discarded = 0
+    unsupported = 0
     for size in valid:
         for order in permutations(sorted(crops), size):
+            if any(frozenset(pair) not in pairs for pair in zip(order, order[1:])):
+                unsupported += 1
+                continue
             if any((end - start).days <= durations[code]
                    for code, start, end in zip(order, dates, dates[1:size])):
                 discarded += 1
@@ -38,7 +42,7 @@ def _candidate_orders(crops, dates, limit):
             valid[size].remove(order)
             used.update((code, slot) for slot, code in enumerate(order))
             selected.append(order)
-    return selected, eligible, discarded
+    return selected, eligible, discarded, unsupported
 
 
 def search(power: Path, soil: Path, work: Path, req: dict) -> dict:
@@ -53,7 +57,8 @@ def search(power: Path, soil: Path, work: Path, req: dict) -> dict:
         tuple(day.replace(year=year + day.year - dates[0].year) for day in dates)
         for year in years
     ]
-    orders, eligible, discarded = _candidate_orders(crops, dates, limit)
+    pairs = {frozenset(pair) for pair in req.get("sequence_pairs", [("MZ", "CP"), ("MZ", "SG"), ("CP", "SG")])}
+    orders, eligible, discarded, unsupported = _candidate_orders(crops, dates, limit, pairs)
     weather = fi.read_power_json(power)
     profile = fi.build_soil(fi.read_pronasolos_csv(soil), soil_id="FSFSPT0001")
     ranked, incomplete = [], []
@@ -98,7 +103,7 @@ def search(power: Path, soil: Path, work: Path, req: dict) -> dict:
         "incomplete_alternatives": incomplete,
         "excluded_crops": req["excluded_crops"],
         "search": {"calendar_eligible": eligible, "calendar_filtered": discarded,
-                   "attempted_candidates": len(orders), "budget_omitted": eligible - len(orders),
+                   "pair_filtered": unsupported, "attempted_candidates": len(orders), "budget_omitted": eligible - len(orders),
                    "historical_start_years": years,
                    "ranking": ["years_all_targets_met", "mean_target_attainment"]},
         "evidence": {"quality_level": "exploratorio", "is_actual_forecast": False},

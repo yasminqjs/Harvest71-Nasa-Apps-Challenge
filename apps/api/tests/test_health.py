@@ -105,7 +105,7 @@ def test_simulation_serializes_weather_event_dates(sim):
 def test_rotation_queues_only_supported_pair(sim):
     _, store, runs = sim
     body = {**GOOD, "planting_dates": ["2024-01-15", "2024-07-15"]}
-    rejected = client.post("/rotations", json={**body, "crops": ["MZ", "CS"]})
+    rejected = client.post("/rotations", json={**body, "crops": ["CP", "CS"]})
     assert rejected.status_code == 422
     assert not runs
     response = client.post("/rotations", json={**body, "crops": ["caupi", "milho"]})
@@ -130,7 +130,7 @@ def test_rotation_accepts_trio_with_one_date_per_crop(sim):
     assert store[f"requests/{runs[0]}.json"]["crops"] == ["MZ", "CP", "SG"]
 
 
-SEARCH = {**GOOD, "known_crops": ["milho", "caupi", "sorgo", "mandioca"],
+SEARCH = {**GOOD, "known_crops": ["milho", "caupi", "sorgo", "abacaxi"],
           "planting_dates": ["2024-01-15", "2024-07-15", "2025-02-20"],
           "historical_start_years": [1992, 2000],
           "yield_targets_kg_ha": {"milho": 1000, "CP": 500, "SG": 1000}}
@@ -142,7 +142,7 @@ def test_rotation_search_persists_normalized_input_and_reports_exclusions(sim):
     assert response.status_code == 202
     data = response.json()
     assert data["supported_crops"] == ["MZ", "CP", "SG"]
-    assert data["excluded_crops"] == ["CS"]
+    assert data["excluded_crops"] == ["PI"]
     request = store[f"requests/{runs[0]}.json"]
     assert request["kind"] == "rotation_search"
     assert request["yield_targets_kg_ha"] == {"MZ": 1000, "CP": 500, "SG": 1000}

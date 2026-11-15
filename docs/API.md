@@ -342,7 +342,7 @@ impacto de eventos e comparação agronômica exigem execução no motor.
 
 ### Comparação de rotações com duas ou três culturas
 
-Envie a coordenada, duas ou três culturas distintas entre milho, caupi e sorgo
+Envie a coordenada, duas ou três culturas distintas com todos os pares publicados em `/planning/capabilities`
 e uma data por cultura, em ordem em até dois anos consecutivos (1992 a 2024), para
 `POST /rotations`. O DSSAT tenta todas as permutações em sequeiro.
 
@@ -368,7 +368,7 @@ cada cultura habilitada. Exemplo:
 {
   "lat": -9.41,
   "lon": -40.5,
-  "known_crops": ["milho", "caupi", "sorgo", "mandioca"],
+  "known_crops": ["milho", "caupi", "sorgo", "abacaxi"],
   "planting_dates": ["1992-01-15", "1992-06-15", "1993-01-15"],
   "historical_start_years": [1992, 1993],
   "yield_targets_kg_ha": {"MZ": 1500, "CP": 500, "SG": 1500},
@@ -379,7 +379,7 @@ cada cultura habilitada. Exemplo:
 A busca transfere os dias e meses para cada ano histórico solicitado. As
 rotações de duas culturas usam as duas primeiras datas. O filtro descarta
 ordens cujo intervalo é insuficiente segundo a duração de referência do
-catálogo. São selecionadas até oito ordens, dando espaço a pares e trios
+catálogo e ignora transições entre pares sem evidência de execução. São selecionadas até oito ordens, dando espaço a pares e trios
 e diversificando culturas por posição. A resposta `poll` acompanha o Job.
 
 O resultado lista até três `recommendations` e inclui as demais ordens simuladas

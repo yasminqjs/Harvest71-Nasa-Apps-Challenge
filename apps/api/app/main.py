@@ -11,6 +11,7 @@ solo PronaSolos são buscados automaticamente para a coordenada; a análise de s
 """
 
 import json
+from itertools import combinations
 import os
 import re
 import secrets
@@ -38,9 +39,23 @@ GLOBAL_PER_DAY = int(os.environ.get("GLOBAL_PER_DAY", "500"))   # teto por inst�
 RESULT_TIMEOUT_S = 15 * 60
 BRAZIL_BBOX = (-34.0, 5.5, -74.5, -28.5)
 CROPS = json.loads((__import__("pathlib").Path(__file__).with_name("crops.json")).read_text())["crops"]
-VERIFIED_SEQUENCE_CROPS = frozenset({"MZ", "CP", "SG"})
+# Both orders completed in DSSAT Q in Actions run 43726460395, artifact 14166761770.
+_REGIONAL_SEQUENCE_CROPS = ("MZ", "CP", "SG", "BN", "PN", "ML", "PP")
+_MAIZE_SEQUENCE_PARTNERS = ("SB", "CS", "RI", "SU", "CO", "SC", "TR", "TM",
+                            "PR", "GB", "SW", "CB", "PT", "CH")
+VERIFIED_SEQUENCE_PAIRS = frozenset(
+    frozenset(pair)
+    for pair in (*combinations(_REGIONAL_SEQUENCE_CROPS, 2),
+                 *(("MZ", code) for code in _MAIZE_SEQUENCE_PARTNERS))
+)
+VERIFIED_SEQUENCE_CROPS = frozenset().union(*VERIFIED_SEQUENCE_PAIRS)
 ROTATION_SEARCH_PER_DAY = 10
 ROTATION_SEARCH_GLOBAL_PER_DAY = 30
+
+
+def _eligible_sequence_crops(codes):
+    requested = set(codes)
+    return frozenset().union(*(pair for pair in VERIFIED_SEQUENCE_PAIRS if pair <= requested))
 
 
 def _norm(s: str) -> str:
@@ -306,7 +321,7 @@ class RotationRequest(BaseModel):
         resolved = [find_crop(code) for code in self.crops]
         codes = tuple(crop["code"] for crop in resolved if crop)
         if (len(codes) != len(self.crops) or len(set(codes)) != len(codes)
-                or not set(codes) <= VERIFIED_SEQUENCE_CROPS):
+                or any(frozenset(pair) not in VERIFIED_SEQUENCE_PAIRS for pair in combinations(codes, 2))):
             raise ValueError("escolha culturas distintas habilitadas para sequência DSSAT")
         self.crops = codes
         dates = self.planting_dates
@@ -341,7 +356,7 @@ class RotationSearchRequest(BaseModel):
             if not crop:
                 raise ValueError(f"cultura desconhecida no catálogo: {name}")
             codes.append(crop["code"])
-        supported = VERIFIED_SEQUENCE_CROPS.intersection(codes)
+        supported = _eligible_sequence_crops(codes)
         if len(set(codes)) != len(codes) or len(supported) < 2:
             raise ValueError("informe culturas distintas, das quais pelo menos duas habilitadas para sequência DSSAT")
 
@@ -435,11 +450,13 @@ def create_rotation_search(req: RotationSearchRequest, key: str = Depends(requir
     rate_limit(key, rotation_search=True)
     rid = uuid.uuid4().hex[:16]
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    supported = [code for code in req.known_crops if code in VERIFIED_SEQUENCE_CROPS]
-    excluded = [code for code in req.known_crops if code not in VERIFIED_SEQUENCE_CROPS]
+    eligible = _eligible_sequence_crops(req.known_crops)
+    supported = [code for code in req.known_crops if code in eligible]
+    excluded = [code for code in req.known_crops if code not in eligible]
+    pairs = sorted(sorted(pair) for pair in VERIFIED_SEQUENCE_PAIRS if pair <= eligible)
     _put_json(f"requests/{rid}.json", {
         **req.model_dump(mode="json"), "kind": "rotation_search", "crop": "ROTATION",
-        "supported_crops": supported, "excluded_crops": excluded, "id": rid, "created_utc": now,
+        "supported_crops": supported, "excluded_crops": excluded, "sequence_pairs": pairs, "id": rid, "created_utc": now,
     })
     _run_job(rid)
     return {"id": rid, "status": "queued", "created_utc": now, "poll": f"/simulations/{rid}",
@@ -471,7 +488,7 @@ def planning_capabilities() -> dict:
         "calendar": True,
         "calendar_replan": True,
         "dssat_sequence": True,
-        "sequence_pairs": [["MZ", "CP"], ["MZ", "SG"], ["CP", "SG"]],
+        "sequence_pairs": sorted(sorted(pair) for pair in VERIFIED_SEQUENCE_PAIRS),
         "sequence_max_crops": 3,
         "rotation_search": True,
         "dssat_replan": False,
