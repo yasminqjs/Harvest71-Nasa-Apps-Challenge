@@ -64,8 +64,9 @@ interface AccessibilityContextValue {
   selectFarmer: (farmerId: string) => Promise<void>;
   saveFarmerProfile: (farmer: FarmerProfile) => Promise<void>;
   recordCropHistory: (
-    input: Omit<CropHistoryRecord, 'id' | 'farmerId' | 'registradaEm'>
+    input: Omit<CropHistoryRecord, 'id' | 'farmerId' | 'registradaEm' | 'periodoSafra'>
   ) => Promise<void>;
+  deleteCropHistory: (recordId: string) => Promise<void>;
   applyRegistrationSetup: (
     farmer: FarmerProfile,
     options: { tamanhoEstimadoHa?: number; culturaPrincipal?: string }
@@ -369,7 +370,9 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const recordCropHistory = useCallback(
-    async (input: Omit<CropHistoryRecord, 'id' | 'farmerId' | 'registradaEm'>) => {
+    async (
+      input: Omit<CropHistoryRecord, 'id' | 'farmerId' | 'registradaEm' | 'periodoSafra'>
+    ) => {
       if (!activeFarmer) return;
       const record: CropHistoryRecord = {
         ...input,
@@ -377,17 +380,29 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         farmerId: activeFarmer.id,
         registradaEm: new Date().toISOString(),
       };
-      const cropNames = activeFarmer.historicoCultivo ?? [];
-      const alreadyListed = cropNames.some(
-        (name) => name.trim().toLocaleLowerCase() === record.nomeCultura.trim().toLocaleLowerCase()
-      );
       const updatedFarmer: FarmerProfile = {
         ...activeFarmer,
-        historicoCultivo: alreadyListed ? cropNames : [...cropNames, record.nomeCultura],
         historicoCultivoDetalhado: [
           record,
           ...(activeFarmer.historicoCultivoDetalhado ?? []),
         ],
+      };
+      await sqliteDb.upsertUsuario(updatedFarmer);
+      setFarmers((prev) => prev.map((farmer) =>
+        farmer.id === updatedFarmer.id ? updatedFarmer : farmer
+      ));
+    },
+    [activeFarmer]
+  );
+
+  const deleteCropHistory = useCallback(
+    async (recordId: string) => {
+      if (!activeFarmer) return;
+      const updatedFarmer: FarmerProfile = {
+        ...activeFarmer,
+        historicoCultivoDetalhado: (activeFarmer.historicoCultivoDetalhado ?? []).filter(
+          (record) => record.id !== recordId
+        ),
       };
       await sqliteDb.upsertUsuario(updatedFarmer);
       setFarmers((prev) => prev.map((farmer) =>
@@ -828,6 +843,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       selectFarmer,
       saveFarmerProfile,
       recordCropHistory,
+      deleteCropHistory,
       applyRegistrationSetup,
       updateFarmPolygon,
       selectBahiaRegion,
@@ -873,6 +889,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       selectFarmer,
       saveFarmerProfile,
       recordCropHistory,
+      deleteCropHistory,
       applyRegistrationSetup,
       updateFarmPolygon,
       selectBahiaRegion,

@@ -5,6 +5,7 @@ import { useAccessibility } from '../context/AccessibilityContext';
 import { SEED_CROPS } from '../data/seedData';
 import { CropDecisionItem, HarvestQuantityUnit } from '../types/domain';
 import { getAppTheme } from '../theme/tokens';
+import { CropDateInput } from './CropDateInput';
 
 const QUANTITY_UNITS: { key: HarvestQuantityUnit; label: string }[] = [
   { key: 'kg', label: 'kg' },
@@ -20,15 +21,24 @@ function normalizeCropName(value: string): string {
     .trim();
 }
 
+function formatCropDate(value?: string): string | null {
+  if (!value) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return value;
+  return new Date(year, month - 1, day).toLocaleDateString('pt-BR');
+}
+
 export const CropHistorySection: React.FC = () => {
-  const { accessibility, activeFarmer, recordCropHistory } = useAccessibility();
+  const { accessibility, activeFarmer, recordCropHistory, deleteCropHistory } = useAccessibility();
   const theme = getAppTheme(accessibility);
   const [query, setQuery] = useState('');
   const [selectedCrop, setSelectedCrop] = useState<CropDecisionItem | null>(null);
   const [customCrop, setCustomCrop] = useState('');
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState<HarvestQuantityUnit>('kg');
-  const [period, setPeriod] = useState('');
+  const [startDate, setStartDate] = useState<string>();
+  const [finishDate, setFinishDate] = useState<string>();
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -77,6 +87,10 @@ export const CropHistorySection: React.FC = () => {
       setError('Informe uma quantidade maior que zero.');
       return;
     }
+    if (startDate && finishDate && finishDate < startDate) {
+      setError('A data de finalização deve ser igual ou posterior à data de início.');
+      return;
+    }
 
     setSaving(true);
     setError('');
@@ -86,13 +100,15 @@ export const CropHistorySection: React.FC = () => {
         cropId: selectedCrop?.id,
         quantidadeColhida: parsedQuantity,
         unidadeQuantidade: parsedQuantity === undefined ? undefined : unit,
-        periodoSafra: period.trim() || undefined,
+        dataInicio: startDate,
+        dataFim: finishDate,
       });
       setQuery('');
       setSelectedCrop(null);
       setCustomCrop('');
       setQuantity('');
-      setPeriod('');
+      setStartDate(undefined);
+      setFinishDate(undefined);
     } catch {
       setError('Não foi possível salvar. Tente novamente.');
     } finally {
@@ -211,15 +227,32 @@ export const CropHistorySection: React.FC = () => {
         </View>
       </View>
 
-      <Text style={[styles.label, { color: theme.text }]}>Safra ou período (opcional)</Text>
-      <TextInput
-        value={period}
-        onChangeText={setPeriod}
-        placeholder="Ex.: 2024/25 ou inverno de 2023"
-        placeholderTextColor={theme.textMuted}
-        style={[styles.input, { backgroundColor: theme.bg, borderColor: theme.border, color: theme.text }]}
-        accessibilityLabel="Safra ou período de cultivo"
-      />
+      <View style={styles.dateFields}>
+        <View style={styles.dateField}>
+          <Text style={[styles.label, { color: theme.text }]}>Data de início (opcional)</Text>
+          <CropDateInput
+            accessibilityLabel="Selecionar data de início do cultivo"
+            value={startDate}
+            maximumDate={finishDate}
+            onChange={(value) => {
+              setStartDate(value);
+              setError('');
+            }}
+          />
+        </View>
+        <View style={styles.dateField}>
+          <Text style={[styles.label, { color: theme.text }]}>Data de finalização (opcional)</Text>
+          <CropDateInput
+            accessibilityLabel="Selecionar data de finalização do cultivo"
+            value={finishDate}
+            minimumDate={startDate}
+            onChange={(value) => {
+              setFinishDate(value);
+              setError('');
+            }}
+          />
+        </View>
+      </View>
 
       {error ? <Text style={{ color: theme.dangerText, fontSize: 12 }}>{error}</Text> : null}
       <Pressable
@@ -246,11 +279,51 @@ export const CropHistorySection: React.FC = () => {
                 record.quantidadeColhida !== undefined && record.unidadeQuantidade
                   ? `Colheita: ${record.quantidadeColhida} ${record.unidadeQuantidade}`
                   : null,
-                record.periodoSafra,
+                record.dataInicio ? `Início: ${formatCropDate(record.dataInicio)}` : null,
+                record.dataFim ? `Finalização: ${formatCropDate(record.dataFim)}` : null,
+                !record.dataInicio && !record.dataFim && record.etapaCultivo
+                  ? record.etapaCultivo === 'inicio' ? 'Início' : 'Finalizada'
+                  : null,
+                !record.dataInicio && !record.dataFim ? record.periodoSafra : null,
               ].filter(Boolean).join(' • ') || 'Sem quantidade ou período informado'}
             </Text>
           </View>
-          {record.cropId ? <Ionicons name="checkmark-circle" size={18} color={theme.successText} /> : null}
+          {pendingDeleteId === record.id ? (
+            <View style={styles.deleteConfirmation}>
+              <Text style={{ color: theme.dangerText, fontSize: 10, fontWeight: '800' }}>Excluir?</Text>
+              <Pressable
+                onPress={async () => {
+                  await deleteCropHistory(record.id);
+                  setPendingDeleteId(null);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Confirmar exclusão de ${record.nomeCultura}`}
+                style={[styles.deleteConfirmButton, { backgroundColor: theme.dangerBg, borderColor: theme.dangerBorder }]}
+              >
+                <Text style={{ color: theme.dangerText, fontSize: 10, fontWeight: '900' }}>Excluir</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setPendingDeleteId(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Cancelar exclusão"
+                style={[styles.deleteConfirmButton, { backgroundColor: theme.surfaceMuted, borderColor: theme.border }]}
+              >
+                <Text style={{ color: theme.text, fontSize: 10, fontWeight: '800' }}>Cancelar</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.rowActions}>
+              {record.cropId ? <Ionicons name="checkmark-circle" size={18} color={theme.successText} /> : null}
+              <Pressable
+                onPress={() => setPendingDeleteId(record.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`Excluir ${record.nomeCultura}`}
+                style={[styles.deleteButton, { borderColor: theme.dangerBorder }]}
+              >
+                <Ionicons name="trash-outline" size={17} color={theme.dangerText} />
+              </Pressable>
+            </View>
+          )}
         </View>
       ))}
       {previousHistory.map((name) => (
@@ -280,7 +353,13 @@ const styles = StyleSheet.create({
   quantityField: { flex: 1, gap: 6 },
   units: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   unitButton: { minHeight: 38, flexGrow: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 8, paddingHorizontal: 7 },
+  dateFields: { flexDirection: 'row', gap: 8 },
+  dateField: { flex: 1, gap: 6 },
   saveButton: { minHeight: 46, borderRadius: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   divider: { height: 1, opacity: 0.5, marginVertical: 2 },
   historyRow: { minHeight: 42, borderRadius: 9, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rowActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  deleteButton: { width: 34, height: 34, borderWidth: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  deleteConfirmation: { alignItems: 'flex-end', gap: 5 },
+  deleteConfirmButton: { minHeight: 30, borderWidth: 1, borderRadius: 7, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
 });

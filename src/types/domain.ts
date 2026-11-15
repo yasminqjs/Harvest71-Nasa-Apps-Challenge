@@ -79,6 +79,7 @@ export interface FarmerProfile {
 }
 
 export type HarvestQuantityUnit = 'kg' | 'sacas' | 'toneladas';
+export type CropCultivationStage = 'inicio' | 'finalizada';
 
 export interface CropHistoryRecord {
   id: string;
@@ -87,6 +88,9 @@ export interface CropHistoryRecord {
   cropId?: string;
   quantidadeColhida?: number;
   unidadeQuantidade?: HarvestQuantityUnit;
+  dataInicio?: string;
+  dataFim?: string;
+  etapaCultivo?: CropCultivationStage;
   periodoSafra?: string;
   registradaEm: string;
 }
