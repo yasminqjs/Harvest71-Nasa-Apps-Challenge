@@ -357,3 +357,35 @@ as diferenças por cultura em cada alternativa. Para duas culturas, o campo
 `reversed_minus_baseline` continua disponível. O resultado inclui efeitos de
 calendário e vale para o calendário histórico escolhido. Se nenhuma ordem completar
 os plantios, o pedido falha. Os limites de uso são compartilhados com simulações.
+
+### Buscar rotações a partir das culturas conhecidas
+
+`POST /rotations/search` recebe a lista de culturas conhecidas, três posições de
+plantio, dois ou três anos históricos e uma meta de produção em kg/ha para
+cada cultura habilitada. Exemplo:
+
+```json
+{
+  "lat": -9.41,
+  "lon": -40.5,
+  "known_crops": ["milho", "caupi", "sorgo", "mandioca"],
+  "planting_dates": ["1992-01-15", "1992-06-15", "1993-01-15"],
+  "historical_start_years": [1992, 1993],
+  "yield_targets_kg_ha": {"MZ": 1500, "CP": 500, "SG": 1500},
+  "max_candidates": 8
+}
+```
+
+A busca transfere os dias e meses para cada ano histórico solicitado. As
+rotações de duas culturas usam as duas primeiras datas. O filtro descarta
+ordens cujo intervalo é insuficiente segundo a duração de referência do
+catálogo. São selecionadas até oito ordens, dando espaço a pares e trios
+e diversificando culturas por posição. A resposta `poll` acompanha o Job.
+
+O resultado lista até três `recommendations` e inclui as demais ordens simuladas
+em `ranked_alternatives`. A classificação usa primeiro o número de anos em
+que todas as metas foram atingidas, depois a proporção média de cumprimento
+das metas, limitada a 100% por ciclo. As ordens que falharam em algum ano
+aparecem em `incomplete_alternatives` e ficam fora da classificação. O resultado
+informa as culturas excluídas, ordens descartadas e ordens omitidas pelo
+orçamento. Os números descrevem os anos testados e o manejo de sequeiro.

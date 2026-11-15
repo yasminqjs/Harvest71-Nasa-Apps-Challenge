@@ -40,7 +40,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgfortran5 py
  && rm -rf /var/lib/apt/lists/* \
  && pip install --no-cache-dir --break-system-packages "google-cloud-storage>=2.16,<3"
 COPY --from=build /opt/dssat /opt/dssat
-COPY runner.py fieldshift_inputs.py weather_events.py rotation_compare.py crops.json /app/
+COPY runner.py fieldshift_inputs.py weather_events.py rotation_compare.py rotation_search.py crops.json /app/
 ARG GIT_COMMIT=unknown
 ENV GIT_COMMIT=$GIT_COMMIT DSSAT_HOME=/opt/dssat PYTHONUNBUFFERED=1 PYTHONPATH=/app
 RUN useradd --uid 10001 --create-home dssat

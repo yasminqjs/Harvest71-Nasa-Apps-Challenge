@@ -130,6 +130,48 @@ def test_rotation_accepts_trio_with_one_date_per_crop(sim):
     assert store[f"requests/{runs[0]}.json"]["crops"] == ["MZ", "CP", "SG"]
 
 
+SEARCH = {**GOOD, "known_crops": ["milho", "caupi", "sorgo", "mandioca"],
+          "planting_dates": ["2024-01-15", "2024-07-15", "2025-02-20"],
+          "historical_start_years": [1992, 2000],
+          "yield_targets_kg_ha": {"milho": 1000, "CP": 500, "SG": 1000}}
+
+
+def test_rotation_search_persists_normalized_input_and_reports_exclusions(sim):
+    _, store, runs = sim
+    response = client.post("/rotations/search", json=SEARCH)
+    assert response.status_code == 202
+    data = response.json()
+    assert data["supported_crops"] == ["MZ", "CP", "SG"]
+    assert data["excluded_crops"] == ["CS"]
+    request = store[f"requests/{runs[0]}.json"]
+    assert request["kind"] == "rotation_search"
+    assert request["yield_targets_kg_ha"] == {"MZ": 1000, "CP": 500, "SG": 1000}
+    assert request["planting_dates"] == SEARCH["planting_dates"]
+    assert client.get(data["poll"]).json()["status"] == "queued"
+
+
+@pytest.mark.parametrize("change", [
+    {"known_crops": ["milho", "MZ", "caupi"]},
+    {"yield_targets_kg_ha": {"MZ": 1000, "CP": 500}},
+    {"historical_start_years": [1992, 1992]},
+    {"planting_dates": ["2024-02-29", "2024-07-15", "2025-02-20"],
+     "historical_start_years": [1992, 1993]},
+    {"max_candidates": 9},
+])
+def test_rotation_search_rejects_unusable_portfolio(sim, change):
+    _, _, runs = sim
+    assert client.post("/rotations/search", json={**SEARCH, **change}).status_code == 422
+    assert not runs
+
+
+def test_rotation_search_has_stricter_quota(sim, monkeypatch):
+    module, _, runs = sim
+    monkeypatch.setattr(module, "ROTATION_SEARCH_PER_DAY", 1)
+    assert client.post("/rotations/search", json=SEARCH).status_code == 202
+    assert client.post("/rotations/search", json=SEARCH).status_code == 429
+    assert len(runs) == 1
+
+
 def test_calendar_planning_and_replan(sim):
     body = {
         "horizon_start": "2027-01-01", "horizon_end": "2028-12-31",

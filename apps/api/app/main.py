@@ -19,7 +19,7 @@ import time
 import uuid
 from collections import defaultdict, deque
 from datetime import date, datetime, timezone
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,6 +38,9 @@ GLOBAL_PER_DAY = int(os.environ.get("GLOBAL_PER_DAY", "500"))   # teto por inst�
 RESULT_TIMEOUT_S = 15 * 60
 BRAZIL_BBOX = (-34.0, 5.5, -74.5, -28.5)
 CROPS = json.loads((__import__("pathlib").Path(__file__).with_name("crops.json")).read_text())["crops"]
+VERIFIED_SEQUENCE_CROPS = frozenset({"MZ", "CP", "SG"})
+ROTATION_SEARCH_PER_DAY = 10
+ROTATION_SEARCH_GLOBAL_PER_DAY = 30
 
 
 def _norm(s: str) -> str:
@@ -159,7 +162,7 @@ def require_key(request: Request, x_api_key: Optional[str] = Header(default=None
     return f"ip:{ip}"
 
 
-def rate_limit(key: str) -> None:
+def rate_limit(key: str, *, rotation_search: bool = False) -> None:
     """Limite por chave ou IP (por instância; máx. 2 instâncias): N/min e N/dia, mais teto global diário."""
     now = time.time()
     with _lock:
@@ -175,6 +178,17 @@ def rate_limit(key: str) -> None:
             raise HTTPException(status_code=429, detail="limite diário de simulações atingido")
         if sum(1 for t in q if now - t < 60) >= RATE_PER_MINUTE:
             raise HTTPException(status_code=429, detail="muitas simulações por minuto; tente em instantes")
+        if rotation_search:
+            search = _hits[f"rotation-search:{key}"]
+            search_global = _hits["rotation-search:__global__"]
+            for queue in (search, search_global):
+                while queue and now - queue[0] > 86400:
+                    queue.popleft()
+            if (len(search) >= ROTATION_SEARCH_PER_DAY
+                    or len(search_global) >= ROTATION_SEARCH_GLOBAL_PER_DAY):
+                raise HTTPException(status_code=429, detail="limite diário de buscas de rotação atingido")
+            search.append(now)
+            search_global.append(now)
         q.append(now)
         g.append(now)
 
@@ -292,14 +306,68 @@ class RotationRequest(BaseModel):
         resolved = [find_crop(code) for code in self.crops]
         codes = tuple(crop["code"] for crop in resolved if crop)
         if (len(codes) != len(self.crops) or len(set(codes)) != len(codes)
-                or not set(codes) <= {"MZ", "CP", "SG"}):
-            raise ValueError("escolha culturas distintas entre milho, caupi e sorgo")
+                or not set(codes) <= VERIFIED_SEQUENCE_CROPS):
+            raise ValueError("escolha culturas distintas habilitadas para sequência DSSAT")
         self.crops = codes
         dates = self.planting_dates
         if (len(dates) != len(codes) or tuple(sorted(set(dates))) != dates
                 or not 1992 <= dates[0].year <= dates[-1].year <= 2024
                 or dates[-1].year - dates[0].year > 1):
             raise ValueError("informe uma data por cultura, em ordem, em até dois anos consecutivos (1992 a 2024)")
+        return self
+
+
+class RotationSearchRequest(BaseModel):
+    lat: float = Field(ge=BRAZIL_BBOX[0], le=BRAZIL_BBOX[1])
+    lon: float = Field(ge=BRAZIL_BBOX[2], le=BRAZIL_BBOX[3])
+    known_crops: tuple[Annotated[str, Field(min_length=1, max_length=80)], ...] = Field(
+        min_length=2, max_length=23
+    )
+    planting_dates: tuple[date, date, date]
+    historical_start_years: tuple[Annotated[int, Field(strict=True, ge=1992, le=2023)], ...] = Field(
+        min_length=2, max_length=3
+    )
+    yield_targets_kg_ha: dict[
+        Annotated[str, Field(min_length=1, max_length=80)],
+        Annotated[float, Field(strict=True, gt=0, allow_inf_nan=False)],
+    ] = Field(min_length=2, max_length=23)
+    max_candidates: int = Field(default=8, ge=2, le=8)
+
+    @model_validator(mode="after")
+    def _validate_search(self):
+        codes = []
+        for name in self.known_crops:
+            crop = find_crop(name)
+            if not crop:
+                raise ValueError(f"cultura desconhecida no catálogo: {name}")
+            codes.append(crop["code"])
+        supported = VERIFIED_SEQUENCE_CROPS.intersection(codes)
+        if len(set(codes)) != len(codes) or len(supported) < 2:
+            raise ValueError("informe culturas distintas, das quais pelo menos duas habilitadas para sequência DSSAT")
+
+        targets = {}
+        for name, target in self.yield_targets_kg_ha.items():
+            crop = find_crop(name)
+            if not crop or crop["code"] not in codes or crop["code"] in targets:
+                raise ValueError("cada meta deve corresponder a uma cultura distinta da lista")
+            targets[crop["code"]] = target
+        if not supported <= targets.keys():
+            raise ValueError(f"informe as metas de rendimento para {', '.join(sorted(supported - targets.keys()))}")
+
+        dates = self.planting_dates
+        if not dates[0] < dates[1] < dates[2] or dates[-1].year - dates[0].year > 1:
+            raise ValueError("informe três datas em ordem crescente, em até dois anos consecutivos")
+        years = self.historical_start_years
+        if len(set(years)) != len(years):
+            raise ValueError("os anos históricos devem ser distintos")
+        for year in years:
+            for day in dates:
+                try:
+                    day.replace(year=year + day.year - dates[0].year)
+                except ValueError as exc:
+                    raise ValueError(f"a janela {day:%d/%m} não existe no calendário iniciado em {year}") from exc
+        self.known_crops = tuple(codes)
+        self.yield_targets_kg_ha = targets
         return self
 
 
@@ -362,6 +430,22 @@ def create_rotation(req: RotationRequest, key: str = Depends(require_key)) -> di
     return {"id": rid, "status": "queued", "created_utc": now, "poll": f"/simulations/{rid}"}
 
 
+@app.post("/rotations/search", status_code=202)
+def create_rotation_search(req: RotationSearchRequest, key: str = Depends(require_key)) -> dict:
+    rate_limit(key, rotation_search=True)
+    rid = uuid.uuid4().hex[:16]
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    supported = [code for code in req.known_crops if code in VERIFIED_SEQUENCE_CROPS]
+    excluded = [code for code in req.known_crops if code not in VERIFIED_SEQUENCE_CROPS]
+    _put_json(f"requests/{rid}.json", {
+        **req.model_dump(mode="json"), "kind": "rotation_search", "crop": "ROTATION",
+        "supported_crops": supported, "excluded_crops": excluded, "id": rid, "created_utc": now,
+    })
+    _run_job(rid)
+    return {"id": rid, "status": "queued", "created_utc": now, "poll": f"/simulations/{rid}",
+            "supported_crops": supported, "excluded_crops": excluded}
+
+
 @app.get("/simulations/{rid}")
 def get_simulation(rid: str, key: str = Depends(require_key)) -> dict:
     if not re.fullmatch(r"[0-9a-f]{16}", rid):
@@ -389,10 +473,11 @@ def planning_capabilities() -> dict:
         "dssat_sequence": True,
         "sequence_pairs": [["MZ", "CP"], ["MZ", "SG"], ["CP", "SG"]],
         "sequence_max_crops": 3,
+        "rotation_search": True,
         "dssat_replan": False,
         "events": {"rainfall_multiplier": "single_crop_historical", "pest": "unsupported"},
         "crops": [{"code": crop["code"], "calendar": bool(crop.get("cycle_days_max")),
-                   "single_crop": True, "dssat_sequence": crop["code"] in {"MZ", "CP", "SG"}} for crop in CROPS],
+                   "single_crop": True, "dssat_sequence": crop["code"] in VERIFIED_SEQUENCE_CROPS} for crop in CROPS],
     }
 
 

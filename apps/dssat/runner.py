@@ -433,6 +433,17 @@ def run_point() -> int:
             work = Path(tmp)
             (work / "power.json").write_text(json.dumps(power))
             (work / "soil.csv").write_text(fi.pronasolos_identify_to_csv(ps_doc))
+            if req.get("kind") == "rotation_search":
+                from rotation_search import search
+
+                result = search(work / "power.json", work / "soil.csv", work / "rotation", req)
+                gcs_put_json(bucket, result_name, {
+                    **result, "id": rid, "status": "done", "kind": "rotation_search",
+                    "request": {key: req[key] for key in (
+                        "lat", "lon", "known_crops", "planting_dates", "yield_targets_kg_ha",
+                    )},
+                })
+                return 0
             if req.get("kind") == "rotation":
                 from rotation_compare import compare
 
@@ -485,7 +496,7 @@ def run_point() -> int:
         return 0
     except Exception as e:
         public_error = str(e) if isinstance(e, ValueError) else "DSSAT não completou a comparação nos plantios solicitados."
-        try_rotation = req is not None and req.get("kind") == "rotation"
+        try_rotation = req is not None and req.get("kind") in {"rotation", "rotation_search"}
         gcs_put_json(bucket, result_name, {"id": rid, "status": "failed", "error": public_error if try_rotation else f"{type(e).__name__}: {e}",
                                            "finished_utc": datetime.now(timezone.utc).isoformat(timespec="seconds")})
         log(f"{rid}: ERRO {e}")
