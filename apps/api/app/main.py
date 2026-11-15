@@ -1,13 +1,15 @@
 """Field Shift API — única porta de entrada do app e dos outros devs (ninguém acessa o bucket).
 
-Públicas:      GET /health, /version, /scenarios, /scenarios/{site}, /crops, /crops/{code}
+Públicas:      GET /health, /version, /scenarios, /scenarios/{site}, /crops, /crops/{code},
+               GET /climate-projections
 Simulações:    POST /simulations, GET /simulations/{id}
                Por enquanto ABERTAS (sem chave), com limite por IP e teto diário global.
                Para exigir chave: variável de ambiente REQUIRE_API_KEY=true no serviço.
 
 POST /simulations dispara o Cloud Run Job fieldshift-dssat em modo "point": clima NASA POWER e
 solo PronaSolos são buscados automaticamente para a coordenada; a análise de solo do agricultor
-é opcional e substitui a estimativa nas camadas informadas.
+é opcional e substitui a estimativa nas camadas informadas. Com "climate_projection", o Job também
+roda o clima futuro (NASA NEX-GDDP-CMIP6 aplicado ao NASA POWER) e devolve a comparação.
 """
 
 import json
@@ -28,7 +30,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .planning import CalendarReplanRequest, CalendarRequest, generate_calendar, replan_calendar
 
-API_VERSION = "0.3.0"
+API_VERSION = "0.4.0"
 DATA_BUCKET = os.environ.get("DATA_BUCKET", "fieldshift-data-fieldshift-harvest71-2026")
 PROJECT_ID = os.environ.get("PROJECT_ID", "fieldshift-harvest71-2026")
 REGION = os.environ.get("REGION", "us-central1")
@@ -37,6 +39,17 @@ RATE_PER_MINUTE = int(os.environ.get("RATE_PER_MINUTE", "6"))
 RATE_PER_DAY = int(os.environ.get("RATE_PER_DAY", "200"))
 GLOBAL_PER_DAY = int(os.environ.get("GLOBAL_PER_DAY", "500"))   # teto por instância (máx. 2 instâncias)
 RESULT_TIMEOUT_S = 15 * 60
+PROJECTION_TIMEOUT_S = 60 * 60   # 1ª projeção fora do Nordeste pré-processado baixa da NASA (lento)
+
+# Projeções climáticas (espelho de apps/dssat/nex_gddp.py; teste garante que estão iguais)
+NEX_SCENARIOS = {"ssp126": "SSP1-2.6 (emissões baixas)", "ssp245": "SSP2-4.5 (emissões intermediárias)",
+                 "ssp370": "SSP3-7.0 (emissões altas)", "ssp585": "SSP5-8.5 (emissões muito altas)"}
+NEX_PERIODS = ["2021-2040", "2041-2060", "2061-2080", "2081-2100"]
+NEX_MODELS = ["GISS-E2-1-G", "GFDL-ESM4", "MPI-ESM1-2-HR", "MRI-ESM2-0", "ACCESS-CM2", "CNRM-CM6-1",
+              "IPSL-CM6A-LR", "NorESM2-MM", "MIROC6", "EC-Earth3", "UKESM1-0-LL", "CanESM5"]
+NEX_DEFAULT_MODELS = ["GISS-E2-1-G", "GFDL-ESM4", "MPI-ESM1-2-HR"]
+NEX_PREPROCESSED = {"region": "Nordeste (lat −18,5 a −0,75; lon −48,75 a −34,5)",
+                    "scenarios": ["ssp245", "ssp585"], "periods": ["2041-2060"], "models": NEX_DEFAULT_MODELS}
 BRAZIL_BBOX = (-34.0, 5.5, -74.5, -28.5)
 CROPS = json.loads((__import__("pathlib").Path(__file__).with_name("crops.json")).read_text())["crops"]
 # Both orders completed in DSSAT Q in Actions run 43726460395, artifact 14166761770.
@@ -260,6 +273,35 @@ class WeatherEvent(BaseModel):
         return self
 
 
+class ClimateProjection(BaseModel):
+    scenario: str = Field(default="ssp245", description="ssp126 | ssp245 | ssp370 | ssp585")
+    period: str = Field(default="2041-2060", description="2021-2040 | 2041-2060 | 2061-2080 | 2081-2100")
+    models: Optional[list[str]] = Field(default=None, min_length=1, max_length=5,
+                                        description="modelos NEX-GDDP-CMIP6 (GET /climate-projections); vazio = padrão")
+
+    @field_validator("scenario")
+    @classmethod
+    def _scenario(cls, v):
+        if v not in NEX_SCENARIOS:
+            raise ValueError(f"cenário desconhecido: {v}")
+        return v
+
+    @field_validator("period")
+    @classmethod
+    def _period(cls, v):
+        if v not in NEX_PERIODS:
+            raise ValueError(f"período desconhecido: {v}")
+        return v
+
+    @field_validator("models")
+    @classmethod
+    def _models(cls, v):
+        for m in v or []:
+            if m not in NEX_MODELS:
+                raise ValueError(f"modelo não permitido: {m} (veja GET /climate-projections)")
+        return v
+
+
 class SimulationRequest(BaseModel):
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
@@ -270,6 +312,8 @@ class SimulationRequest(BaseModel):
                                                   description="datas MM-DD, ex.: ['11-15','12-15']")
     soil_analysis: Optional[SoilAnalysis] = None
     weather_events: list[WeatherEvent] = Field(default_factory=list, max_length=4)
+    climate_projection: Optional[ClimateProjection] = Field(
+        default=None, description="se presente, também simula o clima futuro (NASA NEX-GDDP-CMIP6)")
 
     @field_validator("crop")
     @classmethod
@@ -432,8 +476,11 @@ def create_simulation(req: SimulationRequest, key: str = Depends(require_key)) -
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     _put_json(f"requests/{rid}.json", {**req.model_dump(mode="json", exclude_none=True), "id": rid, "created_utc": now})
     _run_job(rid)
-    return {"id": rid, "status": "queued", "created_utc": now, "poll": f"/simulations/{rid}",
-            "note": "a simulação leva cerca de 15 a 60 s; consulte o endereço em 'poll'"}
+    note = "a simulação leva cerca de 15 a 60 s; consulte o endereço em 'poll'"
+    if req.climate_projection:
+        note = ("com clima futuro: cerca de 1 min no Nordeste pré-processado; em outras áreas, a 1ª vez pode "
+                "levar de 10 a 30 min (download da NASA), depois fica em cache; consulte 'poll'")
+    return {"id": rid, "status": "queued", "created_utc": now, "poll": f"/simulations/{rid}", "note": note}
 
 
 @app.post("/rotations", status_code=202)
@@ -478,9 +525,29 @@ def get_simulation(rid: str, key: str = Depends(require_key)) -> dict:
     if not req:
         raise HTTPException(status_code=404, detail="simulação não encontrada")
     created = datetime.fromisoformat(req["created_utc"])
-    if (datetime.now(timezone.utc) - created).total_seconds() > RESULT_TIMEOUT_S:
+    limit = PROJECTION_TIMEOUT_S if req.get("climate_projection") else RESULT_TIMEOUT_S
+    if (datetime.now(timezone.utc) - created).total_seconds() > limit:
         return {"id": rid, "status": "failed", "error": "tempo esgotado sem resultado"}
     return {"id": rid, "status": (result or {}).get("status", "queued"), "created_utc": req["created_utc"]}
+
+
+# ----------------------------------------------------------------------------- clima futuro
+
+@app.get("/climate-projections")
+def climate_projections() -> dict:
+    """Opções de clima futuro para POST /simulations (campo climate_projection)."""
+    return {
+        "source": ("NASA NEX-GDDP-CMIP6 v2.0 (NASA Earth Exchange / Ames, servido pelo NCCS); "
+                   "Thrasher et al. 2022, Scientific Data 9:262, doi:10.1038/s41597-022-01393-4; licença CC0"),
+        "method": ("mudança mensal (futuro − 1995–2014) de cada modelo aplicada ao NASA POWER 1991–2025 do ponto; "
+                   "mesmas janelas, solo, cultura e cultivar do resultado atual"),
+        "scenarios": NEX_SCENARIOS, "periods": NEX_PERIODS,
+        "models": NEX_MODELS, "default_models": NEX_DEFAULT_MODELS,
+        "preprocessed": NEX_PREPROCESSED,
+        "excluded_models": "modelos de instituições chinesas não são usados (política da equipe)",
+        "example": {"lat": -12.67, "lon": -39.10, "crop": "feijao-caupi",
+                    "climate_projection": {"scenario": "ssp245", "period": "2041-2060"}},
+    }
 
 
 # ----------------------------------------------------------------------------- culturas

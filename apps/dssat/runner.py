@@ -472,7 +472,8 @@ def run_point() -> int:
             "id": rid, "status": "done",
             "started_utc": started.isoformat(timespec="seconds"),
             "finished_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "request": {k: req.get(k) for k in ("lat", "lon", "label", "crop", "cultivar", "planting_windows", "weather_events")},
+            "request": {k: req.get(k) for k in ("lat", "lon", "label", "crop", "cultivar", "planting_windows",
+                                                "weather_events", "climate_projection")},
             "location": {"lat": lat, "lon": lon, "elev_m": meta["elev_m"], "power_cell": power_cell(lat, lon)},
             "crop": meta["crop"],
             "seasons": meta["seasons"],
@@ -491,6 +492,15 @@ def run_point() -> int:
                          "local_calibration_available": False, "is_actual_forecast": False,
                          "note": "Comparação relativa entre janelas e manejo hídrico; não é previsão de produtividade."},
         }
+        if req.get("climate_projection"):
+            gcs_put_json(bucket, result_name, result | {"status": "running",
+                                                        "note": "resultado atual pronto; calculando o clima futuro"})
+            result["climate_projection"] = run_projection(bucket, rid, req, lat, lon, power, ps_doc, meta,
+                                                          result["scenario_summary"])
+            result["evidence"]["climate_projection"] = (
+                "Clima futuro = NASA POWER observado + mudança mensal projetada (NEX-GDDP-CMIP6). "
+                "Indica tendência, não previsão de uma safra específica.")
+            result["finished_utc"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
         gcs_put_json(bucket, result_name, result)
         log(f"{rid}: ok ({len(seasons)} safras)")
         return 0
@@ -502,6 +512,91 @@ def run_point() -> int:
         log(f"{rid}: ERRO {e}")
         return 1
 
+
+
+def run_projection(bucket: str, rid: str, req: dict, lat: float, lon: float, power: dict, ps_doc: dict,
+                   meta: dict, baseline_summary: list[dict]) -> dict:
+    """Clima futuro (NEX-GDDP-CMIP6, NASA) aplicado ao NASA POWER do ponto; uma rodada do DSSAT por modelo.
+
+    Erros aqui não derrubam o resultado atual: vão em climate_projection.error / failures.
+    """
+    import fieldshift_inputs as fi
+    import nex_gddp as nx
+    from concurrent.futures import ThreadPoolExecutor
+
+    cp = req["climate_projection"] or {}
+    scenario, period = cp.get("scenario", "ssp245"), cp.get("period", "2041-2060")
+    out = {"source": nx.SOURCE, "scenario": scenario, "scenario_name": nx.SCENARIOS.get(scenario),
+           "period": period, "historical_reference": f"{nx.HIST_YEARS[0]}-{nx.HIST_YEARS[1]}",
+           "method": ("delta mensal: média de 20 anos do modelo no período futuro menos (temperatura) ou dividida "
+                      "por (chuva, radiação) a média 1995–2014 do mesmo modelo, aplicada dia a dia ao NASA POWER "
+                      "1991–2025 do ponto; mesmas janelas de plantio, solo, cultura e cultivar do resultado atual"),
+           "baseline": "scenario_summary (NASA POWER 1991–2025)", "nex_cell": None,
+           "models": [], "failures": []}
+    try:
+        models = nx.validate(scenario, period, cp.get("models"))
+        years = nx.PERIODS[period]
+        key = nx.cell_key(lat, lon)
+        clat, clon = nx.grid_cell(lat, lon)
+        out["nex_cell"] = {"lat": clat, "lon": round(clon - 360, 3) if clon > 180 else clon, "size_deg": 0.25}
+        windows = nx.windows_from_meta(meta)
+
+        def clim(model, experiment, yrs):
+            # 1) recorte regional pré-processado (instantâneo); 2) senão, baixa só a célula (lento, fica em cache)
+            if nx.in_region(lat, lon):
+                reg = gcs_read_json(bucket, nx.regional_blob(model, experiment, yrs))
+                doc = nx.from_regional(reg, lat, lon) if reg else None
+                if doc:
+                    return doc
+            name = f"cache/nex-gddp-cmip6/v2/{model}/{experiment}_{yrs[0]}-{yrs[1]}/{key}.json"
+            doc, _ = cached(bucket, name, lambda: nx.climatology(model, experiment, yrs, lat, lon, workers=8))
+            return doc
+
+        def one(model):
+            hist = clim(model, "historical", nx.HIST_YEARS)
+            fut = clim(model, scenario, years)
+            deltas = nx.monthly_deltas(hist, fut)
+            fpower = nx.apply_to_power(power, deltas)
+            with tempfile.TemporaryDirectory(prefix=f"fs-{rid}-{model}-") as tmp:
+                work = Path(tmp)
+                (work / "power.json").write_text(json.dumps(fpower))
+                (work / "soil.csv").write_text(fi.pronasolos_identify_to_csv(ps_doc))
+                indir = work / "run"
+                m = fi.build_site("FSPT", req.get("label") or f"{lat:.4f},{lon:.4f}", work / "power.json",
+                                  work / "soil.csv", indir, soil_analysis=req.get("soil_analysis"),
+                                  windows=windows, crop_code=meta["crop"]["code"],
+                                  cultivar_id=meta["crop"]["cultivar"]["id"],
+                                  weather_label=f"POWER + {model} {scenario} {period}")
+                proc = run_dssat(indir, m["filex"])
+                seasons = summarize(parse_summary(indir / "Summary.OUT")) if (indir / "Summary.OUT").exists() else []
+                expected = m["seasons"]["n_years"] * len(m["scenarios"])
+                if proc.returncode != 0 or len(seasons) != expected:
+                    raise RuntimeError(f"DSSAT incompleto ({len(seasons)}/{expected} safras)")
+                gcs_upload(indir, f"gs://{bucket}/runs/point/{rid}/projection/{model}/")
+            return {"model": model, "institution": nx.MODELS[model],
+                    "climate_change": nx.annual_summary(hist, fut, deltas),
+                    "monthly_deltas": {str(k): v for k, v in deltas.items()},
+                    "scenario_summary": aggregate(m, seasons)}
+
+        def safe(model):
+            try:
+                return one(model)
+            except Exception as e:
+                return {"model": model, "error": f"{type(e).__name__}: {e}"}
+
+        with ThreadPoolExecutor(max_workers=3) as ex:
+            res = list(ex.map(safe, models))
+        out["models"] = [r for r in res if "error" not in r]
+        out["failures"] = [r for r in res if "error" in r]
+        if not out["models"]:
+            raise RuntimeError("nenhum modelo climático concluiu: " + "; ".join(f["error"] for f in out["failures"]))
+        out["ensemble"] = nx.ensemble(baseline_summary, out["models"])
+        out["status"] = "done"
+    except Exception as e:
+        out["status"] = "failed"
+        out["error"] = f"{type(e).__name__}: {e}"
+        log(f"{rid}: projeção falhou: {e}")
+    return out
 
 
 def main() -> int:

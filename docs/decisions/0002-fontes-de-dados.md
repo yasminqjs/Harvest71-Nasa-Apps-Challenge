@@ -15,7 +15,35 @@ instituição ou dado de origem chinesa, inclusive vínculos indiretos. A regra 
 | Modelo | DSSAT-CSM 4.8.6 (`dssat-csm-os` @ 25c93b9) | DSSAT Foundation (EUA), BSD-3 |
 | Genética | 23 culturas (`apps/dssat/genotype_keep.txt`) da biblioteca DSSAT | DSSAT Foundation; cultivares com menção à China removidos |
 | Plantio/colheita por cultura | experimento de referência de cada cultura (`crops.json`) | ver tabela em `docs/API.md` |
+| Clima futuro (opcional) | NASA NEX-GDDP-CMIP6 v2.0, mudança mensal aplicada ao NASA POWER | NASA Earth Exchange / Ames (EUA), servido pelo NCCS; só modelos sem vínculo chinês |
 | Teste de referência | BRPI0202 (milho, Piracicaba-SP) + `BR.SOL` + `BRPI0201.WTH` | ESALQ/USP (Brasil) |
+
+## Clima futuro: NASA NEX-GDDP-CMIP6 (2026-11-15, branch `dados-previsao`)
+- **Fonte:** NEX-GDDP-CMIP6 v2.0 (NASA Earth Exchange, NASA Ames), diário, 0,25°, 1950–2100, cenários SSP1-2.6
+  a SSP5-8.5, licença CC0. Acesso pelo THREDDS do NCCS (`https://ds.nccs.nasa.gov/thredds/catalog/AMES/NEX/GDDP-CMIP6/`).
+  Citação: Thrasher, B. et al. (2022). NASA Global Daily Downscaled Projections, CMIP6. *Scientific Data* 9, 262.
+  https://doi.org/10.1038/s41597-022-01393-4
+- **É produto da NASA**, mas cada série vem de um modelo climático do CMIP6 de uma instituição. Pela regra da
+  equipe, ficam de fora BCC-CSM2-MR, FGOALS-g3, NESM3, CAS-ESM2-0, CIESM (China) e TaiESM1 (Taiwan, por
+  precaução). Padrão: GISS-E2-1-G (NASA GISS), GFDL-ESM4 (NOAA) e MPI-ESM1-2-HR (Alemanha).
+- **Método (delta mensal):** média mensal de 20 anos do modelo no futuro comparada com 1995–2014 do mesmo
+  modelo; temperatura soma, chuva e radiação multiplicam (limites 0,25–4 e 0,7–1,3). A mudança é aplicada
+  dia a dia ao NASA POWER 1991–2025 do ponto; ponto de orvalho sobe com a temperatura média. Mesmas janelas,
+  solo, cultura e cultivar do resultado atual, então a comparação é direta e o viés do modelo se cancela.
+- **Variáveis usadas:** tasmax, tasmin, pr, rsds (o DSSAT aqui calcula a evapotranspiração por Priestley-Taylor,
+  que não usa vento nem umidade).
+- **Limites:** a sequência de anos e a variabilidade diária continuam as observadas (secas mais longas ou
+  chuvas mais concentradas não aparecem); o CO₂ fica no nível observado (sem efeito de fertilização, conservador);
+  resolução de 25 km.
+- **Velocidade:** o servidor da NASA leva de 5 a 20 s por arquivo anual. Para o Nordeste, o workflow
+  `nex-gddp` pré-processa uma vez (recorte regional por arquivo) e grava as médias mensais por célula no bucket
+  (`nex-gddp-cmip6/v2/nordeste/`), o que deixa a simulação com clima futuro quase instantânea. Fora do recorte
+  ou de cenários não pré-processados, o Job baixa só a célula do ponto (de 10 a 30 min na 1ª vez, depois cache).
+- **Verificado com dado real (GISS-E2-1-G, SSP2-4.5, 2041–2060, célula de Cruz das Almas-BA):** TMAX +1,4 °C,
+  TMIN +1,5 °C, chuva −7 %, radiação +0,6 % em relação a 1995–2014.
+- **Não usado (por ora):** previsão sazonal GEOS-S2S (NASA GMAO). Dá anomalias e probabilidades para os
+  próximos meses, não séries diárias prontas para o DSSAT, e a NASA ainda está facilitando o acesso aos dados
+  da versão 3.
 
 ## Descartado
 - **SoilGrids (ISRIC):** modelo global treinado com perfis de solo de vários países, incluindo a China.

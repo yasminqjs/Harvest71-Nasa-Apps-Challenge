@@ -574,13 +574,14 @@ def last_planting_year(windows: list[tuple[int, int]], last_day: date, cycle_day
 
 def build_site(site: str, title: str, power_json: Path, soil_csv: Path, outdir: Path,
                soil_analysis: dict | None = None, windows: list[tuple[int, int]] | None = None,
-               auto_window: bool = False, crop_code: str = "MZ", cultivar_id: str | None = None) -> dict:
+               auto_window: bool = False, crop_code: str = "MZ", cultivar_id: str | None = None,
+               weather_label: str = "NASA POWER diario (AG)") -> dict:
     """Gera .WTH, .SOL e o FileX de um local para a cultura escolhida. Devolve metadados."""
     crop = get_crop(crop_code)
     cultivar = pick_cultivar(crop, cultivar_id)
     outdir.mkdir(parents=True, exist_ok=True)
     w = read_power_json(power_json)
-    wth = write_wth_files(w, site, outdir, f"{title} - NASA POWER diario (AG)")
+    wth = write_wth_files(w, site, outdir, f"{title} - {weather_label}")
     ps, origin, soil_notes = merge_soil_analysis(read_pronasolos_csv(soil_csv), soil_analysis)
     soil = build_soil(ps, soil_id=f"FS{site}0001", origin=origin)
     soil.warnings.extend(soil_notes)

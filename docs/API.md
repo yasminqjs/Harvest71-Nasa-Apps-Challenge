@@ -23,6 +23,7 @@ código preparado para enviar a chave se ela existir. **Nunca** coloque a chave 
 - `GET /scenarios` → cenários prontos de 5 locais do Nordeste (milho, 33 safras)
 - `GET /scenarios/{site}` → detalhe de um local (`JUAZ`, `IREC`, `CRUZ`, `CGPB`, `QUIX`), com suposições (milho)
 - `GET /crops` → culturas disponíveis para o menu do app
+- `GET /climate-projections` → opções de clima futuro (NASA NEX-GDDP-CMIP6): cenários, períodos e modelos
 - `GET /crops/{code}` → uma cultura com **todos os cultivares** (aceita código ou nome: `MZ`, `milho`, `feijão-caupi`, `macaxeira`)
 
 ## Culturas disponíveis
@@ -277,6 +278,53 @@ Exemplo de `done` (valores **ilustrativos**, gerados com clima sintético num te
   - `irrigation_mm_p50`: água que a irrigação automática usou (1 mm em 1 ha = 10 000 litros).
 - `soil.layers[].origem`: "medido (análise do agricultor)" ou "estimado (PronaSolos 90 m)".
 - `evidence`: **sempre** mostrar que é comparação exploratória, não previsão de safra.
+
+## Clima futuro (NASA NEX-GDDP-CMIP6)
+
+Acrescente `climate_projection` ao `POST /simulations` para também simular o clima de meados do século.
+Opções: `GET /climate-projections`.
+
+```json
+{"lat": -12.67, "lon": -39.10, "crop": "feijao-caupi",
+ "climate_projection": {"scenario": "ssp245", "period": "2041-2060"}}
+```
+
+| Campo | Valores | Padrão |
+|---|---|---|
+| `scenario` | `ssp126`, `ssp245`, `ssp370`, `ssp585` | `ssp245` |
+| `period` | `2021-2040`, `2041-2060`, `2061-2080`, `2081-2100` | `2041-2060` |
+| `models` | até 5 de `GET /climate-projections` | GISS-E2-1-G (NASA), GFDL-ESM4, MPI-ESM1-2-HR |
+
+- **Tempo:** no Nordeste, para os cenários pré-processados (`ssp245` e `ssp585` em `2041-2060`), cerca de 1 min.
+  Em outras áreas ou combinações, a 1ª vez pode levar de 10 a 30 min (download da NASA); depois fica em cache
+  para a mesma célula de 25 km. Continue consultando `GET /simulations/{id}`. Enquanto o futuro é calculado,
+  a resposta vem com `status: "running"` e o resultado atual já preenchido.
+- **Resultado:** o mesmo JSON de sempre, mais o bloco `climate_projection`:
+
+```json
+"climate_projection": {
+  "status": "done", "scenario": "ssp245", "period": "2041-2060", "historical_reference": "1995-2014",
+  "nex_cell": {"lat": -12.625, "lon": -39.125, "size_deg": 0.25},
+  "models": [{"model": "GISS-E2-1-G", "institution": "NASA Goddard Institute for Space Studies (EUA)",
+              "climate_change": {"tmax_change_c": 1.44, "tmin_change_c": 1.48, "rain_change_pct": -7.1,
+                                 "srad_change_pct": 0.6},
+              "monthly_deltas": {"1": {"dTMAX": 1.72, "dTMIN": 1.51, "fRAIN": 0.76, "fSRAD": 1.02}, "...": {}},
+              "scenario_summary": ["mesmo formato do resultado atual"]}],
+  "ensemble": [{"trno": 1, "name": "Janela 1 01/03 sequeiro", "baseline_yield_p50": 944,
+                "future_yield_p50_median": 1007, "future_yield_p50_range": [900, 1100],
+                "yield_change_pct": 6.7, "baseline_share_below_1000": 0.5,
+                "future_share_below_1000_median": 0.47, "models_with_loss": 1, "n_models": 3}],
+  "failures": []
+}
+```
+
+- **Como mostrar:** "Em 2041–2060 (cenário intermediário), a janela de 01/04 tende a render X % a menos;
+  2 de 3 modelos indicam perda." Use `ensemble` para o número e `models_with_loss` para a concordância.
+- Se a parte futura falhar, o resultado atual continua válido e `climate_projection.status` vem `"failed"`
+  com o motivo.
+- **Método e limites:** mudança mensal de cada modelo (futuro − 1995–2014) aplicada ao NASA POWER 1991–2025
+  do ponto; CO₂ no nível observado; secas mais longas não aparecem. Detalhes em
+  `docs/decisions/0002-fontes-de-dados.md`.
 
 ## Exemplo em JavaScript
 ```js

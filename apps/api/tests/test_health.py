@@ -287,3 +287,53 @@ def test_simulation_accepts_crop_names_and_cultivar(sim):
     r = client.post("/simulations", json={**GOOD, "crop": "feijão", "cultivar": cv.lower()}, headers=h)
     req = store[f"requests/{r.json()['id']}.json"]
     assert (req["crop"], req["cultivar"]) == ("BN", cv)
+
+
+def test_climate_projection_options_match_dssat():
+    import importlib.util
+    from pathlib import Path
+    import app.main as m
+    spec = importlib.util.spec_from_file_location(
+        "nex_gddp", Path(__file__).resolve().parents[2] / "dssat" / "nex_gddp.py")
+    nx = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(nx)
+    assert m.NEX_SCENARIOS == nx.SCENARIOS
+    assert m.NEX_PERIODS == list(nx.PERIODS)
+    assert m.NEX_MODELS == list(nx.MODELS)
+    assert m.NEX_DEFAULT_MODELS == nx.DEFAULT_MODELS
+    assert not set(m.NEX_MODELS) & set(nx.EXCLUDED_MODELS)
+    r = client.get("/climate-projections").json()
+    assert r["default_models"][0] == "GISS-E2-1-G" and "NASA" in r["source"]
+
+
+def test_simulation_with_climate_projection(sim):
+    m, store, runs = sim
+    r = client.post("/simulations", json={**GOOD, "crop": "caupi", "climate_projection": {}},
+                    headers={"X-API-Key": "chave-teste"})
+    assert r.status_code == 202 and "clima futuro" in r.json()["note"]
+    req = store[f"requests/{r.json()['id']}.json"]
+    assert req["climate_projection"] == {"scenario": "ssp245", "period": "2041-2060"}
+    r = client.post("/simulations", json={**GOOD, "climate_projection": {"scenario": "ssp585", "period": "2081-2100",
+                                                                          "models": ["GISS-E2-1-G"]}},
+                    headers={"X-API-Key": "chave-teste"})
+    assert r.status_code == 202
+
+
+@pytest.mark.parametrize("cp", [
+    {"scenario": "ssp999"}, {"period": "2030-2050"}, {"models": ["BCC-CSM2-MR"]}, {"models": ["FGOALS-g3"]},
+    {"models": []},
+])
+def test_climate_projection_validation(sim, cp):
+    r = client.post("/simulations", json={**GOOD, "climate_projection": cp}, headers={"X-API-Key": "chave-teste"})
+    assert r.status_code == 422
+
+
+def test_projection_requests_get_longer_timeout(sim):
+    from datetime import datetime, timedelta, timezone
+    m, store, _ = sim
+    old = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat(timespec="seconds")
+    store["requests/aaaaaaaaaaaaaaaa.json"] = {"created_utc": old, "climate_projection": {"scenario": "ssp245"}}
+    store["requests/bbbbbbbbbbbbbbbb.json"] = {"created_utc": old}
+    h = {"X-API-Key": "chave-teste"}
+    assert client.get("/simulations/aaaaaaaaaaaaaaaa", headers=h).json()["status"] == "queued"
+    assert client.get("/simulations/bbbbbbbbbbbbbbbb", headers=h).json()["status"] == "failed"

@@ -1,0 +1,59 @@
+name: nex-gddp
+
+# Pré-processa as projeções climáticas da NASA (NEX-GDDP-CMIP6) para o Nordeste e grava no bucket
+# (médias mensais por célula de 0,25°). Com isso, simulações com clima futuro no Nordeste ficam
+# instantâneas. Arquivos já existentes são pulados. Configuração: data/nex_gddp.json.
+# Autentica por Workload Identity Federation (só na main), com a conta de ingestão (sem chave).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data/nex_gddp.json"
+      - "data/scripts/nex_gddp_prefetch.py"
+      - ".github/workflows/nex-gddp.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: nex-gddp
+  cancel-in-progress: false
+
+env:
+  WIF_PROVIDER: projects/475766990512/locations/global/workloadIdentityPools/github/providers/github-oidc
+  INGEST_SA: fieldshift-ingest-sa@fieldshift-harvest71-2026.iam.gserviceaccount.com
+  BUCKET: fieldshift-data-fieldshift-harvest71-2026
+
+jobs:
+  prefetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dependências
+        run: pip install "numpy>=1.26" "scipy>=1.11" pytest
+
+      - name: Testes do pré-processamento
+        working-directory: apps/dssat
+        run: python -m pytest -q -p no:cacheprovider tests/test_nex_prefetch.py
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.INGEST_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Baixar e pré-processar (NASA NCCS THREDDS)
+        run: python data/scripts/nex_gddp_prefetch.py --config data/nex_gddp.json --bucket "$BUCKET" --workers 6
+
+      - name: Resumo
+        if: always()
+        run: gcloud storage ls -r "gs://$BUCKET/nex-gddp-cmip6/" | tail -40 || true
