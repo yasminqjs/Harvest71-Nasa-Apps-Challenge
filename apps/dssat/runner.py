@@ -408,6 +408,7 @@ def cached(bucket: str, name: str, producer):
 
 def run_point() -> int:
     import fieldshift_inputs as fi
+    from weather_events import WeatherEvent, apply_power_events
 
     bucket = os.environ["DATA_BUCKET"]
     rid = os.environ["REQUEST_ID"]
@@ -421,6 +422,11 @@ def run_point() -> int:
         gcs_put_json(bucket, result_name, {"id": rid, "status": "running", "started_utc": started.isoformat(timespec="seconds")})
         power, power_hit = cached(bucket, f"cache/nasa-power/{POWER_START}_{POWER_END}/{power_cell(lat, lon)}.json",
                                   lambda: fetch_power(lat, lon))
+        events = [WeatherEvent(id=e["id"], type=e["type"], start_date=datetime.strptime(e["start_date"], "%Y-%m-%d").date(),
+                               end_date=datetime.strptime(e["end_date"], "%Y-%m-%d").date(), factor=e["factor"],
+                               source_kind=e["source_kind"])
+                  for e in req.get("weather_events", [])]
+        power, weather_event_manifest = apply_power_events(power, events)
         ps_doc, ps_hit = cached(bucket, f"cache/pronasolos/v1/{lat:.4f}_{lon:.4f}.json", lambda: fetch_pronasolos(lat, lon))
         with tempfile.TemporaryDirectory(prefix=f"fs-{rid}-") as tmp:
             work = Path(tmp)
@@ -443,13 +449,14 @@ def run_point() -> int:
             "id": rid, "status": "done",
             "started_utc": started.isoformat(timespec="seconds"),
             "finished_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "request": {k: req.get(k) for k in ("lat", "lon", "label", "crop", "cultivar", "planting_windows")},
+            "request": {k: req.get(k) for k in ("lat", "lon", "label", "crop", "cultivar", "planting_windows", "weather_events")},
             "location": {"lat": lat, "lon": lon, "elev_m": meta["elev_m"], "power_cell": power_cell(lat, lon)},
             "crop": meta["crop"],
             "seasons": meta["seasons"],
             "scenario_summary": aggregate(meta, seasons),
             "climate": {"source": "NASA POWER diário (AG)", "period": meta["weather_period"],
-                        "tav_c": meta["tav_c"], "amp_c": meta["amp_c"], "cache_hit": power_hit},
+                        "tav_c": meta["tav_c"], "amp_c": meta["amp_c"], "cache_hit": power_hit,
+                        "event_transform": weather_event_manifest},
             "soil": {"source": meta["soil_source"], "texture_top": meta["soil"]["texture_top"],
                      "layers": meta["soil"]["layers"], "warnings": meta["soil"]["warnings"], "cache_hit": ps_hit},
             "planting_windows_source": meta["planting_windows_source"],

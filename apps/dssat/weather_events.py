@@ -89,3 +89,47 @@ def apply_weather_events(weather: Weather, events: Iterable[WeatherEvent]) -> tu
         ],
     }
     return transformed, manifest
+
+
+def apply_power_events(power_doc: dict, events: Iterable[WeatherEvent]) -> tuple[dict, dict]:
+    """Aplica eventos à resposta diária NASA POWER, preservando o documento original."""
+    event_list = tuple(events)
+    transformed = deepcopy(power_doc)
+    rainfall = transformed.get("properties", {}).get("parameter", {}).get("PRECTOTCORR")
+    if not isinstance(rainfall, dict):
+        if event_list:
+            raise ValueError("NASA POWER sem série PRECTOTCORR")
+        return transformed, {"transform_version": TRANSFORM_VERSION, "source_kind": "historical_unmodified", "events": []}
+
+    # Valida integralmente antes de modificar; não permite eventos sobre datas repetidas.
+    covered: set[date] = set()
+    for event in event_list:
+        if event.type != "rainfall_multiplier" or event.source_kind != "hypothetical":
+            raise ValueError("evento não suportado em v1")
+        if not event.id or event.end_date < event.start_date:
+            raise ValueError("id ou intervalo do evento inválido")
+        if not isinstance(event.factor, (int, float)) or isinstance(event.factor, bool) or not math.isfinite(event.factor) or not 0 <= event.factor <= 1:
+            raise ValueError("factor deve ser finito e estar entre 0 e 1")
+        if (event.end_date - event.start_date).days + 1 > 3660:
+            raise ValueError("evento excede o limite de 10 anos")
+        for ordinal in range(event.start_date.toordinal(), event.end_date.toordinal() + 1):
+            day = date.fromordinal(ordinal)
+            key = day.strftime("%Y%m%d")
+            if day in covered:
+                raise ValueError("eventos de chuva sobrepostos não são suportados em v1")
+            if key not in rainfall or rainfall[key] is None or float(rainfall[key]) < 0:
+                raise ValueError(f"chuva ausente ou inválida em {day.isoformat()}")
+            covered.add(day)
+
+    for event in event_list:
+        for ordinal in range(event.start_date.toordinal(), event.end_date.toordinal() + 1):
+            key = date.fromordinal(ordinal).strftime("%Y%m%d")
+            rainfall[key] = float(rainfall[key]) * float(event.factor)
+    manifest = {
+        "transform_version": TRANSFORM_VERSION,
+        "source_kind": "hypothetical" if event_list else "historical_unmodified",
+        "events": [{"id": e.id, "type": e.type, "start_date": e.start_date.isoformat(),
+                    "end_date": e.end_date.isoformat(), "factor": float(e.factor), "source_kind": e.source_kind}
+                   for e in event_list],
+    }
+    return transformed, manifest

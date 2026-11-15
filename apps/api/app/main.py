@@ -18,7 +18,7 @@ import threading
 import time
 import uuid
 from collections import defaultdict, deque
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -208,6 +208,27 @@ class SoilAnalysis(BaseModel):
     layers: list[SoilLayer] = Field(min_length=1, max_length=6)
 
 
+class WeatherEvent(BaseModel):
+    id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._-]+$")
+    type: str = Field(description="v1: rainfall_multiplier")
+    source_kind: str = Field(default="hypothetical")
+    start_date: date
+    end_date: date
+    factor: float = Field(ge=0, le=1, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def _valid_event(self):
+        if self.type != "rainfall_multiplier":
+            raise ValueError("tipo de evento não suportado; v1 aceita rainfall_multiplier")
+        if self.source_kind != "hypothetical":
+            raise ValueError("eventos v1 devem ter source_kind=hypothetical")
+        if self.end_date < self.start_date:
+            raise ValueError("end_date deve ser igual ou posterior a start_date")
+        if (self.end_date - self.start_date).days >= 3660:
+            raise ValueError("evento excede o limite de 10 anos")
+        return self
+
+
 class SimulationRequest(BaseModel):
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
@@ -217,6 +238,7 @@ class SimulationRequest(BaseModel):
     planting_windows: Optional[list[str]] = Field(default=None, min_length=1, max_length=3,
                                                   description="datas MM-DD, ex.: ['11-15','12-15']")
     soil_analysis: Optional[SoilAnalysis] = None
+    weather_events: list[WeatherEvent] = Field(default_factory=list, max_length=4)
 
     @field_validator("crop")
     @classmethod
@@ -244,6 +266,14 @@ class SimulationRequest(BaseModel):
                 raise ValueError(f"janela inválida: {w} (use MM-DD, sem 29/02)")
             datetime.strptime(f"2001-{w}", "%Y-%m-%d")
         return v
+
+    @model_validator(mode="after")
+    def _events_do_not_overlap(self):
+        events = sorted(self.weather_events, key=lambda e: e.start_date)
+        for previous, current in zip(events, events[1:]):
+            if current.start_date <= previous.end_date:
+                raise ValueError("eventos de chuva sobrepostos não são suportados")
+        return self
 
 
 def _storage_bucket():
