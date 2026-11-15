@@ -75,6 +75,20 @@ export interface FarmerProfile {
   desafiosPrincipais?: string[];
   limitacoes: string[];
   historicoCultivo: string[];
+  historicoCultivoDetalhado?: CropHistoryRecord[];
+}
+
+export type HarvestQuantityUnit = 'kg' | 'sacas' | 'toneladas';
+
+export interface CropHistoryRecord {
+  id: string;
+  farmerId: string;
+  nomeCultura: string;
+  cropId?: string;
+  quantidadeColhida?: number;
+  unidadeQuantidade?: HarvestQuantityUnit;
+  periodoSafra?: string;
+  registradaEm: string;
 }
 
 export interface GeoPoint {
