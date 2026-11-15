@@ -343,7 +343,7 @@ impacto de eventos e comparação agronômica exigem execução no motor.
 ### Comparação de rotações com duas ou três culturas
 
 Envie a coordenada, duas ou três culturas distintas entre milho, caupi e sorgo
-e uma data por cultura, em ordem no mesmo ano histórico (1992 a 2024), para
+e uma data por cultura, em ordem em até dois anos consecutivos (1992 a 2024), para
 `POST /rotations`. O DSSAT tenta todas as permutações em sequeiro.
 
 ```json
@@ -355,5 +355,5 @@ Consulte a URL `poll` da resposta até `done` ou `failed`. Cada permutação tro
 lista as demais. Quando a ordem original foi concluída, `minus_baseline` mostra
 as diferenças por cultura em cada alternativa. Para duas culturas, o campo
 `reversed_minus_baseline` continua disponível. O resultado inclui efeitos de
-calendário e vale para o ano histórico escolhido. Se nenhuma ordem completar
+calendário e vale para o calendário histórico escolhido. Se nenhuma ordem completar
 os plantios, o pedido falha. Os limites de uso são compartilhados com simulações.

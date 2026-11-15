@@ -1,4 +1,4 @@
-"""Compare the orders of a rotation of two or three crops under a shared historical year."""
+"""Compare the orders of a rotation of two or three crops under a shared historical calendar."""
 import argparse
 import json
 import subprocess
@@ -14,10 +14,11 @@ def compare(power: Path, soil: Path, work: Path, crops: tuple[str, ...],
             dates: tuple[date, ...]) -> dict:
     if (len(crops) not in (2, 3) or len(set(crops)) != len(crops)
             or len(dates) != len(crops) or tuple(sorted(set(dates))) != dates
-            or dates[0].year != dates[-1].year):
-        raise ValueError("Informe duas ou três culturas distintas e datas crescentes no mesmo ano.")
+            or dates[-1].year - dates[0].year > 1):
+        raise ValueError("Informe duas ou três culturas distintas e datas crescentes em até dois anos consecutivos.")
     for code in crops:
         fi.get_crop(code)
+    horizon_years = dates[-1].year - dates[0].year + 1
     weather = fi.read_power_json(power)
     profile = fi.build_soil(fi.read_pronasolos_csv(soil), soil_id="FSFSPT0001")
     alternatives = []
@@ -34,7 +35,7 @@ def compare(power: Path, soil: Path, work: Path, crops: tuple[str, ...],
                 crop = fi.get_crop(code)
                 filex = folder / f"FSPT000{rotation}.{crop['code']}X"
                 fi.write_filex(filex, "FSPT", code, profile,
-                               [fi.Scenario(1, code, planting, False)], 1,
+                               [fi.Scenario(1, code, planting, False)], horizon_years,
                                crop=crop, daily_water_output=True, rotation_number=rotation)
                 rows.append(f"{filex.name:<92} {1:6d} {1:6d} {rotation:6d}")
             batch = folder / "DSSBatch.v48"
@@ -54,10 +55,10 @@ def compare(power: Path, soil: Path, work: Path, crops: tuple[str, ...],
                 selected.append(matches[0])
             unexpected = [
                 row for row in seasons if row not in selected
-                and row["planting_yyyyddd"] and row["planting_yyyyddd"] // 1000 <= dates[0].year
+                and row["planting_yyyyddd"] and row["planting_yyyyddd"] // 1000 <= dates[-1].year
             ]
             if unexpected:
-                raise ValueError(f"{name}: o motor registrou plantios extras dentro do ano comparado.")
+                raise ValueError(f"{name}: o motor registrou plantios extras dentro do período comparado.")
             alternatives.append({"id": name, "order": list(order), "cycles": selected,
                                  "engine_rows": len(seasons)})
         except (RuntimeError, ValueError, FileNotFoundError, subprocess.TimeoutExpired) as exc:
@@ -86,7 +87,7 @@ def compare(power: Path, soil: Path, work: Path, crops: tuple[str, ...],
         "failed_alternatives": failed,
         "baseline_id": baseline["id"] if baseline else None,
         "evidence": {"quality_level": "exploratorio", "is_actual_forecast": False},
-        "assumptions": ["Sequeiro, cultivares padrão, um ano histórico e sem simulação de nitrogênio."],
+        "assumptions": ["Sequeiro, cultivares padrão, calendário histórico compartilhado e sem simulação de nitrogênio."],
         "provenance": {"weather_sha256": runner.sha256(power), "soil_sha256": runner.sha256(soil)},
     }
 

@@ -297,8 +297,9 @@ class RotationRequest(BaseModel):
         self.crops = codes
         dates = self.planting_dates
         if (len(dates) != len(codes) or tuple(sorted(set(dates))) != dates
-                or not 1992 <= dates[0].year == dates[-1].year <= 2024):
-            raise ValueError("informe uma data por cultura, em ordem, no mesmo ano histórico (1992 a 2024)")
+                or not 1992 <= dates[0].year <= dates[-1].year <= 2024
+                or dates[-1].year - dates[0].year > 1):
+            raise ValueError("informe uma data por cultura, em ordem, em até dois anos consecutivos (1992 a 2024)")
         return self
 
 
