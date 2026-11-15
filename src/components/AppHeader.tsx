@@ -33,8 +33,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       ]}
     >
       <View style={styles.leftGroup}>
-        <Text style={[styles.appName, { color: theme.text, fontSize: 21 * theme.scale }]}>
-          RoçaViva
+        <Text
+          style={[styles.appName, { color: theme.text, fontSize: 17.5 * theme.scale }]}
+          numberOfLines={1}
+        >
+          Harvest71
         </Text>
         <View
           style={[
@@ -50,12 +53,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               styles.statusText,
               { color: isOnline ? theme.successText : theme.warningText },
             ]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
           >
             {isOnline
               ? pendingSyncCount > 0
                 ? `Sincronizando (${pendingSyncCount})`
                 : 'Sincronizado'
-              : `Modo Roça Offline${pendingSyncCount > 0 ? ` (${pendingSyncCount})` : ''}`}
+              : `Offline${pendingSyncCount > 0 ? ` (${pendingSyncCount})` : ''}`}
           </Text>
         </View>
       </View>
@@ -147,61 +152,68 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderBottomWidth: 2,
+    gap: 6,
   },
   leftGroup: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    flexShrink: 1,
+    gap: 5,
+    overflow: 'hidden',
   },
   appName: {
     fontWeight: '900',
     letterSpacing: -0.3,
+    flexShrink: 0,
   },
   statusBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: 99,
     borderWidth: 1,
+    flexShrink: 1,
+    minWidth: 0,
   },
   statusText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '800',
   },
   rightGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
+    flexShrink: 0,
   },
   voiceBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    height: 38,
-    borderRadius: 19,
+    gap: 3,
+    paddingHorizontal: 7,
+    height: 34,
+    borderRadius: 17,
     borderWidth: 1.5,
   },
   voiceBtnText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '800',
   },
   helpCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   userCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',

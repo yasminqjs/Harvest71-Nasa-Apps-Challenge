@@ -90,7 +90,7 @@ export const FeedbackSection: React.FC = () => {
         ]}
       >
         <Text style={[styles.title, { color: theme.text, fontSize: 17 * theme.scale }]}>
-          💬 Sua Opinião sobre o RoçaViva
+          💬 Sua Opinião sobre o Harvest71
         </Text>
         <Text style={{ fontSize: 12, color: theme.textMuted }}>
           Conte se as dicas e previsões funcionaram na sua roça. Funciona offline e envia quando conectar.

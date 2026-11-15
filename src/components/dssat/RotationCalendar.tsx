@@ -1,19 +1,23 @@
-import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useMemo, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { loadRotationPlan, saveRotationPlan } from '../../database/sqlite';
 import { useLanguage } from '../../i18n/Language';
+import { Pressable, Text } from '../../i18n/native';
 import { useDssatJob } from '../../hooks/useDssatJob';
 import { createRotationCompare, friendlyMessage, planRotationCalendar, type RotationCalendarResult } from '../../services/dssatApi';
 import type { getAppTheme } from '../../theme/tokens';
 import type { GeoPoint } from '../../types/domain';
 import type { Capabilities, CatalogCrop, RotationCompareResult } from '../../types/dssat';
 import type { SavedRotationPlan } from '../../types/rotationPlan';
-import { allPairsEnabled, cycleValue, fmtKg, suggestKnownCrops, targetMetric } from '../../utils/dssatLogic';
-import { Card, Chip, H, JobStatusBox, P, PrimaryButton } from './DssatShared';
-import { DAY, FuturePlantingDate, isoDay, shortDate, tomorrow } from './FuturePlantingDate';
+import { allPairsEnabled, cycleValue, eligibleInSelection, suggestKnownCrops, targetMetric } from '../../utils/dssatLogic';
+import { Card, Chip, ExpandableDetails, H, JobStatusBox, P, PrimaryButton, SectionDivider } from './DssatShared';
+import { RotationCompareBarChart, RotationTimelineChart } from './DssatVisualCharts';
+import { DAY, FuturePlantingDate, isoDay, tomorrow } from './FuturePlantingDate';
 import { RotationGoalSearch } from './RotationGoalSearch';
 
 type Cycles = SavedRotationPlan['cycles'];
+type PlanMode = 'goals' | 'calendar';
 
 function referenceDates(cycles: Cycles): string[] {
   const firstYear = Number(cycles[0].planting_date.slice(0, 4));
@@ -25,13 +29,19 @@ function referenceDates(cycles: Cycles): string[] {
     `${referenceYear + Number(planting_date.slice(0, 4)) - firstYear}${planting_date.slice(4)}`);
 }
 
-const defaultDates = () => [isoDay(tomorrow() + 7 * DAY), isoDay(tomorrow() + 180 * DAY)];
+const defaultDates = () => [
+  isoDay(tomorrow() + 7 * DAY),
+  isoDay(tomorrow() + 155 * DAY),
+  isoDay(tomorrow() + 335 * DAY),
+];
 
 export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, knownPlants }: {
   crops: CatalogCrop[]; caps: Capabilities | null; theme: ReturnType<typeof getAppTheme>;
   point: GeoPoint; farmId: string; lotId: string; knownPlants: string[];
 }) {
   const { language } = useLanguage();
+  const en = language === 'en';
+  const [mode, setMode] = useState<PlanMode>('goals');
   const [selected, setSelected] = useState<string[]>([]);
   const [dates, setDates] = useState(defaultDates);
   const [result, setResult] = useState<RotationCalendarResult>();
@@ -41,7 +51,6 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
   const [saveError, setSaveError] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [showGoals, setShowGoals] = useState(false);
   const comparison = useDssatJob<RotationCompareResult>(JSON.stringify([farmId, lotId]), 'rotation');
 
   useEffect(() => {
@@ -61,6 +70,88 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
   const suggestions = suggestKnownCrops(knownPlants, crops);
   const cropName = (code: string) => crops.find((crop) => crop.code === code)?.name ?? code;
   const invalidateCalendar = () => { setResult(undefined); setError(''); };
+
+  // Precompute DSSAT sequence pairing info directly from capabilities so selection is crystal-clear.
+  const { dssatCodes, partnerMap, dssatCrops, calendarOnlyCrops } = useMemo(() => {
+    const codes = new Set<string>();
+    const map = new Map<string, Set<string>>();
+    for (const [a, b] of caps?.sequence_pairs ?? []) {
+      codes.add(a);
+      codes.add(b);
+      if (!map.has(a)) map.set(a, new Set());
+      if (!map.has(b)) map.set(b, new Set());
+      map.get(a)!.add(b);
+      map.get(b)!.add(a);
+    }
+    for (const c of caps?.crops ?? []) {
+      if (c.dssat_sequence && map.get(c.code)?.size) {
+        codes.add(c.code);
+      }
+    }
+    return {
+      dssatCodes: codes,
+      partnerMap: map,
+      dssatCrops: crops.filter((c) => codes.has(c.code)),
+      calendarOnlyCrops: crops.filter((c) => !codes.has(c.code)),
+    };
+  }, [caps, crops]);
+
+  const selectedDssat = selected.filter((code) => dssatCodes.has(code));
+  const eligible = caps ? eligibleInSelection(selected, caps) : new Set<string>();
+  const eligibleSize = eligible.size;
+
+  const pairedLabels = useMemo(() => {
+    const labelFor = (code: string) => crops.find((crop) => crop.code === code)?.name ?? code;
+    const pairs: string[] = [];
+    const seen = new Set<string>();
+    for (const [a, b] of caps?.sequence_pairs ?? []) {
+      if (selected.includes(a) && selected.includes(b)) {
+        const key = [a, b].sort().join('+');
+        if (!seen.has(key)) {
+          seen.add(key);
+          pairs.push(`${labelFor(a)} ↔ ${labelFor(b)}`);
+        }
+      }
+    }
+    return pairs;
+  }, [caps, selected, crops]);
+
+  const suggestedPartners = useMemo(() => {
+    if (selectedDssat.length === 0 || eligibleSize >= 2) return [];
+    const out = new Set<string>();
+    for (const code of selectedDssat) {
+      for (const p of partnerMap.get(code) ?? []) {
+        if (!selected.includes(p)) out.add(p);
+      }
+    }
+    return [...out].slice(0, 4);
+  }, [selectedDssat, eligibleSize, partnerMap, selected]);
+
+  const activeMode: PlanMode = caps && caps.rotation_search === false ? 'calendar' : mode;
+
+  const handleToggleCrop = (code: string) => {
+    invalidateCalendar();
+    setSelected((current) =>
+      current.includes(code) ? current.filter((item) => item !== code) : [...current, code]
+    );
+  };
+
+  const handleAddThirdDate = () => {
+    if (dates.length >= 3) return;
+    invalidateCalendar();
+    const lastMs = Date.parse(dates[dates.length - 1]);
+    const nextMs = Math.min(end, lastMs + 155 * DAY);
+    if (nextMs > lastMs) {
+      setDates((current) => [...current, isoDay(nextMs)]);
+    } else {
+      setDates(defaultDates());
+    }
+  };
+
+  const handleSpaceDates = () => {
+    invalidateCalendar();
+    setDates(defaultDates());
+  };
 
   async function submit() {
     if (busy || !valid || selected.length < 2 || windowCount > 60) return;
@@ -97,11 +188,7 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
   }
 
   function showCycles(cycles: Cycles) {
-    return cycles.map((cycle) => (
-      <P key={cycle.planting_date} theme={theme}>
-        {cropName(cycle.crop)}{' · '}{shortDate(cycle.planting_date, language)} até {shortDate(cycle.end_date, language)}
-      </P>
-    ));
+    return <RotationTimelineChart theme={theme} cycles={cycles} cropName={cropName} />;
   }
 
   function compareButton(cycles: Cycles) {
@@ -120,103 +207,397 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
   const futureSaved = saved?.cycles.filter((cycle) => Date.parse(cycle.planting_date) >= start) ?? [];
 
   return (
-    <View style={{ gap: 12 }}>
-      {saved && <Card theme={theme} tone="success">
-        <H theme={theme}>Plano salvo neste dispositivo</H>
-        {showCycles(futureSaved)}
-        {futureSaved.length < saved.cycles.length && <P theme={theme}>Alguns plantios salvos já passaram. Monte um novo calendário para atualizar o plano.</P>}
-        {futureSaved.length >= 2 && compareButton(futureSaved)}
-        {futureSaved.length >= 2 && futureSaved.every((cycle) => Date.parse(cycle.planting_date) <= end) &&
-          <PrimaryButton theme={theme} label="Usar plano salvo para ajustar datas" disabled={busy}
-            onPress={() => {
-              invalidateCalendar();
-              setSelected([...new Set(futureSaved.map((cycle) => cycle.crop))]);
-              setDates(futureSaved.map((cycle) => cycle.planting_date));
-            }} />}
-      </Card>}
-      {saveError ? <Card theme={theme} tone="danger"><P theme={theme}>{saveError}</P></Card> : null}
-      <Card theme={theme}>
-        <H theme={theme}>O que você pode plantar?</H>
-        {suggestions.length > 0 && <Chip theme={theme} label="Usar culturas do lote" selected={false} disabled={busy}
-          onPress={() => { invalidateCalendar(); setSelected((current) => [...new Set([...current, ...suggestions])]); }} />}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-          {crops.map((crop) => (
-            <Chip key={crop.code} theme={theme} label={crop.name} selected={selected.includes(crop.code)} disabled={busy}
+    <View style={{ gap: 10 }}>
+      {/* Primary Mode Switcher right at the TOP */}
+      {caps?.rotation_search !== false && (
+        <View style={[styles.modeBar, { backgroundColor: theme.surfaceMuted, borderColor: theme.border }]}>
+          <Pressable
+            onPress={() => setMode('goals')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeMode === 'goals' }}
+            style={[
+              styles.modeBtn,
+              activeMode === 'goals' && { backgroundColor: theme.primary },
+            ]}
+          >
+            <Ionicons
+              name="sparkles-outline"
+              size={15}
+              color={activeMode === 'goals' ? theme.primaryText : theme.text}
+            />
+            <Text
+              style={{
+                fontSize: 12.5 * theme.scale,
+                fontWeight: '900',
+                color: activeMode === 'goals' ? theme.primaryText : theme.text,
+              }}
+            >
+              {en ? 'Goal Search (DSSAT)' : 'Buscar por Metas (DSSAT)'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setMode('calendar')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeMode === 'calendar' }}
+            style={[
+              styles.modeBtn,
+              activeMode === 'calendar' && { backgroundColor: theme.primary },
+            ]}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={15}
+              color={activeMode === 'calendar' ? theme.primaryText : theme.text}
+            />
+            <Text
+              style={{
+                fontSize: 12.5 * theme.scale,
+                fontWeight: '900',
+                color: activeMode === 'calendar' ? theme.primaryText : theme.text,
+              }}
+            >
+              {en ? 'Calendar & Orders' : 'Calendário & Ordens'}
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {saved && (
+        <ExpandableDetails
+          theme={theme}
+          label={en ? 'Saved rotation plan on this device' : 'Plano salvo neste dispositivo'}
+        >
+          {showCycles(futureSaved)}
+          {futureSaved.length < saved.cycles.length && (
+            <P theme={theme}>Alguns plantios salvos já passaram. Monte um novo calendário para atualizar o plano.</P>
+          )}
+          {futureSaved.length >= 2 && compareButton(futureSaved)}
+          {futureSaved.length >= 2 && futureSaved.every((cycle) => Date.parse(cycle.planting_date) <= end) && (
+            <PrimaryButton
+              theme={theme}
+              label="Usar plano salvo para ajustar datas"
+              disabled={busy}
               onPress={() => {
                 invalidateCalendar();
-                setSelected((current) => current.includes(crop.code) ? current.filter((code) => code !== crop.code) : [...current, crop.code]);
-              }} />
-          ))}
-        </View>
-        <P theme={theme} muted>Selecione pelo menos duas culturas.</P>
-        <P theme={theme} muted>O calendário aceita todas as culturas do catálogo. O DSSAT compara apenas combinações habilitadas para rotação.</P>
-      </Card>
+                setSelected([...new Set(futureSaved.map((cycle) => cycle.crop))]);
+                setDates(futureSaved.map((cycle) => cycle.planting_date));
+              }}
+            />
+          )}
+        </ExpandableDetails>
+      )}
+
+      {saveError ? <Card theme={theme} tone="danger"><P theme={theme}>{saveError}</P></Card> : null}
+
+      {/* Unified Crops + Dates Selector with clear pair guidance */}
       <Card theme={theme}>
-        <H theme={theme}>Quando você pode plantar?</H>
-        <P theme={theme} muted>As datas sugeridas são um ponto de partida. Toque para escolher um dia futuro no calendário.</P>
+        <View style={styles.sectionHeader}>
+          <H theme={theme}>{en ? '1. Select Crops' : '1. Escolha as Culturas'}</H>
+          {suggestions.length > 0 && (
+            <Pressable
+              onPress={() => {
+                invalidateCalendar();
+                setSelected((current) => [...new Set([...current, ...suggestions])]);
+              }}
+              style={[styles.miniLinkBtn, { borderColor: theme.primary }]}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '800', color: theme.primary }}>
+                {en ? '+ Use plot crops' : '+ Culturas do lote'}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+
+        {caps && dssatCrops.length > 0 && (
+          <View style={{ gap: 6 }}>
+            <Text style={{ fontSize: 11.5 * theme.scale, fontWeight: '700', color: theme.textMuted }}>
+              {selectedDssat.length === 0
+                ? en
+                  ? 'DSSAT-enabled crops (pick 2 or more that pair together):'
+                  : 'Culturas habilitadas no DSSAT (escolha 2+ que formem par):'
+                : en
+                ? 'Green chips pair with your selection; dashed chips do not:'
+                : 'Em verde = forma par com sua escolha; tracejado = sem par:'}
+            </Text>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
+              {dssatCrops.map((crop) => {
+                const isSel = selected.includes(crop.code);
+                const pairsWithAnySelected =
+                  selectedDssat.length > 0 &&
+                  selectedDssat.some((selCode) => selCode !== crop.code && partnerMap.get(selCode)?.has(crop.code));
+                const isUnpairedSelected = isSel && selected.length >= 2 && !eligible.has(crop.code);
+                const tone =
+                  isSel || selectedDssat.length === 0
+                    ? 'normal'
+                    : pairsWithAnySelected
+                    ? 'compatible'
+                    : 'incompatible';
+
+                return (
+                  <Chip
+                    key={crop.code}
+                    theme={theme}
+                    label={crop.name}
+                    selected={isSel}
+                    warn={isUnpairedSelected}
+                    tone={tone}
+                    disabled={busy}
+                    onPress={() => handleToggleCrop(crop.code)}
+                  />
+                );
+              })}
+            </View>
+
+            {/* Instant live feedback on active DSSAT pairs */}
+            {eligible.size >= 2 ? (
+              <View style={[styles.pairStrip, { backgroundColor: theme.successBg, borderColor: theme.successBorder }]}>
+                <Ionicons name="checkmark-circle" size={14} color={theme.successText} />
+                <Text style={{ fontSize: 11.5, fontWeight: '800', color: theme.successText, flex: 1 }}>
+                  {en ? 'Valid DSSAT pairs:' : 'Pares prontos no DSSAT:'} {pairedLabels.join(' • ')}
+                </Text>
+              </View>
+            ) : selectedDssat.length >= 1 && suggestedPartners.length > 0 ? (
+              <View style={[styles.pairStrip, { backgroundColor: theme.warningBg, borderColor: theme.warningBorder }]}>
+                <Ionicons name="link-outline" size={14} color={theme.warningText} />
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: theme.warningText, flex: 1 }}>
+                  {en
+                    ? `Tap a partner to enable DSSAT: ${suggestedPartners.map(cropName).join(', ')}`
+                    : `Toque num par para liberar o DSSAT: ${suggestedPartners.map(cropName).join(', ')}`}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        )}
+
+        {(!caps || activeMode === 'calendar') && calendarOnlyCrops.length > 0 && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
+            {calendarOnlyCrops.map((crop) => (
+              <Chip
+                key={crop.code}
+                theme={theme}
+                label={crop.name}
+                selected={selected.includes(crop.code)}
+                disabled={busy}
+                onPress={() => handleToggleCrop(crop.code)}
+              />
+            ))}
+          </View>
+        )}
+
+        {caps && activeMode === 'goals' && calendarOnlyCrops.length > 0 && (
+          <ExpandableDetails
+            theme={theme}
+            label={
+              en
+                ? `Calendar-only crops (${calendarOnlyCrops.length} — not supported in DSSAT rotations)`
+                : `Culturas só de calendário (${calendarOnlyCrops.length} — fora da busca DSSAT)`
+            }
+          >
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
+              {calendarOnlyCrops.map((crop) => (
+                <Chip
+                  key={crop.code}
+                  theme={theme}
+                  label={crop.name}
+                  selected={selected.includes(crop.code)}
+                  warn={selected.includes(crop.code)}
+                  disabled={busy}
+                  onPress={() => handleToggleCrop(crop.code)}
+                />
+              ))}
+            </View>
+          </ExpandableDetails>
+        )}
+
+        {selected.length < 2 && (
+          <Text style={{ fontSize: 11.5 * theme.scale, color: theme.textMuted }}>
+            {en ? 'Select at least two crops.' : 'Selecione pelo menos duas culturas.'}
+          </Text>
+        )}
+
+        <SectionDivider theme={theme} />
+
+        <View style={styles.sectionHeader}>
+          <H theme={theme}>{en ? '2. Planting Dates' : '2. Datas de Plantio'}</H>
+          {dates.length === 3 || Date.parse(dates[1]) < end ? (
+            <Pressable
+              onPress={() => {
+                invalidateCalendar();
+                setDates((current) =>
+                  current.length === 3
+                    ? current.slice(0, 2)
+                    : [...current, isoDay(Math.min(end, Date.parse(current[1]) + 120 * DAY))]
+                );
+              }}
+              style={[styles.miniLinkBtn, { borderColor: theme.border }]}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '800', color: theme.primary }}>
+                {dates.length === 3
+                  ? en
+                    ? 'Switch to 2 dates'
+                    : 'Usar 2 datas'
+                  : en
+                  ? '+ Add 3rd date (DSSAT)'
+                  : '+ 3ª data (DSSAT)'}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+
         {dates.map((date, index) => (
-          <FuturePlantingDate key={index} label={`Plantio ${index + 1}`} value={date}
+          <FuturePlantingDate
+            key={index}
+            label={`Plantio ${index + 1}`}
+            value={date}
             min={Math.max(start, index === 0 ? start : Date.parse(dates[index - 1]) + DAY)}
             max={Math.min(end, index === dates.length - 1 ? end : Date.parse(dates[index + 1]) - DAY)}
-            theme={theme} disabled={busy}
+            theme={theme}
+            disabled={busy}
             onChange={(value) => {
               invalidateCalendar();
               setDates((current) => current.map((item, i) => i === index ? value : item));
-            }} />
+            }}
+          />
         ))}
-        {dates.length === 3 || Date.parse(dates[1]) < end ? <Chip theme={theme}
-          label={dates.length === 3 ? 'Remover terceiro plantio' : 'Adicionar terceiro plantio'}
-          selected={false} disabled={busy} onPress={() => {
-            invalidateCalendar();
-            setDates((current) => current.length === 3 ? current.slice(0, 2)
-              : [...current, isoDay(Math.min(end, Date.parse(current[1]) + 120 * DAY))]);
-          }} /> : null}
-        {!valid && <PrimaryButton theme={theme} label="Atualizar para datas futuras"
-          disabled={busy} onPress={() => { invalidateCalendar(); setDates(defaultDates()); }} />}
+        {!valid && (
+          <PrimaryButton
+            theme={theme}
+            label="Atualizar para datas futuras"
+            disabled={busy}
+            onPress={() => { invalidateCalendar(); setDates(defaultDates()); }}
+          />
+        )}
         {windowCount > 60 && <P theme={theme}>Com três datas, selecione até 20 culturas.</P>}
       </Card>
-      <PrimaryButton theme={theme} label={busy ? 'Montando calendário…' : 'Ver opções de plantio'}
-        disabled={busy || !valid || selected.length < 2 || windowCount > 60} onPress={submit} />
-      {error ? <Card theme={theme} tone="danger"><P theme={theme}>{error}</P></Card> : null}
-      {result && valid && <View style={{ gap: 8 }}>
-        <H theme={theme}>Calendários possíveis</H>
-        <P theme={theme}>As datas de fim usam a duração de referência das culturas. Para avaliar as ordens, o DSSAT usa clima histórico da área.</P>
-        {result.candidates.length === 0 && <P theme={theme}>Nenhum ciclo coube nas datas informadas.</P>}
-        {result.candidates.map(({ cycles }, index) => (
-          <Card key={index} theme={theme}>
-            <H theme={theme}>{`Opção ${index + 1}`}</H>
-            {showCycles(cycles)}
-            <PrimaryButton theme={theme} label={saving ? 'Salvando…' : saved ? 'Substituir plano salvo' : 'Salvar este plano'}
-              disabled={saving || loadingSaved} onPress={() => void save(cycles)} />
-            {cycles.length >= 2 && compareButton(cycles)}
-          </Card>
-        ))}
-        {result.truncated && <P theme={theme}>Existem outras opções além das exibidas.</P>}
-      </View>}
-      <JobStatusBox theme={theme} state={comparison.state} onRetry={comparison.retry} onReset={comparison.reset} />
-      {comparison.state.phase === 'done' && comparison.state.result && <Card theme={theme}>
-        <H theme={theme}>Comparação com clima histórico</H>
-        <P theme={theme} muted>Produção exploratória em kg/ha de matéria seca. A ordem marcada foi a do calendário escolhido.</P>
-        {comparison.state.result.alternatives?.map((option) => (
-          <View key={option.id}>
-            <H theme={theme}>{option.order.map(cropName).join(' → ')}
-              {option.id === comparison.state.result?.baseline_id ? ' (ordem escolhida)' : ''}
-            </H>
-            {option.cycles.map((cycle) => <P key={cycle.crop} theme={theme}>
-              {cropName(cycle.crop)}: {fmtKg(cycleValue(cycle, targetMetric(cycle.crop, caps)))}
-            </P>)}
-          </View>
-        ))}
-        {comparison.state.result.failed_alternatives?.map((item) =>
-          <P key={item.id} theme={theme}>{item.order.map(cropName).join(' → ')}: {item.reason ?? 'plantios incompletos na simulação.'}</P>)}
-      </Card>}
-      {caps?.rotation_search && <>
-        <Chip theme={theme} label="Buscar por metas de produção" selected={showGoals}
-          onPress={() => setShowGoals((show) => !show)} />
-        {showGoals && valid && <RotationGoalSearch
-          key={JSON.stringify([dates, selected])} dates={dates} selected={selected} caps={caps}
-          crops={crops} theme={theme} point={point} areaKey={JSON.stringify([farmId, lotId, dates, selected])} />}
-      </>}
+
+      {/* PRIMARY MODE: DSSAT Goal Search promoted right below crops/dates */}
+      {activeMode === 'goals' && caps && valid && (
+        <RotationGoalSearch
+          key={JSON.stringify([dates, selected])}
+          dates={dates}
+          selected={selected}
+          caps={caps}
+          crops={crops}
+          theme={theme}
+          point={point}
+          areaKey={JSON.stringify([farmId, lotId, dates, selected])}
+          onAddThirdDate={handleAddThirdDate}
+          onSpaceDates={handleSpaceDates}
+        />
+      )}
+
+      {/* SECONDARY MODE: Calendar & Permutation Compare */}
+      {activeMode === 'calendar' && (
+        <>
+          <PrimaryButton
+            theme={theme}
+            label={busy ? 'Montando calendário…' : 'Ver opções de plantio'}
+            disabled={busy || !valid || selected.length < 2 || windowCount > 60}
+            onPress={submit}
+          />
+          {error ? <Card theme={theme} tone="danger"><P theme={theme}>{error}</P></Card> : null}
+          {result && valid && (
+            <Card theme={theme}>
+              <H theme={theme}>Calendários possíveis ({result.candidates.length})</H>
+              {result.candidates.length === 0 && <P theme={theme}>Nenhum ciclo coube nas datas informadas.</P>}
+              {result.candidates.map(({ cycles }, index) => (
+                <View
+                  key={index}
+                  style={{
+                    gap: 6,
+                    paddingVertical: 8,
+                    borderBottomWidth: index < result.candidates.length - 1 ? 1 : 0,
+                    borderBottomColor: theme.border,
+                  }}
+                >
+                  <P theme={theme} bold>{`Opção ${index + 1}`}</P>
+                  {showCycles(cycles)}
+                  <PrimaryButton
+                    theme={theme}
+                    label={saving ? 'Salvando…' : saved ? 'Substituir plano salvo' : 'Salvar este plano'}
+                    disabled={saving || loadingSaved}
+                    onPress={() => void save(cycles)}
+                  />
+                  {cycles.length >= 2 && compareButton(cycles)}
+                </View>
+              ))}
+              <ExpandableDetails theme={theme} label="Como as datas são calculadas">
+                <P theme={theme} muted>
+                  As datas de fim usam a duração de referência das culturas. Para avaliar as ordens, o DSSAT usa clima histórico da área.
+                </P>
+                {result.truncated && <P theme={theme} muted>Existem outras opções além das exibidas.</P>}
+              </ExpandableDetails>
+            </Card>
+          )}
+          <JobStatusBox theme={theme} state={comparison.state} onRetry={comparison.retry} onReset={comparison.reset} />
+          {comparison.state.phase === 'done' && comparison.state.result && (
+            <Card theme={theme}>
+              <H theme={theme}>Comparação com clima histórico</H>
+              <P theme={theme} muted>
+                Produção exploratória em kg/ha de matéria seca. A ordem marcada foi a do calendário escolhido.
+              </P>
+              {comparison.state.result.alternatives && (
+                <RotationCompareBarChart
+                  theme={theme}
+                  alternatives={comparison.state.result.alternatives}
+                  baselineId={comparison.state.result.baseline_id ?? undefined}
+                  cropName={cropName}
+                  valueOf={(cycle) => cycleValue(cycle, targetMetric(cycle.crop, caps))}
+                />
+              )}
+              {comparison.state.result.failed_alternatives?.map((item) => (
+                <P key={item.id} theme={theme}>
+                  {item.order.map(cropName).join(' → ')}: {item.reason ?? 'plantios incompletos na simulação.'}
+                </P>
+              ))}
+            </Card>
+          )}
+        </>
+      )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  modeBar: {
+    flexDirection: 'row',
+    padding: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 4,
+  },
+  modeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  miniLinkBtn: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  pairStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+});

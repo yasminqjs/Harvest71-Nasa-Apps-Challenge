@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text } from '../../i18n/native';
 import { FEATURE_COLOR_STYLES } from '../../models/farmArchitecture';
 import { AppTheme } from '../../theme/tokens';
 import { FarmArchitectureModel, PlantationArchitectureModel } from '../../types/domain';
 import { FeatureBadge } from '../FeatureBadge';
+import { VoiceReadBar } from '../VoiceReadBar';
 
 /**
  * @featureColor ROXO
@@ -30,6 +32,8 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
   onBack,
   theme,
 }) => {
+  const { language } = useLanguage();
+  const en = language === 'en';
   const palette = FEATURE_COLOR_STYLES.roxo;
   const lot = selectedPlantation ?? farmArchitecture.plantacoes[0];
 
@@ -50,6 +54,19 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
           <View style={{ width: 64 }} />
         </View>
       )}
+
+      <VoiceReadBar
+        theme={theme}
+        text={
+          en
+            ? `Current crop quality for ${lot?.nome ?? 'your farm'}, crop ${
+                lot?.culturaAtual.culturaNome ?? 'not set'
+              } at ${lot?.culturaAtual.tempoPlantadaDias ?? 0} days planted. This placeholder will display 30-meter satellite vegetative vigor and inspection panels.`
+            : `Qualidade da plantação atual para ${lot?.nome ?? 'a fazenda'}, cultura ${
+                lot?.culturaAtual.culturaNome ?? 'não informada'
+              } com ${lot?.culturaAtual.tempoPlantadaDias ?? 0} dias plantada. Este espaço receberá o painel de saúde vegetativa e vigor por satélite de 30 metros.`
+        }
+      />
 
       <View
         style={[

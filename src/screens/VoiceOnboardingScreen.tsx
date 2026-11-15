@@ -12,7 +12,7 @@ import {
 import { getAppTheme } from '../theme/tokens';
 
 const ONBOARDING_SPEECH =
-  'Olá! Bem-vindo ao RoçaViva. Gostaria que o aplicativo faça a leitura e ajude com comandos de voz? Pode dizer Sim ou Não.';
+  'Olá! Bem-vindo ao Harvest71. Gostaria que o aplicativo faça a leitura e ajude com comandos de voz? Pode dizer Sim ou Não.';
 
 export const VoiceOnboardingScreen: React.FC = () => {
   const { accessibility, completeVoiceOnboarding } = useAccessibility();
@@ -175,7 +175,7 @@ export const VoiceOnboardingScreen: React.FC = () => {
           <Ionicons name="leaf" size={38} color={theme.primaryText} />
         </View>
         <Text style={[styles.appTitle, { color: theme.text, fontSize: 28 * theme.scale }]}>
-          RoçaViva
+          Harvest71
         </Text>
         <Text style={[styles.subtitle, { color: theme.textMuted, fontSize: 14 * theme.scale }]}>
           Extensionista Rural Digital • Funciona sem internet

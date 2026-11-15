@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BackHandler, Linking, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { useLanguage } from '../i18n/Language';
 import { Pressable, Text } from '../i18n/native';
 import { MainTabKey } from '../components/BottomTabBar';
 import { FeatureBadge } from '../components/FeatureBadge';
+import { VoiceReadBar } from '../components/VoiceReadBar';
 import { ClimaDiaSubscreen } from '../components/subscreens/ClimaDiaSubscreen';
 import { HistoricoPlantioSubscreen } from '../components/subscreens/HistoricoPlantioSubscreen';
 import { PrevisaoTrimestreSubscreen } from '../components/subscreens/PrevisaoTrimestreSubscreen';
@@ -34,10 +36,35 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 }) => {
   const { accessibility, activeFarmer, activeFarm, farmArchitecture, speak } =
     useAccessibility();
+  const { language } = useLanguage();
+  const en = language === 'en';
   const theme = getAppTheme(accessibility);
   const yellow = FEATURE_COLOR_STYLES.amarelo;
   const [subscreen, setSubscreen] = useState<HomeSubscreen>(null);
   const [reportStatus, setReportStatus] = useState<string | null>(null);
+  const [showFarmDetails, setShowFarmDetails] = useState(false);
+  const autoSpokenRef = useRef(false);
+
+  const diag = activeFarm?.diagnostico;
+  const lots = activeFarm?.lotes ?? [];
+  const primaryProgress =
+    lots.length > 0
+      ? Math.round(lots.reduce((sum, l) => sum + l.progressoRealPct, 0) / lots.length)
+      : diag?.rotacaoAtual.progressoPct ?? 0;
+
+  const resumoVoiceText = activeFarm && diag
+    ? en
+      ? `Overview tab for ${activeFarm.nome} in ${activeFarm.municipio}. Today's weather: max ${diag.climaDia.tempMaxC} degrees, min ${diag.climaDia.tempMinC} degrees, rainfall ${diag.climaDia.chuvaHojeMm} millimeters, humidity ${diag.climaDia.umidadeRelativaPct} percent. Three-month outlook: ${diag.modeloC.titulo}. Current rotation progress: ${primaryProgress} percent across ${lots.length} plots. Soil pH ${diag.soloSoilGrids.ph}.`
+      : `Aba Resumo de ${activeFarm.nome}, em ${activeFarm.municipio}. Clima hoje: máxima de ${diag.climaDia.tempMaxC} e mínima de ${diag.climaDia.tempMinC} graus, chuva de ${diag.climaDia.chuvaHojeMm} milímetros, umidade ${diag.climaDia.umidadeRelativaPct}%. Previsão do trimestre: ${diag.modeloC.titulo}. Rotação atual em ${primaryProgress}% de progresso em ${lots.length} lotes. Solo com pH ${diag.soloSoilGrids.ph}.`
+    : '';
+
+  useEffect(() => {
+    if (!accessibility.voiceGuidanceEnabled || autoSpokenRef.current || !resumoVoiceText || subscreen) {
+      return;
+    }
+    autoSpokenRef.current = true;
+    speak(resumoVoiceText);
+  }, [accessibility.voiceGuidanceEnabled, resumoVoiceText, subscreen, speak]);
 
   useEffect(() => {
     if (!subscreen) return undefined;
@@ -50,12 +77,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   if (!activeFarm || !activeFarmer) return null;
 
-  const diag = activeFarm.diagnostico;
-  const lots = activeFarm.lotes ?? [];
-  const primaryProgress =
-    lots.length > 0
-      ? Math.round(lots.reduce((sum, l) => sum + l.progressoRealPct, 0) / lots.length)
-      : diag.rotacaoAtual.progressoPct;
   const historyCount =
     (activeFarmer.historicoCultivoDetalhado?.length ?? 0) ||
     (activeFarmer.historicoCultivo?.length ?? 0);
@@ -70,7 +91,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       )
       .join('\n');
     return (
-      `RELATÓRIO ROÇAVIVA — ${activeFarm.nome}\n` +
+      `RELATÓRIO HARVEST71 — ${activeFarm.nome}\n` +
       `Produtor(a): ${activeFarmer.tratamento}\n` +
       `Região: ${activeFarm.regiaoNome} (${activeFarm.municipio} - ${activeFarm.estado})\n` +
       `Área: ${formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)}\n` +
@@ -93,7 +114,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         return;
       }
       await Share.share({
-        title: `Relatório RoçaViva — ${activeFarm.nome}`,
+        title: `Relatório Harvest71 — ${activeFarm.nome}`,
         message,
       });
     } catch {
@@ -127,20 +148,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <View
             style={[
               styles.summaryBanner,
-              { backgroundColor: theme.surface, borderColor: yellow.border },
+              { borderLeftColor: yellow.border, borderBottomColor: theme.border },
             ]}
           >
-            <FeatureBadge color="amarelo" />
-            <Text style={[styles.summaryTitle, { color: theme.text, fontSize: 18 * theme.scale }]}>
-              Resumo Local da Roça
-            </Text>
-            <Text style={{ fontSize: 12, color: theme.textMuted }}>
-              {activeFarm.nome} • {activeFarm.regiaoNome} ({activeFarm.municipio} -{' '}
-              {activeFarm.estado}) • {formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <Text style={[styles.summaryTitle, { color: theme.text, fontSize: 17 * theme.scale, flex: 1 }]}>
+                Resumo Local da Roça
+              </Text>
+              <FeatureBadge color="amarelo" />
+            </View>
+            <Text style={{ fontSize: 11.5, color: theme.textMuted }} numberOfLines={1}>
+              {activeFarm.nome} • {activeFarm.municipio}-{activeFarm.estado} •{' '}
+              {formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)}
             </Text>
           </View>
 
-          {/* Grade 2x2: Ver informações básicas (Visualizador de informações locais) */}
+          <VoiceReadBar
+            text={resumoVoiceText}
+            theme={theme}
+            label={en ? 'Read Overview tab aloud' : 'Ouvir leitura da aba Resumo'}
+          />
+
+          {/* Grade 2x2 enxuta: Ver informações básicas */}
           <View style={styles.gridRow}>
             <Pressable
               onPress={() => setSubscreen('clima')}
@@ -150,12 +179,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               ]}
             >
               <Text style={[styles.boxTitle, { color: theme.text }]}>Clima do dia</Text>
-              <Ionicons name="sunny" size={34} color="#CA8A04" />
+              <Ionicons name="sunny" size={26} color="#CA8A04" />
               <Text style={[styles.boxValue, { color: '#92400E' }]}>
                 {diag.climaDia.tempMaxC}° / {diag.climaDia.tempMinC}°C
               </Text>
-              <Text style={[styles.boxSub, { color: theme.textMuted }]} numberOfLines={2}>
-                Chuva {diag.climaDia.chuvaHojeMm} mm • Umidade {diag.climaDia.umidadeRelativaPct}%
+              <Text style={[styles.boxSub, { color: theme.textMuted }]} numberOfLines={1}>
+                Chuva {diag.climaDia.chuvaHojeMm} mm • Umid {diag.climaDia.umidadeRelativaPct}%
               </Text>
             </Pressable>
 
@@ -170,8 +199,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 Previsão do trimestre
               </Text>
               <View style={styles.trimestreIconRow}>
-                <Ionicons name="calendar-outline" size={28} color="#CA8A04" />
-                <Text style={{ fontSize: 28 }}>{diag.modeloB.emoji}</Text>
+                <Ionicons name="calendar-outline" size={22} color="#CA8A04" />
+                <Text style={{ fontSize: 22 }}>{diag.modeloB.emoji}</Text>
               </View>
               <Text
                 style={[
@@ -200,7 +229,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               ]}
             >
               <Text style={[styles.boxTitle, { color: theme.text }]}>Rotação atual</Text>
-              <Ionicons name="leaf" size={32} color={theme.primary} />
+              <Ionicons name="leaf" size={24} color={theme.primary} />
               <View style={styles.miniProgressWrap}>
                 <View style={[styles.miniTrack, { backgroundColor: theme.surfaceMuted }]}>
                   <View
@@ -210,9 +239,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     ]}
                   />
                 </View>
-                <Text style={{ fontSize: 11, fontWeight: '900', color: theme.primary }}>
-                  {primaryProgress}% progresso ({lots.length} plantação
-                  {lots.length === 1 ? '' : 'ões'})
+                <Text style={{ fontSize: 10.5, fontWeight: '900', color: theme.primary }}>
+                  {primaryProgress}% ({lots.length} lote{lots.length === 1 ? '' : 's'})
                 </Text>
               </View>
             </Pressable>
@@ -227,63 +255,69 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <Text style={[styles.boxTitle, { color: theme.text }]}>
                 Histórico da terra
               </Text>
-              <Ionicons name="layers-outline" size={32} color="#2563EB" />
+              <Ionicons name="layers-outline" size={24} color="#2563EB" />
               <Text style={[styles.boxValue, { color: theme.text }]}>
                 pH {diag.soloSoilGrids.ph} • {historyCount} reg.
               </Text>
-              <Text style={[styles.boxSub, { color: theme.textMuted }]} numberOfLines={2}>
-                NASA POWER + SRTM/Landsat 30 m
+              <Text style={[styles.boxSub, { color: theme.textMuted }]} numberOfLines={1}>
+                NASA POWER + Landsat
               </Text>
             </Pressable>
           </View>
 
-          {/* Resumo da Modelagem da Fazenda + atalhos para Plantação e Comunidade */}
-          <View
-            style={[
-              styles.modelBox,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
+          {/* Atalhos + detalhes técnicos da fazenda expansíveis */}
+          <View style={styles.quickNavRow}>
+            <Pressable
+              onPress={() => onNavigateTab('plantacao')}
+              style={[
+                styles.quickNavBtn,
+                { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
+              ]}
+            >
+              <Ionicons name="leaf" size={15} color="#14532D" />
+              <Text style={{ fontSize: 12, fontWeight: '900', color: '#14532D' }}>
+                Ir para Plantação
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => onNavigateTab('comunidade')}
+              style={[
+                styles.quickNavBtn,
+                { backgroundColor: '#FEE2E2', borderColor: '#F87171' },
+              ]}
+            >
+              <Ionicons name="people" size={15} color="#7F1D1D" />
+              <Text style={{ fontSize: 12, fontWeight: '900', color: '#7F1D1D' }}>
+                Ir para Comunidade
+              </Text>
+            </Pressable>
+          </View>
+
+          <Pressable
+            onPress={() => setShowFarmDetails((v) => !v)}
+            style={[styles.expandRowBtn, { borderColor: theme.border, backgroundColor: theme.surface }]}
           >
-            <Text style={{ fontSize: 13, fontWeight: '900', color: theme.text }}>
+            <Ionicons name="information-circle-outline" size={16} color={theme.primary} />
+            <Text style={{ fontSize: 12, fontWeight: '800', color: theme.primary, flex: 1 }}>
               Visão Geral da Fazenda (Dados Atuais)
             </Text>
-            <Text style={{ fontSize: 11, color: theme.textMuted }}>
-              • Variáveis da fazenda (usuário): água ({activeFarmer.waterAccess}) • objetivo (
-              {activeFarmer.objective})
-            </Text>
-            <Text style={{ fontSize: 11, color: theme.textMuted }}>
-              • Plantações ({lots.length}): {activeFarm.culturaPrincipal} • EcoCrop + NASA POWER
-            </Text>
-            <Text style={{ fontSize: 11, color: theme.textMuted }}>
-              • Acontecimentos da região (comunidade): {regionalEventsCount} relatos locais
-            </Text>
-            <View style={styles.quickNavRow}>
-              <Pressable
-                onPress={() => onNavigateTab('plantacao')}
-                style={[
-                  styles.quickNavBtn,
-                  { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
-                ]}
-              >
-                <Ionicons name="leaf" size={16} color="#14532D" />
-                <Text style={{ fontSize: 12, fontWeight: '900', color: '#14532D' }}>
-                  Ir para Plantação
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => onNavigateTab('comunidade')}
-                style={[
-                  styles.quickNavBtn,
-                  { backgroundColor: '#FEE2E2', borderColor: '#F87171' },
-                ]}
-              >
-                <Ionicons name="people" size={16} color="#7F1D1D" />
-                <Text style={{ fontSize: 12, fontWeight: '900', color: '#7F1D1D' }}>
-                  Ir para Comunidade
-                </Text>
-              </Pressable>
+            <Ionicons name={showFarmDetails ? 'chevron-up' : 'chevron-down'} size={16} color={theme.primary} />
+          </Pressable>
+
+          {showFarmDetails && (
+            <View style={[styles.modelBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={{ fontSize: 11, color: theme.textMuted }}>
+                • Variáveis da fazenda (usuário): água ({activeFarmer.waterAccess}) • objetivo (
+                {activeFarmer.objective})
+              </Text>
+              <Text style={{ fontSize: 11, color: theme.textMuted }}>
+                • Plantações ({lots.length}): {activeFarm.culturaPrincipal} • EcoCrop + NASA POWER
+              </Text>
+              <Text style={{ fontSize: 11, color: theme.textMuted }}>
+                • Acontecimentos da região (comunidade): {regionalEventsCount} relatos locais
+              </Text>
             </View>
-          </View>
+          )}
 
           {/* Barra verde: GERAR RELATÓRIO: zap ... */}
           <Pressable
@@ -294,17 +328,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             ]}
           >
             <View style={styles.zapIconBadge}>
-              <Ionicons name="logo-whatsapp" size={22} color="#FFFFFF" />
+              <Ionicons name="logo-whatsapp" size={19} color="#FFFFFF" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: '#15803D' }}>
+              <Text style={{ fontSize: 13.5, fontWeight: '900', color: '#15803D' }}>
                 GERAR RELATÓRIO: WhatsApp
               </Text>
-              <Text style={{ fontSize: 11, color: theme.textMuted }}>
+              <Text style={{ fontSize: 11, color: theme.textMuted }} numberOfLines={1}>
                 Enviar resumo da roça, lotes e clima pelo Zap
               </Text>
             </View>
-            <Ionicons name="share-social-outline" size={20} color="#15803D" />
+            <Ionicons name="share-social-outline" size={18} color="#15803D" />
           </Pressable>
 
           {reportStatus && (
@@ -358,35 +392,44 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    padding: 14,
-    gap: 12,
-    paddingBottom: 26,
+    padding: 12,
+    gap: 8,
+    paddingBottom: 20,
   },
   summaryBanner: {
-    borderRadius: 18,
-    borderWidth: 2,
-    padding: 12,
-    gap: 6,
+    borderLeftWidth: 3,
+    borderBottomWidth: 1,
+    paddingLeft: 10,
+    paddingBottom: 8,
+    gap: 2,
   },
   summaryTitle: {
     fontWeight: '900',
   },
-  modelBox: {
-    borderRadius: 16,
-    borderWidth: 1.5,
-    padding: 12,
+  expandRowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  modelBox: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
+    gap: 4,
   },
   quickNavRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 4,
   },
   quickNavBtn: {
     flex: 1,
-    minHeight: 40,
-    borderRadius: 12,
-    borderWidth: 1.5,
+    minHeight: 38,
+    borderRadius: 10,
+    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -395,37 +438,37 @@ const styles = StyleSheet.create({
   },
   gridRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   blueBox: {
     flex: 1,
-    minHeight: 146,
-    borderRadius: 20,
-    borderWidth: 2,
-    padding: 12,
+    minHeight: 104,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 6,
+    gap: 4,
   },
   boxTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '900',
     textAlign: 'center',
   },
   boxValue: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '900',
     textAlign: 'center',
   },
   boxSub: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
     textAlign: 'center',
   },
   trimestreIconRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   miniProgressWrap: {
     width: '100%',
@@ -434,63 +477,63 @@ const styles = StyleSheet.create({
   },
   miniTrack: {
     width: '100%',
-    height: 7,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   miniFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   reportBtn: {
-    minHeight: 58,
-    borderRadius: 16,
-    borderWidth: 2,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    minHeight: 50,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
   zapBar: {
-    minHeight: 62,
-    borderRadius: 16,
-    borderWidth: 2,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    minHeight: 52,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
   zapIconBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: '#16A34A',
     alignItems: 'center',
     justifyContent: 'center',
   },
   statusBox: {
-    borderRadius: 12,
-    borderWidth: 1.5,
-    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 8,
   },
   pancsQuickBtn: {
-    borderRadius: 14,
-    borderWidth: 1.5,
-    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   supportRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   supportBtn: {
     flex: 1,
-    minHeight: 42,
-    borderRadius: 12,
+    minHeight: 38,
+    borderRadius: 10,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',

@@ -446,5 +446,10 @@
   "{0} (ordem escolhida)": "{0} (selected order)",
   "{0} ★ melhor no sequeiro": "{0} ★ best rainfed option",
   "Plantio {0}: Escolher data": "Planting {0}: Choose a date",
-  "Plantio {0}: {1}": "Planting {0}: {1}"
+  "Plantio {0}: {1}": "Planting {0}: {1}",
+  "Notas técnicas sobre calendário e pares": "Technical notes on calendar & crop pairs",
+  "Como as datas são calculadas": "How planting dates are calculated",
+  "Calendários possíveis ({0})": "Possible schedules ({0})",
+  "Como funciona a busca por metas": "How goal search works",
+  "O calendário aceita todas as culturas do catálogo. O DSSAT compara apenas combinações habilitadas para rotação. As datas sugeridas são um ponto de partida.": "The calendar accepts every crop in the catalog. DSSAT only compares pairs enabled for rotation. Suggested dates are a starting point."
 }

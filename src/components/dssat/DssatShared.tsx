@@ -1,35 +1,62 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useAccessibility } from '../../context/AccessibilityContext';
+import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text } from '../../i18n/native';
 import type { JobState } from '../../hooks/useDssatJob';
 import type { AppTheme } from '../../theme/tokens';
 import type { FarmProperty } from '../../types/domain';
 
-export const DssatHeader: React.FC<{ theme: AppTheme; title: string; onBack: () => void }> = ({
-  theme,
-  title,
-  onBack,
-}) => (
-  <View style={styles.topRow}>
-    <Pressable
-      onPress={onBack}
-      accessibilityRole="button"
-      accessibilityLabel="Voltar para os blocos da safra"
-      style={[styles.backBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
-    >
-      <Ionicons name="arrow-back" size={18} color={theme.text} />
-      <Text style={[styles.backText, { color: theme.text }]}>Blocos</Text>
-    </Pressable>
-    <Text
-      accessibilityRole="header"
-      style={[styles.title, { color: theme.text, fontSize: 18 * theme.scale }]}
-    >
-      {title}
-    </Text>
-    <View style={{ width: 64 }} />
-  </View>
-);
+export const DssatHeader: React.FC<{
+  theme: AppTheme;
+  title: string;
+  onBack: () => void;
+  speechText?: string;
+}> = ({ theme, title, onBack, speechText }) => {
+  const { speak, stopVoice } = useAccessibility();
+  const { language } = useLanguage();
+  const en = language === 'en';
+  const toSpeak = speechText ?? title;
+
+  return (
+    <View style={styles.topRow}>
+      <Pressable
+        onPress={onBack}
+        accessibilityRole="button"
+        accessibilityLabel="Voltar para os blocos da safra"
+        style={[styles.backBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
+      >
+        <Ionicons name="arrow-back" size={18} color={theme.text} />
+        <Text style={[styles.backText, { color: theme.text }]}>Blocos</Text>
+      </Pressable>
+      <Text
+        accessibilityRole="header"
+        style={[styles.title, { color: theme.text, fontSize: 18 * theme.scale }]}
+      >
+        {title}
+      </Text>
+      <View style={styles.headerVoiceGroup}>
+        <Pressable
+          onPress={() => speak(toSpeak, true)}
+          accessibilityRole="button"
+          accessibilityLabel={en ? 'Read screen aloud' : 'Ouvir leitura desta tela'}
+          style={[styles.headerVoiceBtn, { backgroundColor: theme.surfaceMuted, borderColor: theme.border }]}
+        >
+          <Ionicons name="volume-high" size={16} color={theme.primary} />
+        </Pressable>
+        <Pressable
+          onPress={stopVoice}
+          accessibilityRole="button"
+          accessibilityLabel={en ? 'Stop reading' : 'Parar leitura'}
+          style={[styles.headerVoiceBtn, { backgroundColor: theme.surfaceMuted, borderColor: theme.border }]}
+        >
+          <Ionicons name="stop-circle-outline" size={16} color={theme.textMuted} />
+        </Pressable>
+      </View>
+    </View>
+  );
+};
 
 export const Card: React.FC<{ theme: AppTheme; children: React.ReactNode; tone?: 'normal' | 'warning' | 'success' | 'danger' }> = ({
   theme,
@@ -72,28 +99,54 @@ export const Chip: React.FC<{
   onPress: () => void;
   warn?: boolean;
   disabled?: boolean;
-}> = ({ theme, label, selected, onPress, warn, disabled }) => (
-  <Pressable
-    onPress={onPress}
-    disabled={disabled}
-    accessibilityRole="checkbox"
-    accessibilityState={{ checked: selected, disabled }}
-    accessibilityLabel={warn ? `${label}, sem par habilitado nesta seleção` : label}
-    style={[
-      styles.chip,
-      {
-        backgroundColor: selected ? theme.primary : theme.surface,
-        borderColor: warn ? theme.warningBorder : selected ? theme.primary : theme.border,
-        opacity: disabled ? 0.5 : 1,
-      },
-    ]}
-  >
-    {warn ? <Ionicons name="alert-circle" size={14} color={selected ? theme.primaryText : theme.warningText} /> : null}
-    <Text style={{ fontSize: 13 * theme.scale, fontWeight: '800', color: selected ? theme.primaryText : theme.text }}>
-      {label}
-    </Text>
-  </Pressable>
-);
+  tone?: 'normal' | 'compatible' | 'incompatible';
+}> = ({ theme, label, selected, onPress, warn, disabled, tone = 'normal' }) => {
+  const isCompat = !selected && !warn && tone === 'compatible';
+  const isIncompat = !selected && !warn && tone === 'incompatible';
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: selected, disabled }}
+      accessibilityLabel={warn ? `${label}, sem par habilitado nesta seleção` : label}
+      style={[
+        styles.chip,
+        {
+          backgroundColor: selected
+            ? theme.primary
+            : isCompat
+            ? theme.successBg
+            : theme.surface,
+          borderColor: warn
+            ? theme.warningBorder
+            : selected
+            ? theme.primary
+            : isCompat
+            ? theme.successBorder
+            : theme.border,
+          borderStyle: isIncompat ? 'dashed' : 'solid',
+          opacity: disabled ? 0.5 : isIncompat ? 0.55 : 1,
+        },
+      ]}
+    >
+      {warn ? (
+        <Ionicons name="alert-circle" size={14} color={selected ? theme.primaryText : theme.warningText} />
+      ) : isCompat ? (
+        <Ionicons name="link-outline" size={13} color={theme.successText} />
+      ) : null}
+      <Text
+        style={{
+          fontSize: 12.5 * theme.scale,
+          fontWeight: '800',
+          color: selected ? theme.primaryText : isCompat ? theme.successText : theme.text,
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+};
 
 export const PrimaryButton: React.FC<{
   theme: AppTheme;
@@ -116,21 +169,73 @@ export const PrimaryButton: React.FC<{
   </Pressable>
 );
 
-/** Talhão e ponto que serão enviados (só lat/lon saem do aparelho). */
-export const PointInfo: React.FC<{ theme: AppTheme; farm: FarmProperty }> = ({ theme, farm }) => (
-  <Card theme={theme}>
-    <View style={styles.row}>
-      <Ionicons name="location-outline" size={18} color={theme.primary} />
-      <P theme={theme} bold>
-        {farm.nome} — {farm.municipio}/{farm.estado}
-      </P>
-    </View>
-    <P theme={theme} muted>
-      Ponto enviado ao simulador: centro do talhão ({farm.centroid.latitude.toFixed(4)},{' '}
-      {farm.centroid.longitude.toFixed(4)}). Só as coordenadas e as escolhas desta tela saem do aparelho.
-    </P>
-  </Card>
+export const SectionDivider: React.FC<{ theme: AppTheme }> = ({ theme }) => (
+  <View style={{ height: 1, backgroundColor: theme.border, opacity: 0.45, marginVertical: 4 }} />
 );
+
+export const ExpandableDetails: React.FC<{
+  theme: AppTheme;
+  label: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}> = ({ theme, label, defaultOpen = false, children }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <View style={{ gap: 6 }}>
+      <Pressable
+        onPress={() => setOpen((v) => !v)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        style={[
+          styles.expandBtn,
+          { borderColor: theme.border, backgroundColor: open ? theme.surfaceMuted : 'transparent' },
+        ]}
+      >
+        <Ionicons
+          name={open ? 'chevron-up-outline' : 'information-circle-outline'}
+          size={15}
+          color={theme.primary}
+        />
+        <Text style={{ fontSize: 12 * theme.scale, fontWeight: '800', color: theme.primary, flex: 1 }}>
+          {label}
+        </Text>
+        <Ionicons name={open ? 'remove-outline' : 'add-outline'} size={15} color={theme.primary} />
+      </Pressable>
+      {open ? <View style={[styles.expandBody, { borderLeftColor: theme.primary }]}>{children}</View> : null}
+    </View>
+  );
+};
+
+/** Talhão e ponto que serão enviados (compacto na tela; coordenadas/privacidade expansíveis). */
+export const PointInfo: React.FC<{ theme: AppTheme; farm: FarmProperty }> = ({ theme, farm }) => {
+  const { language } = useLanguage();
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={[styles.compactStrip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <Pressable
+        onPress={() => setOpen((v) => !v)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        style={styles.rowBetween}
+      >
+        <View style={[styles.row, { flex: 1 }]}>
+          <Ionicons name="location-outline" size={16} color={theme.primary} />
+          <P theme={theme} bold>
+            {farm.nome} — {farm.municipio}/{farm.estado}
+          </P>
+        </View>
+        <Ionicons name={open ? 'chevron-up' : 'information-circle-outline'} size={16} color={theme.textMuted} />
+      </Pressable>
+      {open ? (
+        <Text style={{ fontSize: 11.5 * theme.scale, color: theme.textMuted, lineHeight: 16 }}>
+          {language === 'en'
+            ? `Coordinates sent: ${farm.centroid.latitude.toFixed(4)}, ${farm.centroid.longitude.toFixed(4)}. Only coordinates and screen selections leave the device.`
+            : `Ponto enviado ao simulador: centro do talhão (${farm.centroid.latitude.toFixed(4)}, ${farm.centroid.longitude.toFixed(4)}). Só as coordenadas e as escolhas desta tela saem do aparelho.`}
+        </Text>
+      ) : null}
+    </View>
+  );
+};
 
 /** Selo de origem: deixa claro que é DSSAT e não o diagnóstico local do app. */
 export const SourceBadge: React.FC<{ theme: AppTheme; text?: string }> = ({ theme, text }) => (
@@ -227,24 +332,55 @@ export const dssatStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   backBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7,
-    borderRadius: 12, borderWidth: 1.5,
+    flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: 10, borderWidth: 1,
   },
   backText: { fontSize: 13, fontWeight: '800' },
   title: { flex: 1, textAlign: 'center', fontWeight: '900' },
-  card: { borderRadius: 18, borderWidth: 2, padding: 14, gap: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  headerVoiceGroup: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  headerVoiceBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  card: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, gap: 6 },
+  compactStrip: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 4,
+  },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: 999, borderWidth: 1.5,
+    flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: 999, borderWidth: 1,
   },
   primaryBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14,
-    paddingVertical: 13, paddingHorizontal: 16, minHeight: 48,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 10,
+    paddingVertical: 11, paddingHorizontal: 14, minHeight: 44,
   },
   badge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderRadius: 10,
-    paddingHorizontal: 8, paddingVertical: 5, alignSelf: 'flex-start',
+    flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 6,
+    paddingHorizontal: 7, paddingVertical: 3, alignSelf: 'flex-start',
   },
-  smallBtn: { borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, alignSelf: 'flex-start' },
+  smallBtn: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start' },
+  expandBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  expandBody: {
+    borderLeftWidth: 2,
+    paddingLeft: 10,
+    gap: 5,
+  },
 });

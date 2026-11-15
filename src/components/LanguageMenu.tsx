@@ -40,7 +40,7 @@ export function LanguageMenu({ theme }: { theme: ReturnType<typeof getAppTheme> 
 }
 
 const styles = StyleSheet.create({
-  button: { minWidth: 40, minHeight: 40, borderWidth: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  button: { minWidth: 34, minHeight: 34, paddingHorizontal: 4, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   backdrop: { flex: 1, padding: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0008' },
   panel: { width: '100%', maxWidth: 320, borderWidth: 1, borderRadius: 16, padding: 18 },
   option: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },

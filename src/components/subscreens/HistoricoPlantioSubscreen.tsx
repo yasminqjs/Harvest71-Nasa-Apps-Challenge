@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text, TextInput } from '../../i18n/native';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { getAppTheme } from '../../theme/tokens';
@@ -16,6 +17,8 @@ export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps>
   title = 'Histórico de plantio',
 }) => {
   const { accessibility, activeFarmer, activeFarm, recordCropHistory, speak } = useAccessibility();
+  const { language } = useLanguage();
+  const en = language === 'en';
   const theme = getAppTheme(accessibility);
 
   const [tipoSistema, setTipoSistema] = useState<'rotacao' | 'monocultura'>('rotacao');
@@ -86,7 +89,19 @@ export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps>
           <Text style={[styles.screenTitle, { color: theme.text, fontSize: 18 * theme.scale }]}>
             {title}
           </Text>
-          <View style={{ width: 64 }} />
+          <Pressable
+            onPress={() =>
+              speak(
+                en
+                  ? `Land and harvest history. You have ${detailedHistory.length || legacyNames.length} saved records. Choose rotation or single crop, select crops, and save to enrich future simulations.`
+                  : `${title}. Existem ${detailedHistory.length || legacyNames.length} registros de plantio salvos. Escolha rotação ou monocultura, marque as plantas e salve para melhorar a simulação.`,
+                true
+              )
+            }
+            style={[styles.backBtn, { backgroundColor: theme.surfaceMuted, borderColor: theme.border }]}
+          >
+            <Ionicons name="volume-high" size={18} color={theme.primary} />
+          </Pressable>
         </View>
       )}
 

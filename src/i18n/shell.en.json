@@ -2,8 +2,8 @@
   "Carregando dados offline da roça...": "Loading offline farm data…",
   "Sincronizando ({0})": "Syncing ({0})",
   "Sincronizado": "Synced",
-  "Modo Roça Offline": "Farm offline",
-  "Modo Roça Offline ({0})": "Farm offline ({0})",
+  "Offline": "Offline",
+  "Offline ({0})": "Offline ({0})",
   "Desativar guia por voz": "Disable voice guidance",
   "Ativar guia por voz": "Enable voice guidance",
   "Voz": "Voice",
@@ -29,6 +29,6 @@
   "subsistencia": "subsistence",
   "misto": "mixed",
   "comercial": "commercial",
-  "Relatório RoçaViva — {0}": "RoçaViva report — {0}",
+  "Relatório Harvest71 — {0}": "Harvest71 report — {0}",
   "O reconhecimento de voz deste navegador não oferece o idioma selecionado. Use os controles na tela.": "This browser does not offer speech recognition in the selected language. Use the on-screen controls."
 }

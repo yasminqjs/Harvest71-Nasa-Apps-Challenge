@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { useLanguage } from '../i18n/Language';
 import { Pressable, Text, TextInput } from '../i18n/native';
 import { CommunityReportGraph } from '../components/CommunityReportGraph';
 import { FeatureBadge } from '../components/FeatureBadge';
+import { VoiceReadBar } from '../components/VoiceReadBar';
 import { useAccessibility } from '../context/AccessibilityContext';
 import {
   TOPIC_META,
@@ -29,9 +31,12 @@ export const CommunityScreen: React.FC = () => {
     addCommunityReply,
     speak,
   } = useAccessibility();
+  const { language } = useLanguage();
+  const en = language === 'en';
   const theme = getAppTheme(accessibility);
   const blue = FEATURE_COLOR_STYLES.azul;
   const salmon = FEATURE_COLOR_STYLES.salmao;
+  const autoSpokenRef = useRef(false);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [topicFilter, setTopicFilter] = useState<CommunityTopic | 'todos'>('todos');
@@ -52,8 +57,6 @@ export const CommunityScreen: React.FC = () => {
     [posts, activeFarm]
   );
 
-  if (!activeFarm || !activeFarmer) return null;
-
   const selectedGraphNode =
     graph.nodes.find((n) => n.id === selectedNodeId) ?? null;
 
@@ -67,6 +70,27 @@ export const CommunityScreen: React.FC = () => {
     }
     return true;
   });
+
+  const communityVoiceText = useMemo(() => {
+    if (!activeFarm) return '';
+    const nearbyCount = Math.max(0, graph.nodes.length - 1);
+    const headlines = filteredPosts
+      .slice(0, 3)
+      .map((p) => `${p.autor} de ${p.municipio}: ${p.titulo}. ${p.mensagem}`)
+      .join(' ');
+    if (en) {
+      return `Community tab for ${activeFarm.regiaoNome}. ${filteredPosts.length} local reports shown across ${nearbyCount} nearby poles. ${headlines}`;
+    }
+    return `Aba Comunidade de ${activeFarm.regiaoNome}. Exibindo ${filteredPosts.length} relatos entre ${nearbyCount} polos próximos. ${headlines}`;
+  }, [activeFarm, en, filteredPosts, graph.nodes.length]);
+
+  useEffect(() => {
+    if (!accessibility.voiceGuidanceEnabled || autoSpokenRef.current || !communityVoiceText) return;
+    autoSpokenRef.current = true;
+    speak(communityVoiceText);
+  }, [accessibility.voiceGuidanceEnabled, communityVoiceText, speak]);
+
+  if (!activeFarm || !activeFarmer) return null;
 
   const handleCreatePost = () => {
     const cleanTitle = postTitulo.trim();
@@ -154,6 +178,12 @@ export const CommunityScreen: React.FC = () => {
           </Text>
         </Pressable>
       </View>
+
+      <VoiceReadBar
+        text={communityVoiceText}
+        theme={theme}
+        label={en ? 'Read Community tab aloud' : 'Ouvir leitura da aba Comunidade'}
+      />
 
       {/* Formulário AZUL: relatar acontecimentos */}
       {composerOpen && (

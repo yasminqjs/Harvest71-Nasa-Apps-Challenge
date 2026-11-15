@@ -22,7 +22,7 @@ import { SettingsModal, SettingsTabKey } from './src/screens/SettingsModal';
 import { VoiceOnboardingScreen } from './src/screens/VoiceOnboardingScreen';
 import { getAppTheme } from './src/theme/tokens';
 
-const RoçaVivaRoot: React.FC = () => {
+const Harvest71Root: React.FC = () => {
   const {
     ready,
     accessibility,
@@ -30,6 +30,7 @@ const RoçaVivaRoot: React.FC = () => {
     tutorialVisible,
     openTutorial,
     closeTutorial,
+    stopVoice,
   } = useAccessibility();
   const [activeTab, setActiveTab] = useState<MainTabKey>('resumo');
   const [openCurrentRotation, setOpenCurrentRotation] = useState(false);
@@ -84,6 +85,7 @@ const RoçaVivaRoot: React.FC = () => {
 
   const navigateTab = (tab: MainTabKey) => {
     if (tab === activeTab) return;
+    stopVoice();
     setOpenCurrentRotation(false);
     setActiveTab(tab);
   };
@@ -162,7 +164,7 @@ export default function App() {
       <LanguageProvider>
         <AccessibilityProvider>
           <MobileViewport>
-            <RoçaVivaRoot />
+            <Harvest71Root />
           </MobileViewport>
         </AccessibilityProvider>
       </LanguageProvider>

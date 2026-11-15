@@ -116,7 +116,7 @@ export const FoodSecurityScreen: React.FC = () => {
         ]}
       >
         <Text style={[styles.title, { color: theme.text, fontSize: 18 * theme.scale }]}>
-          🎤 Pergunte em Voz Alta (RoçaViva)
+          🎤 Pergunte em Voz Alta (Harvest71)
         </Text>
         <Text style={{ fontSize: 12, color: theme.textMuted }}>
           Fale ou toque em uma pergunta para ouvir a resposta traduzida para o dia a dia do campo:

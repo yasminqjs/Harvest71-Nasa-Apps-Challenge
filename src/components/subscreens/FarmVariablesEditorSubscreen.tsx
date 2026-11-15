@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text } from '../../i18n/native';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { FEATURE_COLOR_STYLES } from '../../models/farmArchitecture';
@@ -28,6 +29,8 @@ export const FarmVariablesEditorSubscreen: React.FC<FarmVariablesEditorSubscreen
 }) => {
   const { accessibility, activeFarmer, activeFarm, updateFarmVariables, speak } =
     useAccessibility();
+  const { language } = useLanguage();
+  const en = language === 'en';
   const theme = getAppTheme(accessibility);
   const green = FEATURE_COLOR_STYLES.verde;
 
@@ -75,7 +78,19 @@ export const FarmVariablesEditorSubscreen: React.FC<FarmVariablesEditorSubscreen
         <Text style={[styles.title, { color: theme.text, fontSize: 17 * theme.scale }]}>
           Variáveis da Fazenda
         </Text>
-        <View style={{ width: 64 }} />
+        <Pressable
+          onPress={() =>
+            speak(
+              en
+                ? `Farm variables for ${activeFarm.nome}. Water access: ${waterAccess}. Labor: ${laborType}. Financing: ${financialTier}. Goal: ${objective}.`
+                : `Variáveis da fazenda ${activeFarm.nome}. Acesso à água: ${waterAccess}. Trabalho: ${laborType}. Situação financeira: ${financialTier}. Objetivo: ${objective}.`,
+              true
+            )
+          }
+          style={[styles.backBtn, { backgroundColor: theme.surfaceMuted, borderColor: theme.border }]}
+        >
+          <Ionicons name="volume-high" size={18} color={theme.primary} />
+        </Pressable>
       </View>
 
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: green.border }]}>

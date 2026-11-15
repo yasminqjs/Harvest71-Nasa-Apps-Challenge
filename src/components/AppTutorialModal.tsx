@@ -52,7 +52,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     icon: 'chatbox-ellipses',
-    title: '4. Sua opinião melhora o RoçaViva',
+    title: '4. Sua opinião melhora o Harvest71',
     subtitle: 'Sistema de feedback offline + perfil compartilhado',
     bullets: [
       'Avalie se a previsão bateu com a chuva ou seca na sua propriedade.',
