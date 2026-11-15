@@ -1,3 +1,5 @@
+import json
+
 from fastapi.testclient import TestClient
 
 from app.main import API_VERSION, app
@@ -136,7 +138,8 @@ def test_simulation_flow(sim):
 
 @pytest.mark.parametrize("bad", [
     {"lat": 40.7, "lon": -74.0},                                   # fora do Brasil
-    {**GOOD, "crop": "soja"},                                       # cultura ainda não liberada
+    {**GOOD, "crop": "laranja"},                                    # cultura fora do catálogo
+    {**GOOD, "crop": "milho", "cultivar": "ZZZZZZ"},                # cultivar inexistente
     {**GOOD, "planting_windows": ["02-29"]},
     {**GOOD, "planting_windows": ["13-01"]},
     {**GOOD, "soil_analysis": {"layers": [{"top_cm": 20, "bottom_cm": 10}]}},
@@ -151,3 +154,25 @@ def test_rate_limit(sim, monkeypatch):
     monkeypatch.setattr(m, "RATE_PER_MINUTE", 2)
     h = {"X-API-Key": "outra"}
     assert [client.post("/simulations", json=GOOD, headers=h).status_code for _ in range(3)] == [202, 202, 429]
+
+
+def test_crops_catalog():
+    body = client.get("/crops").json()
+    codes = {c["code"] for c in body["crops"]}
+    assert {"MZ", "BN", "CP", "CS", "SG", "PN"} <= codes and len(codes) >= 20
+    assert "china" not in json.dumps(body).lower()
+    mz = client.get("/crops/milho").json()
+    assert mz["code"] == "MZ" and mz["default_cultivar"]["id"] in {c["id"] for c in mz["cultivars"]}
+    assert client.get("/crops/feijão-caupi").json()["code"] == "CP"
+    assert client.get("/crops/xx").status_code == 404
+
+
+def test_simulation_accepts_crop_names_and_cultivar(sim):
+    m, store, _ = sim
+    h = {"X-API-Key": "chave-teste"}
+    r = client.post("/simulations", json={**GOOD, "crop": "Macaxeira"}, headers=h)
+    assert r.status_code == 202 and store[f"requests/{r.json()['id']}.json"]["crop"] == "CS"
+    cv = client.get("/crops/BN").json()["cultivars"][1]["id"]
+    r = client.post("/simulations", json={**GOOD, "crop": "feijão", "cultivar": cv.lower()}, headers=h)
+    req = store[f"requests/{r.json()['id']}.json"]
+    assert (req["crop"], req["cultivar"]) == ("BN", cv)

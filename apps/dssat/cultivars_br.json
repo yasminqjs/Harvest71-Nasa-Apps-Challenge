@@ -1,0 +1,430 @@
+{
+ "about": "Cultivares brasileiros calibrados em artigos publicados e acrescentados aos arquivos de genética do DSSAT 4.8 na imagem. Os valores em 'cul' e 'eco' vêm do artigo; os campos listados em 'inherited' (quando existem) foram copiados do cultivar ou ecótipo base indicado porque o artigo não os informa. Política do projeto: nenhuma fonte, autor, instituição ou dado de origem chinesa.",
+ "sources": {
+  "melo2025": {
+   "citation": "Melo, D. M.; Bongiovani, R. S.; Costa, L. C.; Moreno-Cadena, P.; Heinemann, A. B.; Ramirez-Villegas, J.; Coelho Filho, M. A. (2025). Revista Brasileira de Engenharia Agrícola e Ambiental, v.29, n.10, e290153.",
+   "institution": "Embrapa Mandioca e Fruticultura",
+   "location": "Cruz das Almas, BA",
+   "model": "CSM-MANIHOT (CSYCA048), DSSAT 4.8.2",
+   "url": "https://www.scielo.br/j/rbeaa/ (v.29 n.10, e290153)"
+  },
+  "bastos2023": {
+   "citation": "Bastos, E. A.; Andrade Júnior, A. S.; Sales, R. A.; Bezerra, R. L. S.; Cuadra, S. V.; Silva, F. A. M. (2023). Calibração do modelo CROPGRO-cowpea para simulação do crescimento e rendimento de grãos de feijão-caupi com e sem déficit hídrico. Embrapa Meio-Norte, Boletim de Pesquisa e Desenvolvimento 149.",
+   "institution": "Embrapa Meio-Norte",
+   "location": "Teresina, PI (experimento de 2021)",
+   "model": "CROPGRO-cowpea (versão do DSSAT não informada)",
+   "url": "https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1153058/1/CalibracaoModeloCROPGROCowpeaSimulacaoCrescimentoRendimentoGraosBPD149.2023.pdf"
+  },
+  "oliveira2012": {
+   "citation": "Oliveira, E. C.; Costa, J. M. N.; Paula Júnior, T. J.; Ferreira, W. P. M.; Justino, F. B.; Neves, L. O. (2012). Acta Scientiarum. Agronomy, v.34, n.3, p.239-246.",
+   "institution": "Universidade Federal de Viçosa",
+   "location": "Viçosa, MG",
+   "model": "CROPGRO-Drybean, DSSAT 4.0.2",
+   "url": "https://periodicos.uem.br/ojs/index.php/ActaSciAgron (v.34 n.3 p.239-246)"
+  },
+  "rodrigues2012": {
+   "citation": "Rodrigues, R. A.; Pedrini, J. E.; Fraisse, C. W.; Fernandes, J. M. C.; Justino, F. B.; Heinemann, A. B.; Costa, L. C.; Vale, F. X. R. (2012). Bragantia, v.71, n.2, p.308-317.",
+   "institution": "Universidade Federal de Viçosa / Embrapa",
+   "location": "Viçosa, MG (safra 2009/10)",
+   "model": "CROPGRO-Soybean (DSSAT)",
+   "url": "https://www.scielo.br/j/brag/ (v.71 n.2 p.308-317)"
+  },
+  "dallacort2006": {
+   "citation": "Dallacort, R.; Freitas, P. S. L.; Faria, R. T.; Gonçalves, A. C. A.; Rezende, R.; Bertonha, A. (2006). Acta Scientiarum. Agronomy, v.28, n.4, p.583-589.",
+   "institution": "UNEMAT / UEM / IAPAR",
+   "location": "Palotina, PR",
+   "model": "CROPGRO-Soybean (DSSAT)",
+   "url": "https://periodicos.uem.br/ojs/index.php/ActaSciAgron (v.28 n.4 p.583-589)"
+  }
+ },
+ "not_imported": [
+  {
+   "crop": "SC",
+   "source": "Nassif, D. S. P. et al. (2012). Pesquisa Agropecuária Brasileira, v.47, n.3, p.311-318 (DSSAT/Canegro).",
+   "cultivars": "CTC4, CTC7, CTC20, RB867515, RB835486",
+   "reason": "calibrados no DSSAT 4.5 (Canegro antigo); a escala de parâmetros mudou no 4.8 (ex.: MaxPARCE 9.9 no artigo x 5.7 no 4.8). RB867515 já existe na biblioteca do 4.8 como RB7515."
+  },
+  {
+   "crop": "BN",
+   "source": "Meireles, E. J. L. (2002). Calibração do CROPGRO para feijão Carioca.",
+   "cultivars": "Carioca",
+   "reason": "tabela ilegível no PDF e modelo CROPGRO v2.02; a biblioteca do 4.8 já tem IB0010 Carioca."
+  },
+  {
+   "crop": "CP",
+   "source": "Bastos, E. A.; Andrade Júnior, A. S.; Sales, R. A.; Bezerra, R. L. S.; Cuadra, S. V.; Silva, F. A. M. (2023). Calibração do modelo CROPGRO-cowpea para simulação do crescimento e rendimento de grãos de feijão-caupi com e sem déficit hídrico. Embrapa Meio-Norte, Boletim de Pesquisa e Desenvolvimento 149.",
+   "cultivars": "BRS Tumucumaque",
+   "reason": "o artigo publica a linha completa do cultivar, mas a calibração usou um arquivo de espécie próprio, não publicado. Com o arquivo de espécie oficial do DSSAT 4.8 a produtividade simulada fica cerca de 4 vezes menor que a do VERDE BRASIL (CP0006) nas mesmas condições (WTPSD 0,6 g e XFRT 0,6 não são compatíveis com a espécie oficial). Fica fora até haver o arquivo de espécie dos autores."
+  },
+  {
+   "crop": "CP",
+   "source": "Lima Filho, A. F.; Coelho Filho, M. A.; Heinemann, A. B. (2013). Calibração e avaliação do modelo CROPGRO para a cultura do feijão caupi no Recôncavo Baiano. RBEAA, v.17, n.12, p.1286-1293.",
+   "cultivars": "BRS Guariba",
+   "reason": "o artigo publica só parte dos coeficientes, sem os códigos do modelo; não dá para montar a linha do cultivar sem inventar valores."
+  },
+  {
+   "crop": "SG",
+   "source": "Grossi, M. C.; Andrade, C. L. T.; Justino, F. B. (2012-2013). CSM-CERES-Sorghum para BRS 310 (Embrapa Milho e Sorgo / UFV).",
+   "cultivars": "BRS 310",
+   "reason": "tabela de coeficientes não disponível nos textos abertos acessados (dissertação bloqueada para leitura automática; artigo em periódico pago)."
+  },
+  {
+   "crop": "MZ",
+   "source": "Santana, C. B. et al. Parametrização do modelo CSM-Ceres-Maize (Embrapa Milho e Sorgo).",
+   "cultivars": "BRS 1010, BRS 1030, BRS 1040, AL Bandeirantes",
+   "reason": "o texto aberto não publica os valores dos coeficientes."
+  }
+ ],
+ "library_brazil": {
+  "BN": [
+   "IB0010",
+   "IB0037"
+  ],
+  "CP": [
+   "CP0006"
+  ],
+  "MZ": [
+   "IB0171",
+   "IB0172",
+   "IB0173",
+   "EBSL06"
+  ],
+  "SB": [
+   "990248",
+   "BR7063",
+   "BR7062",
+   "BR7901",
+   "BR6565",
+   "BR0858"
+  ],
+  "SC": [
+   "RB7515"
+  ]
+ },
+ "cultivars": [
+  {
+   "id": "FSCS01",
+   "crop": "CS",
+   "genotype_file": "CSYCA048",
+   "name": "BRS Novo Horizonte",
+   "source": "melo2025",
+   "eco_id": "FSCS01",
+   "eco_base": "DFAULT",
+   "cul": {
+    "B01ND": 500,
+    "B12ND": 450,
+    "B23ND": 250,
+    "B34ND": 250,
+    "BR1FX": 4.5,
+    "BR2FX": 1.0,
+    "BR3FX": 2.0,
+    "BR4FX": 2.0,
+    "LAXS": 950,
+    "SLAS": 250,
+    "LLIFA": 1600,
+    "LPEFR": 0.25,
+    "LNSLP": 1.05,
+    "NODWT": 13,
+    "NODLT": 2.5
+   },
+   "eco": {
+    "PARUE": 2.45,
+    "KCAN": 0.65,
+    "HMPC": 39
+   },
+   "inherited": {
+    "eco": "demais colunas do ecótipo DFAULT"
+   }
+  },
+  {
+   "id": "FSCS02",
+   "crop": "CS",
+   "genotype_file": "CSYCA048",
+   "name": "Eucalipto",
+   "source": "melo2025",
+   "eco_id": "FSCS02",
+   "eco_base": "DFAULT",
+   "cul": {
+    "B01ND": 450,
+    "B12ND": 500,
+    "B23ND": 400,
+    "B34ND": 400,
+    "BR1FX": 2.0,
+    "BR2FX": 2.0,
+    "BR3FX": 2.0,
+    "BR4FX": 2.0,
+    "LAXS": 425,
+    "SLAS": 185,
+    "LLIFA": 1500,
+    "LPEFR": 0.25,
+    "LNSLP": 0.9,
+    "NODWT": 9.25,
+    "NODLT": 4.0
+   },
+   "eco": {
+    "PARUE": 1.7,
+    "KCAN": 0.75,
+    "HMPC": 31
+   },
+   "inherited": {
+    "eco": "demais colunas do ecótipo DFAULT"
+   }
+  },
+  {
+   "id": "FSBN01",
+   "crop": "BN",
+   "genotype_file": "BNGRO048",
+   "name": "Perola",
+   "source": "oliveira2012",
+   "base": "IB0010",
+   "cul": {
+    "CSDL": 12.17,
+    "PPSEN": 0.0,
+    "EM-FL": 35.5,
+    "FL-SH": 6.0,
+    "FL-SD": 11.0,
+    "SD-PM": 17.0,
+    "FL-LF": 18.0,
+    "LFMAX": 1.0,
+    "SLAVR": 270,
+    "SIZLF": 100,
+    "XFRT": 1.0,
+    "WTPSD": 0.256,
+    "SFDUR": 9.0,
+    "SDPDV": 5.0,
+    "PODUR": 6.5
+   },
+   "inherited": {
+    "ECO#, THRSH, SDPRO, SDLIP": "IB0010 Carioca (MESIND)"
+   }
+  },
+  {
+   "id": "FSBN02",
+   "crop": "BN",
+   "genotype_file": "BNGRO048",
+   "name": "Ouro Negro",
+   "source": "oliveira2012",
+   "base": "IB0010",
+   "cul": {
+    "CSDL": 12.17,
+    "PPSEN": 0.0,
+    "EM-FL": 32.0,
+    "FL-SH": 5.0,
+    "FL-SD": 9.0,
+    "SD-PM": 15.5,
+    "FL-LF": 18.0,
+    "LFMAX": 1.0,
+    "SLAVR": 270,
+    "SIZLF": 100,
+    "XFRT": 1.0,
+    "WTPSD": 0.255,
+    "SFDUR": 9.0,
+    "SDPDV": 5.0,
+    "PODUR": 6.5
+   },
+   "inherited": {
+    "ECO#, THRSH, SDPRO, SDLIP": "IB0010 Carioca (MESIND)"
+   }
+  },
+  {
+   "id": "FSBN03",
+   "crop": "BN",
+   "genotype_file": "BNGRO048",
+   "name": "Ouro Vermelho",
+   "source": "oliveira2012",
+   "base": "IB0010",
+   "cul": {
+    "CSDL": 12.17,
+    "PPSEN": 0.0,
+    "EM-FL": 34.0,
+    "FL-SH": 6.0,
+    "FL-SD": 10.0,
+    "SD-PM": 16.0,
+    "FL-LF": 18.0,
+    "LFMAX": 1.0,
+    "SLAVR": 270,
+    "SIZLF": 100,
+    "XFRT": 1.0,
+    "WTPSD": 0.255,
+    "SFDUR": 9.0,
+    "SDPDV": 5.0,
+    "PODUR": 6.5
+   },
+   "inherited": {
+    "ECO#, THRSH, SDPRO, SDLIP": "IB0010 Carioca (MESIND)"
+   }
+  },
+  {
+   "id": "FSSB01",
+   "crop": "SB",
+   "genotype_file": "SBGRO048",
+   "name": "M-SOY 6101",
+   "source": "rodrigues2012",
+   "base": "990248",
+   "cul": {
+    "CSDL": 12.17,
+    "PPSEN": 0.135,
+    "EM-FL": 26.6,
+    "FL-SH": 10.0,
+    "FL-SD": 13.15,
+    "SD-PM": 33.81,
+    "FL-LF": 25.0,
+    "LFMAX": 1.048,
+    "SLAVR": 330.1,
+    "SIZLF": 142.7,
+    "XFRT": 1.0,
+    "WTPSD": 0.182,
+    "SFDUR": 20.26,
+    "SDPDV": 1.952,
+    "PODUR": 10.0
+   },
+   "inherited": {
+    "ECO#, THRSH, SDPRO, SDLIP": "990248 BRS 399 (SB0601, grupo de maturação 6)"
+   }
+  },
+  {
+   "id": "FSSB02",
+   "crop": "SB",
+   "genotype_file": "SBGRO048",
+   "name": "MG/BR 46 Conquista",
+   "source": "rodrigues2012",
+   "base": "990248",
+   "eco_override": "SB0801",
+   "cul": {
+    "CSDL": 12.06,
+    "PPSEN": 0.331,
+    "EM-FL": 22.66,
+    "FL-SH": 10.0,
+    "FL-SD": 16.26,
+    "SD-PM": 27.46,
+    "FL-LF": 18.0,
+    "LFMAX": 1.004,
+    "SLAVR": 375.8,
+    "SIZLF": 143.3,
+    "XFRT": 1.0,
+    "WTPSD": 0.173,
+    "SFDUR": 17.72,
+    "SDPDV": 2.347,
+    "PODUR": 10.0
+   },
+   "inherited": {
+    "THRSH, SDPRO, SDLIP": "990248 BRS 399",
+    "ECO#": "SB0801 (grupo de maturação 8, ciclo tardio)"
+   }
+  },
+  {
+   "id": "FSSB03",
+   "crop": "SB",
+   "genotype_file": "SBGRO048",
+   "name": "CD 202",
+   "source": "dallacort2006",
+   "base": "990248",
+   "cul": {
+    "CSDL": 12.83,
+    "PPSEN": 0.303,
+    "EM-FL": 27,
+    "FL-SH": 7.5,
+    "FL-SD": 12,
+    "SD-PM": 31,
+    "FL-LF": 18,
+    "LFMAX": 1.03,
+    "SLAVR": 355,
+    "SIZLF": 140,
+    "XFRT": 1.0,
+    "WTPSD": 0.12,
+    "SFDUR": 13.5,
+    "SDPDV": 2.05,
+    "PODUR": 8.0
+   },
+   "inherited": {
+    "ECO#, THRSH, SDPRO, SDLIP": "990248 BRS 399 (SB0601)"
+   }
+  },
+  {
+   "id": "FSSB04",
+   "crop": "SB",
+   "genotype_file": "SBGRO048",
+   "name": "CD 204",
+   "source": "dallacort2006",
+   "base": "990248",
+   "cul": {
+    "CSDL": 12.83,
+    "PPSEN": 0.303,
+    "EM-FL": 27,
+    "FL-SH": 7.5,
+    "FL-SD": 13.5,
+    "SD-PM": 31,
+    "FL-LF": 18,
+    "LFMAX": 1.03,
+    "SLAVR": 355,
+    "SIZLF": 170,
+    "XFRT": 1.0,
+    "WTPSD": 0.115,
+    "SFDUR": 13.0,
+    "SDPDV": 2.05,
+    "PODUR": 8.0
+   },
+   "inherited": {
+    "ECO#, THRSH, SDPRO, SDLIP": "990248 BRS 399 (SB0601)"
+   }
+  },
+  {
+   "id": "FSSB05",
+   "crop": "SB",
+   "genotype_file": "SBGRO048",
+   "name": "CD 206",
+   "source": "dallacort2006",
+   "base": "990248",
+   "cul": {
+    "CSDL": 12.83,
+    "PPSEN": 0.303,
+    "EM-FL": 27,
+    "FL-SH": 6.5,
+    "FL-SD": 14,
+    "SD-PM": 34,
+    "FL-LF": 18,
+    "LFMAX": 1.03,
+    "SLAVR": 355,
+    "SIZLF": 170,
+    "XFRT": 1.0,
+    "WTPSD": 0.122,
+    "SFDUR": 12.0,
+    "SDPDV": 2.05,
+    "PODUR": 8.0
+   },
+   "inherited": {
+    "ECO#, THRSH, SDPRO, SDLIP": "990248 BRS 399 (SB0601)"
+   }
+  },
+  {
+   "id": "FSSB06",
+   "crop": "SB",
+   "genotype_file": "SBGRO048",
+   "name": "CD 210",
+   "source": "dallacort2006",
+   "base": "990248",
+   "eco_override": "SB0701",
+   "cul": {
+    "CSDL": 12.83,
+    "PPSEN": 0.303,
+    "EM-FL": 30,
+    "FL-SH": 7.5,
+    "FL-SD": 16.5,
+    "SD-PM": 33,
+    "FL-LF": 18,
+    "LFMAX": 1.03,
+    "SLAVR": 355,
+    "SIZLF": 170,
+    "XFRT": 1.0,
+    "WTPSD": 0.121,
+    "SFDUR": 12.0,
+    "SDPDV": 2.05,
+    "PODUR": 8.0
+   },
+   "inherited": {
+    "THRSH, SDPRO, SDLIP": "990248 BRS 399",
+    "ECO#": "SB0701 (grupo de maturação 7, ciclo mais longo do grupo)"
+   }
+  }
+ ]
+}

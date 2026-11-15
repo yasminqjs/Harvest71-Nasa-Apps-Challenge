@@ -28,7 +28,8 @@ Base: `https://fieldshift-api-avshjoa6eq-uc.a.run.app` · contrato completo: `do
 | Rota | Chave? | Para quê |
 |---|---|---|
 | `GET /health`, `GET /version` | não | saúde e commit no ar |
-| `GET /scenarios`, `GET /scenarios/{site}` | não | cenários prontos de 5 locais do Nordeste |
+| `GET /scenarios`, `GET /scenarios/{site}` | não | cenários prontos de 5 locais do Nordeste (milho) |
+| `GET /crops`, `GET /crops/{code}` | não | 23 culturas e seus cultivares, para o menu do app |
 | `POST /simulations` | não (por enquanto) | simular uma coordenada (com análise de solo opcional) |
 | `GET /simulations/{id}` | não (por enquanto) | buscar o resultado (consultar a cada 5 s) |
 
@@ -80,14 +81,22 @@ da `main` deste repositório. Forks e outras branches não conseguem publicar.
 |---|---|
 | `apps/api/` | FastAPI (rotas acima) |
 | `apps/dssat/runner.py` | modos do Job: `reference`, `scenarios`, `point`, `run` |
-| `apps/dssat/fieldshift_inputs.py` | NASA POWER → `.WTH`; PronaSolos (+ análise) → `.SOL`; cenários → `.MZX` |
+| `apps/dssat/fieldshift_inputs.py` | NASA POWER → `.WTH`; PronaSolos (+ análise) → `.SOL`; cenários → FileX da cultura |
+| `apps/dssat/crops.json` (= `apps/api/app/crops.json`) | catálogo de culturas gerado de experimentos de referência |
+| `apps/dssat/cultivars_br.json` | cultivares brasileiros de artigos (valores + fonte); `tools/br_cultivars.py` os grava no `.CUL`/`.ECO` no build e marca o catálogo |
 | `data/points.csv`, `data/scripts/` | pontos fixos e coleta |
 | `infra/gcp/scripts/` | configuração única do Google Cloud (só a dona roda) |
 | `docs/` | decisões, status, API |
 
 ## 6. Pendências conhecidas
 
-- Só **milho** (cultivar AG9010, calibrado em SP). Outras culturas exigem checar a origem dos arquivos de genética.
+- 23 culturas do catálogo (`apps/dssat/crops.json`), sem calibração local. Para adicionar ou mudar
+  culturas, edite `apps/dssat/tools/build_crop_catalog.py`, gere de novo o catálogo (instruções no topo
+  do arquivo) e rode os testes; o CI testa todas as culturas dentro da imagem.
+- Guia completo para adicionar culturas e cultivares (formatos, regras, pistas de artigos): `docs/GUIA_CULTIVARES_PARA_IA.md`.
+- Para um cultivar brasileiro novo de artigo: acrescente em `cultivars_br.json` (com a fonte e os campos
+  herdados), rode `python3 tools/br_cultivars.py catalog` e os testes. Não invente coeficientes que o
+  artigo não traz; se faltar o arquivo de espécie dos autores, registre em `not_imported`.
 - Janelas de plantio automáticas = suposição pelo clima; validar com o ZARC (MAPA).
 - Sem calibração local; N, P e K não entram no cálculo do milho como está configurado.
 - Acesso livre temporário; depois ligar a chave e, para produção, login de usuário.

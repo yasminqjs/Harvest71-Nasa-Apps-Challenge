@@ -88,8 +88,16 @@ Milho, 33 safras (1992–2024), produtividade mediana (p50) em kg/ha e fração 
 Nível de evidência: exploratório (sem calibração local; cultivar de SP; N não simulado). Usar só para comparação relativa.
 Bucket limpo: `raw/dssat/` e `raw/soilgrids/` apagados (fontes descartadas pela política da equipe).
 
+## Culturas (catálogo)
+- 23 culturas: milho, feijão, caupi, soja, amendoim, mandioca, sorgo, milheto, arroz, girassol, algodão, guandu,
+  cana, abacaxi, inhame, taioba, tomate, pimentão, feijão-vagem, milho-verde, repolho, batata, grão-de-bico.
+- Cada uma: experimento de referência roda na instalação; gerador produz 100% das safras com produção > 0 (teste
+  por cultura, executado dentro da imagem no CI). API: `GET /crops`, `GET /crops/{code}`; `crop` e `cultivar` no pedido.
+- Correções: datas "0" em vez de "-99" (inhame/taioba); ciclo de cada cultura limita os anos simulados.
+
 ## Pendências e riscos
-- Validar janelas de plantio com o ZARC (MAPA) e trocar a cultivar por uma adequada ao Nordeste quando houver.
+- Validar janelas de plantio com o ZARC (MAPA); calibrar cultivares para o Nordeste (ensaios Embrapa) quando houver.
+- `/scenarios` (5 locais fixos) ainda só para milho; `/simulations` aceita todas as culturas.
 - API ainda **não** dispara o Job; antes disso: autenticação e cota (o serviço é público).
 - Papel para a API disparar o Job deve ficar **no recurso do Job**, não no projeto.
 - P e K disponíveis não vêm de nenhuma fonte coletada.

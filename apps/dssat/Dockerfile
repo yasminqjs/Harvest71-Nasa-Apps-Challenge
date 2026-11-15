@@ -7,7 +7,7 @@ FROM ubuntu:24.04 AS build
 ARG DSSAT_OS_COMMIT=25c93b9a2f73f8ec45bf441b198dac5fb7b22849
 ARG DSSAT_DATA_COMMIT=99c95b340acb9515c2d0a8ab582f5fbbf076f345
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      gfortran cmake make git ca-certificates && rm -rf /var/lib/apt/lists/*
+      gfortran cmake make git ca-certificates python3 && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 # Código: commit fixo. Dados: só os 5 arquivos do experimento de referência brasileiro
 # (download parcial), sem o restante da biblioteca de exemplos.
@@ -19,15 +19,20 @@ RUN git init -q os && git -C os fetch -q --depth 1 https://github.com/DSSAT/dssa
 RUN cmake -S os -B build -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=/opt/dssat \
  && cmake --build build -j"$(nproc)" && cmake --install build
 # Política da equipe (nenhum dado de origem chinesa) + mínimo necessário:
-# só a genética do milho (MZCER048) e o solo do Brasil (BR.SOL) ficam na imagem.
-RUN find /opt/dssat/Genotype -type f ! -name 'MZCER048.*' -delete \
+# só a genética das culturas do catálogo (genotype_keep.txt) e o solo do Brasil (BR.SOL) ficam na imagem.
+# No amendoim, a única variedade de origem chinesa ("CHINESE TMV2") é removida.
+COPY genotype_keep.txt cultivars_br.json /src/
+COPY tools/br_cultivars.py /src/tools/br_cultivars.py
+RUN cd /opt/dssat/Genotype && for f in *; do grep -qxF "$f" /src/genotype_keep.txt || rm -f "$f"; done \
+ && sed -i -E '/[Cc][Hh][Ii][Nn][Aa]|[Cc][Hh][Ii][Nn][Ee][Ss][Ee]/d' PNGRO048.CUL \
+ && python3 /src/tools/br_cultivars.py genotype /opt/dssat/Genotype \
  && mkdir -p /opt/dssat/Soil /opt/dssat/Weather /opt/dssat/reference \
  && cp data/Soil/BR.SOL /opt/dssat/Soil/ \
  && cp data/Weather/BRPI0201.WTH /opt/dssat/Weather/ \
  && cp data/Maize/BRPI0202.MZX data/Maize/BRPI0202.MZA data/Maize/BRPI0202.MZT /opt/dssat/reference/ \
  && cp os/license.txt /opt/dssat/LICENSE-dssat-csm-os.txt \
  && ! grep -rqiE 'china|chinese|beijing|nanjing|gansu' /opt/dssat/Genotype /opt/dssat/Soil /opt/dssat/Weather /opt/dssat/reference \
- && printf '{"dssat_csm_os":"%s","dssat_csm_data":"%s","genotype":"MZCER048 only"}\n' "$DSSAT_OS_COMMIT" "$DSSAT_DATA_COMMIT" > /opt/dssat/BUILD_INFO.json
+ && printf '{"dssat_csm_os":"%s","dssat_csm_data":"%s","genotype":"catalogo (genotype_keep.txt)"}\n' "$DSSAT_OS_COMMIT" "$DSSAT_DATA_COMMIT" > /opt/dssat/BUILD_INFO.json
 
 # ---------- Execução ----------
 FROM ubuntu:24.04
@@ -35,7 +40,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgfortran5 py
  && rm -rf /var/lib/apt/lists/* \
  && pip install --no-cache-dir --break-system-packages "google-cloud-storage>=2.16,<3"
 COPY --from=build /opt/dssat /opt/dssat
-COPY runner.py fieldshift_inputs.py /app/
+COPY runner.py fieldshift_inputs.py crops.json /app/
 ARG GIT_COMMIT=unknown
 ENV GIT_COMMIT=$GIT_COMMIT DSSAT_HOME=/opt/dssat PYTHONUNBUFFERED=1 PYTHONPATH=/app
 RUN useradd --uid 10001 --create-home dssat

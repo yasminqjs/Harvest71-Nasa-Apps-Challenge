@@ -1,0 +1,3468 @@
+{
+ "generated_from": {
+  "dssat_csm_os": "25c93b9",
+  "dssat_csm_data": "99c95b3"
+ },
+ "policy": "sem cultivares, experimentos ou dados de origem chinesa",
+ "crops": [
+  {
+   "code": "MZ",
+   "name": "Milho",
+   "product": "grãos",
+   "yield_variable": "HWAM",
+   "model": "MZCER048",
+   "genotype_file": "MZCER048",
+   "default_cultivar": {
+    "id": "IB0171",
+    "name": "AG901"
+   },
+   "cultivars": [
+    {
+     "id": "IB0171",
+     "name": "AG9010",
+     "origin": "Brasil",
+     "source": "biblioteca oficial do DSSAT 4.8"
+    },
+    {
+     "id": "PC0001",
+     "name": "2500-2600 GDD"
+    },
+    {
+     "id": "PC0002",
+     "name": "2600-2650 GDD"
+    },
+    {
+     "id": "PC0003",
+     "name": "2650-2700 GDD"
+    },
+    {
+     "id": "PC0004",
+     "name": "2700-2750 GDD"
+    },
+    {
+     "id": "PC0005",
+     "name": "2750-2800 GDD"
+    },
+    {
+     "id": "IB0200",
+     "name": "32P55"
+    },
+    {
+     "id": "IB0045",
+     "name": "A632 X VA26"
+    },
+    {
+     "id": "IB0026",
+     "name": "A632 X W117"
+    },
+    {
+     "id": "IB0008",
+     "name": "A654 X F2"
+    },
+    {
+     "id": "IF0020",
+     "name": "AB-11-TG"
+    },
+    {
+     "id": "IF0008",
+     "name": "AG-KADUNA"
+    },
+    {
+     "id": "IB0099",
+     "name": "AGETI76"
+    },
+    {
+     "id": "IM0003",
+     "name": "APPOLO"
+    },
+    {
+     "id": "IB1051",
+     "name": "AS 740"
+    },
+    {
+     "id": "IB0022",
+     "name": "B14*C103"
+    },
+    {
+     "id": "IB0023",
+     "name": "B14*C131A"
+    },
+    {
+     "id": "IB0054",
+     "name": "B14*OH43"
+    },
+    {
+     "id": "IB0016",
+     "name": "B14XOH43"
+    },
+    {
+     "id": "IB0062",
+     "name": "B56*C131A"
+    },
+    {
+     "id": "IB0020",
+     "name": "B59*C103"
+    },
+    {
+     "id": "IB0013",
+     "name": "B59*OH43"
+    },
+    {
+     "id": "IB0018",
+     "name": "B60*R71"
+    },
+    {
+     "id": "IB0042",
+     "name": "B73 X MO17"
+    },
+    {
+     "id": "IB0040",
+     "name": "B8*153R"
+    },
+    {
+     "id": "EBSL06",
+     "name": "BRS1030-SL2009",
+     "origin": "Brasil",
+     "source": "biblioteca oficial do DSSAT 4.8"
+    },
+    {
+     "id": "GF0001",
+     "name": "Base Garst808-wh4"
+    },
+    {
+     "id": "GF0201",
+     "name": "Baseline 10%longe"
+    },
+    {
+     "id": "GF0101",
+     "name": "Baseline 10%short"
+    },
+    {
+     "id": "LL0499",
+     "name": "C/LOL 499"
+    },
+    {
+     "id": "LL0542",
+     "name": "C/LOL 542"
+    },
+    {
+     "id": "LL0564",
+     "name": "C/LOL 564"
+    },
+    {
+     "id": "LL0581",
+     "name": "C/LOL 581"
+    },
+    {
+     "id": "LL0599",
+     "name": "C/LOL 599"
+    },
+    {
+     "id": "LL0661",
+     "name": "C/LOL 661"
+    },
+    {
+     "id": "LL0674",
+     "name": "C/LOL 674"
+    },
+    {
+     "id": "IB0036",
+     "name": "C281"
+    },
+    {
+     "id": "IB0070",
+     "name": "CARGILL 111S"
+    },
+    {
+     "id": "KY0003",
+     "name": "CCOMP"
+    },
+    {
+     "id": "IB0053",
+     "name": "CESDA-28"
+    },
+    {
+     "id": "IB0001",
+     "name": "CORNL281"
+    },
+    {
+     "id": "IB0002",
+     "name": "CP170"
+    },
+    {
+     "id": "KY0009",
+     "name": "CUZCO"
+    },
+    {
+     "id": "IB0172",
+     "name": "DAS CO32",
+     "origin": "Brasil",
+     "source": "biblioteca oficial do DSSAT 4.8"
+    },
+    {
+     "id": "IB0155",
+     "name": "DEA"
+    },
+    {
+     "id": "IB1072",
+     "name": "DEKALB 485"
+    },
+    {
+     "id": "IB1068",
+     "name": "DEKALB 521"
+    },
+    {
+     "id": "IB1168",
+     "name": "DEKALB 591"
+    },
+    {
+     "id": "IB0009",
+     "name": "DEKALB XL71"
+    },
+    {
+     "id": "IB0011",
+     "name": "DEKALBXL45"
+    },
+    {
+     "id": "IB1052",
+     "name": "DK 611"
+    },
+    {
+     "id": "IB0173",
+     "name": "DKB 333B",
+     "origin": "Brasil",
+     "source": "biblioteca oficial do DSSAT 4.8"
+    },
+    {
+     "id": "IB0007",
+     "name": "EDO"
+    },
+    {
+     "id": "IF0006",
+     "name": "EV 8449-SR"
+    },
+    {
+     "id": "IF0007",
+     "name": "EV 8449-SRx"
+    },
+    {
+     "id": "IF0011",
+     "name": "EV-8443_TG"
+    },
+    {
+     "id": "IF0010",
+     "name": "EV-8449_TG"
+    },
+    {
+     "id": "IF0002",
+     "name": "EV8728-SR"
+    },
+    {
+     "id": "IB0174",
+     "name": "EXCELER"
+    },
+    {
+     "id": "IB0014",
+     "name": "F16 X F19"
+    },
+    {
+     "id": "IB0010",
+     "name": "F478 X W705A"
+    },
+    {
+     "id": "IB0004",
+     "name": "F7 X F2"
+    },
+    {
+     "id": "IB0056",
+     "name": "FM 6"
+    },
+    {
+     "id": "IB0091",
+     "name": "GL 450"
+    },
+    {
+     "id": "IB0090",
+     "name": "GL 482"
+    },
+    {
+     "id": "IB0089",
+     "name": "GL 582"
+    },
+    {
+     "id": "IB0093",
+     "name": "GL 582 MOD KBS"
+    },
+    {
+     "id": "IB0038",
+     "name": "Garst 8555"
+    },
+    {
+     "id": "IB0021",
+     "name": "Garst 8702"
+    },
+    {
+     "id": "IB0027",
+     "name": "Garst 8750"
+    },
+    {
+     "id": "IB0041",
+     "name": "Garst 8808"
+    },
+    {
+     "id": "IB0064",
+     "name": "H.OBREGON"
+    },
+    {
+     "id": "KY0012",
+     "name": "H5012"
+    },
+    {
+     "id": "KY0002",
+     "name": "H511"
+    },
+    {
+     "id": "EM0001",
+     "name": "H512"
+    },
+    {
+     "id": "KY0010",
+     "name": "H512"
+    },
+    {
+     "id": "IB0059",
+     "name": "H6"
+    },
+    {
+     "id": "IB0060",
+     "name": "H610(UH)"
+    },
+    {
+     "id": "KY0017",
+     "name": "H612"
+    },
+    {
+     "id": "KY0008",
+     "name": "H613"
+    },
+    {
+     "id": "KY0011",
+     "name": "H614"
+    },
+    {
+     "id": "KY0001",
+     "name": "H622"
+    },
+    {
+     "id": "KA0001",
+     "name": "H625"
+    },
+    {
+     "id": "KY0005",
+     "name": "H625"
+    },
+    {
+     "id": "KY0013",
+     "name": "H626"
+    },
+    {
+     "id": "KY0016",
+     "name": "HAC"
+    },
+    {
+     "id": "IF0022",
+     "name": "IKENNE"
+    },
+    {
+     "id": "IB0006",
+     "name": "INRA"
+    },
+    {
+     "id": "IB0185",
+     "name": "JACKSON HYBRI"
+    },
+    {
+     "id": "KY0018",
+     "name": "KATUMANICOMP-II"
+    },
+    {
+     "id": "KY0014",
+     "name": "KATUMANICOMPI"
+    },
+    {
+     "id": "KY0006",
+     "name": "KCB"
+    },
+    {
+     "id": "IB0092",
+     "name": "LAURENT 3733"
+    },
+    {
+     "id": "IB0003",
+     "name": "LG11"
+    },
+    {
+     "id": "IB1053",
+     "name": "LH198XLH185"
+    },
+    {
+     "id": "990001",
+     "name": "LONG SEASON"
+    },
+    {
+     "id": "VI0001",
+     "name": "LVN 10"
+    },
+    {
+     "id": "KY0004",
+     "name": "MAKUCOMP"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "IB0055",
+     "name": "MCCURDY 6714"
+    },
+    {
+     "id": "990002",
+     "name": "MEDIUM SEASON"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "IB0035",
+     "name": "McCurdy 84aa"
+    },
+    {
+     "id": "IF0003",
+     "name": "Mokwa 87TZPB-SR"
+    },
+    {
+     "id": "IB0058",
+     "name": "NC+59"
+    },
+    {
+     "id": "IB0049",
+     "name": "NEB 611"
+    },
+    {
+     "id": "IM0002",
+     "name": "NIELENI"
+    },
+    {
+     "id": "IF0009",
+     "name": "OBA S2 Benin"
+    },
+    {
+     "id": "IF0001",
+     "name": "OBA SUPER 2"
+    },
+    {
+     "id": "GH0010",
+     "name": "OBATANPA"
+    },
+    {
+     "id": "IB0100",
+     "name": "PARTAP1"
+    },
+    {
+     "id": "IB0061",
+     "name": "PB 8"
+    },
+    {
+     "id": "KY0015",
+     "name": "PH 1"
+    },
+    {
+     "id": "IB0047",
+     "name": "PIO 3147"
+    },
+    {
+     "id": "IB0066",
+     "name": "PIO 3165"
+    },
+    {
+     "id": "IB0052",
+     "name": "PIO 3183"
+    },
+    {
+     "id": "IB0154",
+     "name": "PIO 3192"
+    },
+    {
+     "id": "IB0071",
+     "name": "PIO 31G98"
+    },
+    {
+     "id": "IB0067",
+     "name": "PIO 3324"
+    },
+    {
+     "id": "IB0012",
+     "name": "PIO 3382"
+    },
+    {
+     "id": "IB0032",
+     "name": "PIO 3382*"
+    },
+    {
+     "id": "IB1067",
+     "name": "PIO 3394"
+    },
+    {
+     "id": "IB1065",
+     "name": "PIO 33Y09"
+    },
+    {
+     "id": "IB0068",
+     "name": "PIO 3475"
+    },
+    {
+     "id": "IB0168",
+     "name": "PIO 3475 orig"
+    },
+    {
+     "id": "IB0031",
+     "name": "PIO 3475*"
+    },
+    {
+     "id": "IB1066",
+     "name": "PIO 3489"
+    },
+    {
+     "id": "IB0029",
+     "name": "PIO 3541"
+    },
+    {
+     "id": "IB1069",
+     "name": "PIO 3563"
+    },
+    {
+     "id": "IB0030",
+     "name": "PIO 3707"
+    },
+    {
+     "id": "IB0024",
+     "name": "PIO 3720"
+    },
+    {
+     "id": "IB0033",
+     "name": "PIO 3780"
+    },
+    {
+     "id": "IB0034",
+     "name": "PIO 3780*"
+    },
+    {
+     "id": "IB0069",
+     "name": "PIO 3790"
+    },
+    {
+     "id": "IB0039",
+     "name": "PIO 3901"
+    },
+    {
+     "id": "IB0005",
+     "name": "PIO 3995"
+    },
+    {
+     "id": "IB0043",
+     "name": "PIO 511A"
+    },
+    {
+     "id": "IB0063",
+     "name": "PIO X 304C"
+    },
+    {
+     "id": "IB0051",
+     "name": "PV76S"
+    },
+    {
+     "id": "IB0050",
+     "name": "PV82S"
+    },
+    {
+     "id": "KY0007",
+     "name": "PWANI"
+    },
+    {
+     "id": "ZA0001",
+     "name": "Prisma (FAO 700)"
+    },
+    {
+     "id": "ZA0002",
+     "name": "Prisma GC Avg"
+    },
+    {
+     "id": "IB0017",
+     "name": "R1*(N32*B14)"
+    },
+    {
+     "id": "990003",
+     "name": "SHORT SEASON"
+    },
+    {
+     "id": "IM0001",
+     "name": "SOTUBAKA"
+    },
+    {
+     "id": "IF0004",
+     "name": "SPL (semi-prol)"
+    },
+    {
+     "id": "IB0065",
+     "name": "SUWAN-1"
+    },
+    {
+     "id": "IB0037",
+     "name": "SWEET CORN"
+    },
+    {
+     "id": "IB0028",
+     "name": "TAINAN-11"
+    },
+    {
+     "id": "IB0067",
+     "name": "TEST"
+    },
+    {
+     "id": "IB0057",
+     "name": "TOCORON-3"
+    },
+    {
+     "id": "AC0001",
+     "name": "TOHONO O'odham"
+    },
+    {
+     "id": "IF0005",
+     "name": "TZB-SR (open p)"
+    },
+    {
+     "id": "IF0018",
+     "name": "TZE C0MP4C2"
+    },
+    {
+     "id": "IF0021",
+     "name": "TZEEY-SRBC5"
+    },
+    {
+     "id": "IF0019",
+     "name": "TZESRW X GUA 314"
+    },
+    {
+     "id": "990004",
+     "name": "V.SHORT SEASON"
+    },
+    {
+     "id": "IB0046",
+     "name": "W64A X W117"
+    },
+    {
+     "id": "IB0044",
+     "name": "W69A X F546"
+    },
+    {
+     "id": "IB0025",
+     "name": "WASH/GRAIN-1"
+    },
+    {
+     "id": "IB0015",
+     "name": "WASHINGTON"
+    },
+    {
+     "id": "IB0019",
+     "name": "WF9*B37"
+    },
+    {
+     "id": "IB0048",
+     "name": "WF9*B37"
+    },
+    {
+     "id": "GF0501",
+     "name": "Yield 10%longer"
+    },
+    {
+     "id": "GF0401",
+     "name": "Yield 10%shorter"
+    },
+    {
+     "id": "GF0301",
+     "name": "Yield norm cycle"
+    },
+    {
+     "id": "CYMA01",
+     "name": "wh403"
+    }
+   ],
+   "planting_template": "     7     5     S     R    80    45     5   -99   -99   -99   -99     0                        -99",
+   "harvest": {
+    "mode": "maturity",
+    "days_after_planting": null,
+    "detail_template": null,
+    "harvs": "M"
+   },
+   "methods_line": " ME              M     M     E     R     S     R     R     1     G     R     2",
+   "cycle_days_max": 140,
+   "reference": {
+    "experiment": "Maize/BRPI0202.MZX",
+    "site": "Cecilia M. Tojo Soler, Paulo C. Sentelhas, and Gerrit Hoogenboom "
+   }
+  },
+  {
+   "code": "BN",
+   "name": "Feijão",
+   "product": "grãos",
+   "yield_variable": "HWAM",
+   "model": "CRGRO048",
+   "genotype_file": "BNGRO048",
+   "default_cultivar": {
+    "id": "IB0001",
+    "name": "Porri"
+   },
+   "cultivars": [
+    {
+     "id": "IB0001",
+     "name": "Porrillo Sintetic"
+    },
+    {
+     "id": "IB0033",
+     "name": "A 193 (hab 2)"
+    },
+    {
+     "id": "IB0034",
+     "name": "A 195"
+    },
+    {
+     "id": "IB0031",
+     "name": "A 465"
+    },
+    {
+     "id": "IB0032",
+     "name": "A 486"
+    },
+    {
+     "id": "IB0016",
+     "name": "A 70"
+    },
+    {
+     "id": "990001",
+     "name": "Andean Habit 1"
+    },
+    {
+     "id": "990002",
+     "name": "Andean Habit 2"
+    },
+    {
+     "id": "990003",
+     "name": "Andean Habit 3"
+    },
+    {
+     "id": "990004",
+     "name": "Andean Habit 4"
+    },
+    {
+     "id": "IB0035",
+     "name": "BAT 1393"
+    },
+    {
+     "id": "IB0002",
+     "name": "BAT 477"
+    },
+    {
+     "id": "IB0005",
+     "name": "BAT 881"
+    },
+    {
+     "id": "IB0037",
+     "name": "Brasil 2 Pico",
+     "origin": "Brasil",
+     "source": "biblioteca oficial do DSSAT 4.8"
+    },
+    {
+     "id": "IB0004",
+     "name": "C-20"
+    },
+    {
+     "id": "IB0014",
+     "name": "Canadian Wonder"
+    },
+    {
+     "id": "IB0010",
+     "name": "Carioca (G4017)",
+     "origin": "Brasil",
+     "source": "biblioteca oficial do DSSAT 4.8"
+    },
+    {
+     "id": "IB0006",
+     "name": "ICTA-Ostua"
+    },
+    {
+     "id": "IB0011",
+     "name": "Isabella"
+    },
+    {
+     "id": "IB0028",
+     "name": "Jatu Rong"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "IB0012",
+     "name": "Manitou"
+    },
+    {
+     "id": "990005",
+     "name": "Meso Amer. Hab.1"
+    },
+    {
+     "id": "990006",
+     "name": "MesoAm Hab 2 & 3"
+    },
+    {
+     "id": "990007",
+     "name": "Mex Highland H 3"
+    },
+    {
+     "id": "IB0007",
+     "name": "Rabia de Gato"
+    },
+    {
+     "id": "IB0013",
+     "name": "Redkloud"
+    },
+    {
+     "id": "IB0029",
+     "name": "San Crist. 83"
+    },
+    {
+     "id": "IB0003",
+     "name": "Seafarer"
+    },
+    {
+     "id": "IB0008",
+     "name": "TURBO-III"
+    },
+    {
+     "id": "IB0036",
+     "name": "WAF 9"
+    },
+    {
+     "id": "FSBN01",
+     "name": "Perola",
+     "origin": "Brasil",
+     "source": "Oliveira, E. C.; Costa, J. M. N.; Paula Júnior, T. J.; Ferreira, W. P. M.; Justino, F. B.; Neves, L. O. (2012). Acta Scientiarum. Agronomy, v.34, n.3, p.239-246.",
+     "source_institution": "Universidade Federal de Viçosa",
+     "source_location": "Viçosa, MG",
+     "source_url": "https://periodicos.uem.br/ojs/index.php/ActaSciAgron (v.34 n.3 p.239-246)",
+     "calibration_model": "CROPGRO-Drybean, DSSAT 4.0.2",
+     "inherited": {
+      "ECO#, THRSH, SDPRO, SDLIP": "IB0010 Carioca (MESIND)"
+     }
+    },
+    {
+     "id": "FSBN02",
+     "name": "Ouro Negro",
+     "origin": "Brasil",
+     "source": "Oliveira, E. C.; Costa, J. M. N.; Paula Júnior, T. J.; Ferreira, W. P. M.; Justino, F. B.; Neves, L. O. (2012). Acta Scientiarum. Agronomy, v.34, n.3, p.239-246.",
+     "source_institution": "Universidade Federal de Viçosa",
+     "source_location": "Viçosa, MG",
+     "source_url": "https://periodicos.uem.br/ojs/index.php/ActaSciAgron (v.34 n.3 p.239-246)",
+     "calibration_model": "CROPGRO-Drybean, DSSAT 4.0.2",
+     "inherited": {
+      "ECO#, THRSH, SDPRO, SDLIP": "IB0010 Carioca (MESIND)"
+     }
+    },
+    {
+     "id": "FSBN03",
+     "name": "Ouro Vermelho",
+     "origin": "Brasil",
+     "source": "Oliveira, E. C.; Costa, J. M. N.; Paula Júnior, T. J.; Ferreira, W. P. M.; Justino, F. B.; Neves, L. O. (2012). Acta Scientiarum. Agronomy, v.34, n.3, p.239-246.",
+     "source_institution": "Universidade Federal de Viçosa",
+     "source_location": "Viçosa, MG",
+     "source_url": "https://periodicos.uem.br/ojs/index.php/ActaSciAgron (v.34 n.3 p.239-246)",
+     "calibration_model": "CROPGRO-Drybean, DSSAT 4.0.2",
+     "inherited": {
+      "ECO#, THRSH, SDPRO, SDLIP": "IB0010 Carioca (MESIND)"
+     }
+    }
+   ],
+   "planting_template": "    15    15     S     R    30     0     2   -99   -99   -99   -99     0                        -99",
+   "harvest": {
+    "mode": "maturity",
+    "days_after_planting": null,
+    "detail_template": null,
+    "harvs": "M"
+   },
+   "methods_line": " ME              M     M     E     R     S     L     R     1     G     R     2",
+   "cycle_days_max": 83,
+   "reference": {
+    "experiment": "Drybean/CCPA8629.BNX",
+    "site": " WHITE,J.W. ET.AL. "
+   }
+  },
+  {
+   "code": "CP",
+   "name": "Feijão-caupi",
+   "product": "grãos",
+   "yield_variable": "HWAM",
+   "model": "CRGRO048",
+   "genotype_file": "CPGRO048",
+   "default_cultivar": {
+    "id": "CP0006",
+    "name": "VERDE"
+   },
+   "cultivars": [
+    {
+     "id": "CP0006",
+     "name": "VERDE BRASIL",
+     "origin": "Brasil",
+     "source": "biblioteca oficial do DSSAT 4.8"
+    },
+    {
+     "id": "CP0012",
+     "name": "277"
+    },
+    {
+     "id": "CP0014",
+     "name": "349"
+    },
+    {
+     "id": "II0014",
+     "name": "349*"
+    },
+    {
+     "id": "CP0001",
+     "name": "CAL # 5  MG4"
+    },
+    {
+     "id": "II0002",
+     "name": "IT86D-719"
+    },
+    {
+     "id": "II0003",
+     "name": "IT90K-277-2"
+    },
+    {
+     "id": "II0004",
+     "name": "IT96D-748"
+    },
+    {
+     "id": "II0001",
+     "name": "Kanannado"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "CP0003",
+     "name": "TVU3046 - India"
+    },
+    {
+     "id": "CP0005",
+     "name": "TVU3644 - Nigeria"
+    },
+    {
+     "id": "CP0004",
+     "name": "UCR 368 - Kenya"
+    }
+   ],
+   "planting_template": "   2.8   2.8     S     R    60     0     3   -99   -99   -99   -99     0                        -99",
+   "harvest": {
+    "mode": "maturity",
+    "days_after_planting": null,
+    "detail_template": null,
+    "harvs": "M"
+   },
+   "methods_line": " ME              M     M     E     R     S     L     R     1     G     R     2",
+   "cycle_days_max": 105,
+   "reference": {
+    "experiment": "Cowpea/CCPA9701.CPX",
+    "site": "A.J. Gijsman "
+   }
+  },
+  {
+   "code": "SB",
+   "name": "Soja",
+   "product": "grãos",
+   "yield_variable": "HWAM",
+   "model": "CRGRO048",
+   "genotype_file": "SBGRO048",
+   "default_cultivar": {
+    "id": "BR7062",
+    "name": "M 706"
+   },
+   "cultivars": [
+    {
+     "id": "BR7062",
+     "name": "M 7062",
+     "origin": "Brasil",
+     "source": "biblioteca oficial do DSSAT 4.8"
+    },
+    {
+     "id": "BR0858",
+     "name": "8579RSF",
+     "origin": "Brasil",
+     "source": "biblioteca oficial do DSSAT 4.8"
+    },
+    {
+     "id": "IB0057",
+     "name": "AK 06"
+    },
+    {
+     "id": "UC0001",
+     "name": "ALTONA (00)"
+    },
+    {
+     "id": "IB0056",
+     "name": "ASGROW (4)"
+    },
+    {
+     "id": "IB0001",
+     "name": "BRAGG"
+    },
+    {
+     "id": "IB0101",
+     "name": "BRAGG (7)"
+    },
+    {
+     "id": "990248",
+     "name": "BRS 399",
+     "origin": "Brasil",
+     "source": "biblioteca oficial do DSSAT 4.8"
+    },
+    {
+     "id": "IB0014",
+     "name": "CENTENNIAL(6)"
+    },
+    {
+     "id": "LU0003",
+     "name": "CHAND. 0"
+    },
+    {
+     "id": "IB0043",
+     "name": "CLARK (4)"
+    },
+    {
+     "id": "IB0002",
+     "name": "COBB (8)"
+    },
+    {
+     "id": "IB0044",
+     "name": "COKER 6847 (7)"
+    },
+    {
+     "id": "IB0045",
+     "name": "DON MARIO (4)"
+    },
+    {
+     "id": "IB0037",
+     "name": "ELGIN-87 (2)"
+    },
+    {
+     "id": "IB0015",
+     "name": "ESSEX (5)"
+    },
+    {
+     "id": "IB0011",
+     "name": "EVANS (0)"
+    },
+    {
+     "id": "IB0008",
+     "name": "FORREST (5)"
+    },
+    {
+     "id": "IB0055",
+     "name": "Hutcheson"
+    },
+    {
+     "id": "IB0012",
+     "name": "JUPITER (10)"
+    },
+    {
+     "id": "ISU113",
+     "name": "KENWOOD TEMPPAP"
+    },
+    {
+     "id": "KR2828",
+     "name": "KRUG2828  MG 2.7"
+    },
+    {
+     "id": "LU0004",
+     "name": "LABR.  00"
+    },
+    {
+     "id": "IB0013",
+     "name": "LEFLORE (6)"
+    },
+    {
+     "id": "BR6565",
+     "name": "M 65i65RSF",
+     "origin": "Brasil",
+     "source": "biblioteca oficial do DSSAT 4.8"
+    },
+    {
+     "id": "990013",
+     "name": "M GROUP   0"
+    },
+    {
+     "id": "990001",
+     "name": "M GROUP   1"
+    },
+    {
+     "id": "990002",
+     "name": "M GROUP   2"
+    },
+    {
+     "id": "990003",
+     "name": "M GROUP   3"
+    },
+    {
+     "id": "990004",
+     "name": "M GROUP   4"
+    },
+    {
+     "id": "990005",
+     "name": "M GROUP   5"
+    },
+    {
+     "id": "990006",
+     "name": "M GROUP   6"
+    },
+    {
+     "id": "990007",
+     "name": "M GROUP   7"
+    },
+    {
+     "id": "990008",
+     "name": "M GROUP   8"
+    },
+    {
+     "id": "990009",
+     "name": "M GROUP   9"
+    },
+    {
+     "id": "990012",
+     "name": "M GROUP  00"
+    },
+    {
+     "id": "990010",
+     "name": "M GROUP  10"
+    },
+    {
+     "id": "990011",
+     "name": "M GROUP 000"
+    },
+    {
+     "id": "990015",
+     "name": "M GROUP Savoy"
+    },
+    {
+     "id": "990016",
+     "name": "M GROUP Vinton"
+    },
+    {
+     "id": "LU0005",
+     "name": "MAJ. 000"
+    },
+    {
+     "id": "UC0002",
+     "name": "MAPLE ARROW (00)"
+    },
+    {
+     "id": "IB0059",
+     "name": "MAUS 47"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "UC0003",
+     "name": "MCCALL (00)"
+    },
+    {
+     "id": "RB0002",
+     "name": "MG77PA (13)"
+    },
+    {
+     "id": "RB0003",
+     "name": "MG88PA (11)"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "MS0079",
+     "name": "MS MAT GROUP 2"
+    },
+    {
+     "id": "BR7901",
+     "name": "NS7901",
+     "origin": "Brasil",
+     "source": "biblioteca oficial do DSSAT 4.8"
+    },
+    {
+     "id": "IB0033",
+     "name": "PAPILLON (9)"
+    },
+    {
+     "id": "MS0078",
+     "name": "PIO9202 (00)"
+    },
+    {
+     "id": "MS0077",
+     "name": "PIO9272 (00)"
+    },
+    {
+     "id": "IB0051",
+     "name": "PK-472 (8)"
+    },
+    {
+     "id": "IB0006",
+     "name": "RANSOM (7)"
+    },
+    {
+     "id": "CCCA01",
+     "name": "SAMIRA 1"
+    },
+    {
+     "id": "IB0058",
+     "name": "SAMRAT"
+    },
+    {
+     "id": "ST3660",
+     "name": "STIN3660  MG 3.6"
+    },
+    {
+     "id": "BR7063",
+     "name": "TMG7063",
+     "origin": "Brasil",
+     "source": "biblioteca oficial do DSSAT 4.8"
+    },
+    {
+     "id": "IB0003",
+     "name": "WAYNE (3)"
+    },
+    {
+     "id": "IB0010",
+     "name": "WILLIAMS-82 (3)"
+    },
+    {
+     "id": "FSSB01",
+     "name": "M-SOY 6101",
+     "origin": "Brasil",
+     "source": "Rodrigues, R. A.; Pedrini, J. E.; Fraisse, C. W.; Fernandes, J. M. C.; Justino, F. B.; Heinemann, A. B.; Costa, L. C.; Vale, F. X. R. (2012). Bragantia, v.71, n.2, p.308-317.",
+     "source_institution": "Universidade Federal de Viçosa / Embrapa",
+     "source_location": "Viçosa, MG (safra 2009/10)",
+     "source_url": "https://www.scielo.br/j/brag/ (v.71 n.2 p.308-317)",
+     "calibration_model": "CROPGRO-Soybean (DSSAT)",
+     "inherited": {
+      "ECO#, THRSH, SDPRO, SDLIP": "990248 BRS 399 (SB0601, grupo de maturação 6)"
+     }
+    },
+    {
+     "id": "FSSB02",
+     "name": "MG/BR 46 Conquista",
+     "origin": "Brasil",
+     "source": "Rodrigues, R. A.; Pedrini, J. E.; Fraisse, C. W.; Fernandes, J. M. C.; Justino, F. B.; Heinemann, A. B.; Costa, L. C.; Vale, F. X. R. (2012). Bragantia, v.71, n.2, p.308-317.",
+     "source_institution": "Universidade Federal de Viçosa / Embrapa",
+     "source_location": "Viçosa, MG (safra 2009/10)",
+     "source_url": "https://www.scielo.br/j/brag/ (v.71 n.2 p.308-317)",
+     "calibration_model": "CROPGRO-Soybean (DSSAT)",
+     "inherited": {
+      "THRSH, SDPRO, SDLIP": "990248 BRS 399",
+      "ECO#": "SB0801 (grupo de maturação 8, ciclo tardio)"
+     }
+    },
+    {
+     "id": "FSSB03",
+     "name": "CD 202",
+     "origin": "Brasil",
+     "source": "Dallacort, R.; Freitas, P. S. L.; Faria, R. T.; Gonçalves, A. C. A.; Rezende, R.; Bertonha, A. (2006). Acta Scientiarum. Agronomy, v.28, n.4, p.583-589.",
+     "source_institution": "UNEMAT / UEM / IAPAR",
+     "source_location": "Palotina, PR",
+     "source_url": "https://periodicos.uem.br/ojs/index.php/ActaSciAgron (v.28 n.4 p.583-589)",
+     "calibration_model": "CROPGRO-Soybean (DSSAT)",
+     "inherited": {
+      "ECO#, THRSH, SDPRO, SDLIP": "990248 BRS 399 (SB0601)"
+     }
+    },
+    {
+     "id": "FSSB04",
+     "name": "CD 204",
+     "origin": "Brasil",
+     "source": "Dallacort, R.; Freitas, P. S. L.; Faria, R. T.; Gonçalves, A. C. A.; Rezende, R.; Bertonha, A. (2006). Acta Scientiarum. Agronomy, v.28, n.4, p.583-589.",
+     "source_institution": "UNEMAT / UEM / IAPAR",
+     "source_location": "Palotina, PR",
+     "source_url": "https://periodicos.uem.br/ojs/index.php/ActaSciAgron (v.28 n.4 p.583-589)",
+     "calibration_model": "CROPGRO-Soybean (DSSAT)",
+     "inherited": {
+      "ECO#, THRSH, SDPRO, SDLIP": "990248 BRS 399 (SB0601)"
+     }
+    },
+    {
+     "id": "FSSB05",
+     "name": "CD 206",
+     "origin": "Brasil",
+     "source": "Dallacort, R.; Freitas, P. S. L.; Faria, R. T.; Gonçalves, A. C. A.; Rezende, R.; Bertonha, A. (2006). Acta Scientiarum. Agronomy, v.28, n.4, p.583-589.",
+     "source_institution": "UNEMAT / UEM / IAPAR",
+     "source_location": "Palotina, PR",
+     "source_url": "https://periodicos.uem.br/ojs/index.php/ActaSciAgron (v.28 n.4 p.583-589)",
+     "calibration_model": "CROPGRO-Soybean (DSSAT)",
+     "inherited": {
+      "ECO#, THRSH, SDPRO, SDLIP": "990248 BRS 399 (SB0601)"
+     }
+    },
+    {
+     "id": "FSSB06",
+     "name": "CD 210",
+     "origin": "Brasil",
+     "source": "Dallacort, R.; Freitas, P. S. L.; Faria, R. T.; Gonçalves, A. C. A.; Rezende, R.; Bertonha, A. (2006). Acta Scientiarum. Agronomy, v.28, n.4, p.583-589.",
+     "source_institution": "UNEMAT / UEM / IAPAR",
+     "source_location": "Palotina, PR",
+     "source_url": "https://periodicos.uem.br/ojs/index.php/ActaSciAgron (v.28 n.4 p.583-589)",
+     "calibration_model": "CROPGRO-Soybean (DSSAT)",
+     "inherited": {
+      "THRSH, SDPRO, SDLIP": "990248 BRS 399",
+      "ECO#": "SB0701 (grupo de maturação 7, ciclo mais longo do grupo)"
+     }
+    }
+   ],
+   "planting_template": "    35    35     S     R    50   -99     4   -99   -99   -99   -99   -99                        2017 Piracicaba (PI-1)",
+   "harvest": {
+    "mode": "maturity",
+    "days_after_planting": null,
+    "detail_template": null,
+    "harvs": "M"
+   },
+   "methods_line": " ME              M     M     E     F     S     L     R     1     P     R     2",
+   "cycle_days_max": 142,
+   "reference": {
+    "experiment": "Soybean/LQBR1905.SBX",
+    "site": "Silva,EHFM,Boote,K.J.,Hoogenboom,G.,Andrade,A.S,Souza,H.A,Marin,F.R. "
+   }
+  },
+  {
+   "code": "PN",
+   "name": "Amendoim",
+   "product": "grãos (vagens)",
+   "yield_variable": "HWAM",
+   "model": "CRGRO048",
+   "genotype_file": "PNGRO048",
+   "default_cultivar": {
+    "id": "IB0002",
+    "name": "FLORU"
+   },
+   "cultivars": [
+    {
+     "id": "IB0002",
+     "name": "FLORUNNER"
+    },
+    {
+     "id": "IB0033",
+     "name": "861 VIRGINIA BUN"
+    },
+    {
+     "id": "IB0034",
+     "name": "897 VIRGINIA BUN"
+    },
+    {
+     "id": "IB0009",
+     "name": "AGRITEC-127,v Ma"
+    },
+    {
+     "id": "IB0008",
+     "name": "CHICO"
+    },
+    {
+     "id": "IB0036",
+     "name": "CIANJUR #5 TAM"
+    },
+    {
+     "id": "IB0016",
+     "name": "EARLY BUNCH"
+    },
+    {
+     "id": "IB0011",
+     "name": "EARLY RUNNER"
+    },
+    {
+     "id": "IB0031",
+     "name": "F81206,LS-RES"
+    },
+    {
+     "id": "IB0003",
+     "name": "FLORIGIANT"
+    },
+    {
+     "id": "GH0002",
+     "name": "F_MIX3,short bun"
+    },
+    {
+     "id": "IB0018",
+     "name": "GK3, VIRGINIA"
+    },
+    {
+     "id": "GA0001",
+     "name": "Georgia Green"
+    },
+    {
+     "id": "IB0032",
+     "name": "MA72*94-12,LS-Rs"
+    },
+    {
+     "id": "IB0007",
+     "name": "MARC I"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "IB0023",
+     "name": "MCCUBBIN, m TAMN"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "IB0017",
+     "name": "NC7, VIRGINIA"
+    },
+    {
+     "id": "IB0082",
+     "name": "Non-Nodulated"
+    },
+    {
+     "id": "IB0038",
+     "name": "PIDIE  #5 TAMN"
+    },
+    {
+     "id": "IB0006",
+     "name": "PRONTO, v tamnu"
+    },
+    {
+     "id": "IB0021",
+     "name": "Q18801,earlybun"
+    },
+    {
+     "id": "IB0037",
+     "name": "RANGKASBITUNG 5"
+    },
+    {
+     "id": "IB0035",
+     "name": "ROBUT 33-1 v 5"
+    },
+    {
+     "id": "IB0026",
+     "name": "ROBUT-33,uf v35"
+    },
+    {
+     "id": "990002",
+     "name": "Runner Type"
+    },
+    {
+     "id": "IB0019",
+     "name": "SHULAMIT, VA BUN"
+    },
+    {
+     "id": "IB0015",
+     "name": "SOUTHERN RUNNER"
+    },
+    {
+     "id": "IB0001",
+     "name": "STARR, v tamnut"
+    },
+    {
+     "id": "IB0013",
+     "name": "SUNRUNNER,v flor"
+    },
+    {
+     "id": "990001",
+     "name": "Spanish type"
+    },
+    {
+     "id": "IB0005",
+     "name": "TAMNUT"
+    },
+    {
+     "id": "IB0025",
+     "name": "TAPIR, mod tamn"
+    },
+    {
+     "id": "IB0020",
+     "name": "TIFTON-8,FLORIG"
+    },
+    {
+     "id": "IB0027",
+     "name": "TMV-2,uf v 24"
+    },
+    {
+     "id": "IB0024",
+     "name": "TMV2, mod tamnu"
+    },
+    {
+     "id": "IB0004",
+     "name": "VALENCIA, v tamn"
+    },
+    {
+     "id": "IB0022",
+     "name": "VIRG BUN, MODIF"
+    }
+   ],
+   "planting_template": "  12.9  12.9     S     R    31     0     4   -99   -99   -99   -99     0                        -99",
+   "harvest": {
+    "mode": "days_after_planting",
+    "days_after_planting": 133,
+    "detail_template": " GS003 IBHCS IBHCS   100     0 ",
+    "harvs": "R"
+   },
+   "methods_line": " ME              M     M     E     R     S     L     R     1     G     R     2",
+   "cycle_days_max": 133,
+   "reference": {
+    "experiment": "Peanut/UFGA7601.PNX",
+    "site": "K.J. Boote "
+   }
+  },
+  {
+   "code": "CS",
+   "name": "Mandioca",
+   "product": "raízes (matéria seca)",
+   "yield_variable": "HWAM",
+   "model": "CSYCA048",
+   "genotype_file": "CSYCA048",
+   "default_cultivar": {
+    "id": "UC0006",
+    "name": "MCol-"
+   },
+   "cultivars": [
+    {
+     "id": "UC0006",
+     "name": "MCol-1684"
+    },
+    {
+     "id": "UC0014",
+     "name": "CM 507-37"
+    },
+    {
+     "id": "UC0012",
+     "name": "CM 523-7"
+    },
+    {
+     "id": "UC0003",
+     "name": "CMC 40"
+    },
+    {
+     "id": "UC0005",
+     "name": "Ceiba"
+    },
+    {
+     "id": "DFAULT",
+     "name": "DEFAULT"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "UC0011",
+     "name": "MCol-113"
+    },
+    {
+     "id": "UC0019",
+     "name": "MCol-113 1-4Br"
+    },
+    {
+     "id": "UC0018",
+     "name": "MCol-113 1Br"
+    },
+    {
+     "id": "UC0017",
+     "name": "MCol-113 2Br"
+    },
+    {
+     "id": "UC0016",
+     "name": "MCol-113 3Br"
+    },
+    {
+     "id": "UC0002",
+     "name": "MCol-22"
+    },
+    {
+     "id": "UC0009",
+     "name": "MCol-638"
+    },
+    {
+     "id": "UC0013",
+     "name": "MCol-72"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "UC0004",
+     "name": "MMEX-59"
+    },
+    {
+     "id": "UC0015",
+     "name": "MMex-11"
+    },
+    {
+     "id": "UC0008",
+     "name": "MPtr-26"
+    },
+    {
+     "id": "UC0007",
+     "name": "MVen-77"
+    },
+    {
+     "id": "UC0010",
+     "name": "TMS 30572"
+    },
+    {
+     "id": "FSCS01",
+     "name": "BRS Novo Horizonte",
+     "origin": "Brasil",
+     "source": "Melo, D. M.; Bongiovani, R. S.; Costa, L. C.; Moreno-Cadena, P.; Heinemann, A. B.; Ramirez-Villegas, J.; Coelho Filho, M. A. (2025). Revista Brasileira de Engenharia Agrícola e Ambiental, v.29, n.10, e290153.",
+     "source_institution": "Embrapa Mandioca e Fruticultura",
+     "source_location": "Cruz das Almas, BA",
+     "source_url": "https://www.scielo.br/j/rbeaa/ (v.29 n.10, e290153)",
+     "calibration_model": "CSM-MANIHOT (CSYCA048), DSSAT 4.8.2",
+     "inherited": {
+      "eco": "demais colunas do ecótipo DFAULT"
+     }
+    },
+    {
+     "id": "FSCS02",
+     "name": "Eucalipto",
+     "origin": "Brasil",
+     "source": "Melo, D. M.; Bongiovani, R. S.; Costa, L. C.; Moreno-Cadena, P.; Heinemann, A. B.; Ramirez-Villegas, J.; Coelho Filho, M. A. (2025). Revista Brasileira de Engenharia Agrícola e Ambiental, v.29, n.10, e290153.",
+     "source_institution": "Embrapa Mandioca e Fruticultura",
+     "source_location": "Cruz das Almas, BA",
+     "source_url": "https://www.scielo.br/j/rbeaa/ (v.29 n.10, e290153)",
+     "calibration_model": "CSM-MANIHOT (CSYCA048), DSSAT 4.8.2",
+     "inherited": {
+      "eco": "demais colunas do ecótipo DFAULT"
+     }
+    }
+   ],
+   "planting_template": "     1     1     V     R   100    90    20   450   -99   -99     1    25                        -99",
+   "harvest": {
+    "mode": "days_after_planting",
+    "days_after_planting": 362,
+    "detail_template": " GS000   -99   -99   -99   -99 ",
+    "harvs": "R"
+   },
+   "methods_line": " ME              M     M     E     H     S     V     R     1     G     R     2",
+   "cycle_days_max": 362,
+   "reference": {
+    "experiment": "Cassava/CCPA7801.CSX",
+    "site": "VELTKAMP,H.J. "
+   }
+  },
+  {
+   "code": "SG",
+   "name": "Sorgo",
+   "product": "grãos",
+   "yield_variable": "HWAM",
+   "model": "SGCER048",
+   "genotype_file": "SGCER048",
+   "default_cultivar": {
+    "id": "IB0026",
+    "name": "CSH-1"
+   },
+   "cultivars": [
+    {
+     "id": "IB0026",
+     "name": "CSH-1"
+    },
+    {
+     "id": "IB0006",
+     "name": "100M"
+    },
+    {
+     "id": "IB0025",
+     "name": "38M"
+    },
+    {
+     "id": "IB0008",
+     "name": "60M"
+    },
+    {
+     "id": "IB0007",
+     "name": "80M"
+    },
+    {
+     "id": "IB0002",
+     "name": "9188"
+    },
+    {
+     "id": "IB0023",
+     "name": "ATx378XRTx430"
+    },
+    {
+     "id": "IB0014",
+     "name": "ATx378XRTx7000"
+    },
+    {
+     "id": "IB0022",
+     "name": "ATx399XRTx430"
+    },
+    {
+     "id": "IB0015",
+     "name": "ATx623"
+    },
+    {
+     "id": "IB0017",
+     "name": "ATx623XRTx430"
+    },
+    {
+     "id": "IB0024",
+     "name": "ATx623XRTx7000"
+    },
+    {
+     "id": "990003",
+     "name": "AUSTRALIAN"
+    },
+    {
+     "id": "IB0003",
+     "name": "BRANDES"
+    },
+    {
+     "id": "IB0018",
+     "name": "BTx3197"
+    },
+    {
+     "id": "IB0013",
+     "name": "CAPROCK"
+    },
+    {
+     "id": "IB0053",
+     "name": "CARGIL 837"
+    },
+    {
+     "id": "IB0052",
+     "name": "CARGIL DR.1125"
+    },
+    {
+     "id": "IB0051",
+     "name": "CARGIL_1090"
+    },
+    {
+     "id": "IB0048",
+     "name": "CSH-5"
+    },
+    {
+     "id": "IB0043",
+     "name": "CSH-6"
+    },
+    {
+     "id": "IB0044",
+     "name": "CSH-6*"
+    },
+    {
+     "id": "IB0049",
+     "name": "CSH-9"
+    },
+    {
+     "id": "IB0056",
+     "name": "CSM335"
+    },
+    {
+     "id": "IB0057",
+     "name": "CSM63E"
+    },
+    {
+     "id": "IB0027",
+     "name": "DE KALB 46"
+    },
+    {
+     "id": "IB0029",
+     "name": "DK"
+    },
+    {
+     "id": "IB0032",
+     "name": "DK- E57"
+    },
+    {
+     "id": "IB0058",
+     "name": "Fadda"
+    },
+    {
+     "id": "IB0005",
+     "name": "HEGARI"
+    },
+    {
+     "id": "990002",
+     "name": "INDIAN"
+    },
+    {
+     "id": "IB0059",
+     "name": "IS15401"
+    },
+    {
+     "id": "IB0046",
+     "name": "M-35-1"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "IB0004",
+     "name": "MN1500"
+    },
+    {
+     "id": "990001",
+     "name": "N.AMERICAN"
+    },
+    {
+     "id": "IB0041",
+     "name": "NK212"
+    },
+    {
+     "id": "IB0054",
+     "name": "ORGO-G-EXTRA"
+    },
+    {
+     "id": "IB0028",
+     "name": "PIONEER 8333"
+    },
+    {
+     "id": "IB0042",
+     "name": "PIONEER 846"
+    },
+    {
+     "id": "IB0055",
+     "name": "PIONEER 850"
+    },
+    {
+     "id": "IB0030",
+     "name": "PIONEER 8515"
+    },
+    {
+     "id": "IB0012",
+     "name": "REDLON"
+    },
+    {
+     "id": "IB0001",
+     "name": "RIO"
+    },
+    {
+     "id": "IB0031",
+     "name": "RS 626"
+    },
+    {
+     "id": "IB0040",
+     "name": "RS610"
+    },
+    {
+     "id": "IB0016",
+     "name": "RTx430"
+    },
+    {
+     "id": "IB0019",
+     "name": "RTx7078"
+    },
+    {
+     "id": "IB0009",
+     "name": "SM100"
+    },
+    {
+     "id": "IB0011",
+     "name": "SM60"
+    },
+    {
+     "id": "IB0010",
+     "name": "SM80"
+    },
+    {
+     "id": "IB0050",
+     "name": "SPH-388"
+    },
+    {
+     "id": "IB0047",
+     "name": "SPV-504"
+    },
+    {
+     "id": "IB0020",
+     "name": "TX 610"
+    },
+    {
+     "id": "990004",
+     "name": "W.AFRICAN"
+    },
+    {
+     "id": "IB0021",
+     "name": "WHEATLAND"
+    }
+   ],
+   "planting_template": "    18    18     S     R    45     0     5   -99   -99   -99   -99     0                        -99",
+   "harvest": {
+    "mode": "maturity",
+    "days_after_planting": null,
+    "detail_template": null,
+    "harvs": "M"
+   },
+   "methods_line": " ME              M     M     E     R     S     C     R     1     P     R     2",
+   "cycle_days_max": 109,
+   "reference": {
+    "experiment": "Sorghum/ITHY8001.SGX",
+    "site": "-99 "
+   }
+  },
+  {
+   "code": "ML",
+   "name": "Milheto",
+   "product": "grãos",
+   "yield_variable": "HWAM",
+   "model": "MLCER048",
+   "genotype_file": "MLCER048",
+   "default_cultivar": {
+    "id": "IB0033",
+    "name": "BJ104"
+   },
+   "cultivars": [
+    {
+     "id": "IB0033",
+     "name": "BJ104"
+    },
+    {
+     "id": "IB0046",
+     "name": "1011A X 086R"
+    },
+    {
+     "id": "IB0079",
+     "name": "1011A X 086R"
+    },
+    {
+     "id": "IB0046",
+     "name": "1011A X 086R"
+    },
+    {
+     "id": "IB0047",
+     "name": "1361M X 6Rm"
+    },
+    {
+     "id": "IB0080",
+     "name": "1361M X 6Rm"
+    },
+    {
+     "id": "IB0047",
+     "name": "1361M X 6Rm"
+    },
+    {
+     "id": "IB0050",
+     "name": "3/4HK"
+    },
+    {
+     "id": "IB0077",
+     "name": "3/4HK"
+    },
+    {
+     "id": "IB0050",
+     "name": "3/4HK"
+    },
+    {
+     "id": "IB0045",
+     "name": "59022A X 89-083"
+    },
+    {
+     "id": "IB0078",
+     "name": "59022A X 89-083"
+    },
+    {
+     "id": "IB0045",
+     "name": "59022A X 89-083"
+    },
+    {
+     "id": "IB0073",
+     "name": "81A X Souna B"
+    },
+    {
+     "id": "IB0088",
+     "name": "81A X Souna B"
+    },
+    {
+     "id": "IB0074",
+     "name": "841A X J104"
+    },
+    {
+     "id": "IB0089",
+     "name": "841A X J104"
+    },
+    {
+     "id": "IB0082",
+     "name": "BJ104"
+    },
+    {
+     "id": "IB0087",
+     "name": "BJ104"
+    },
+    {
+     "id": "IB0070",
+     "name": "BK 560"
+    },
+    {
+     "id": "IB0044",
+     "name": "CIVT"
+    },
+    {
+     "id": "IB0072",
+     "name": "CIVT-baseline"
+    },
+    {
+     "id": "IB0043",
+     "name": "CZH-83-J1"
+    },
+    {
+     "id": "IB0034",
+     "name": "CZH-859"
+    },
+    {
+     "id": "IB0066",
+     "name": "CZIC 922"
+    },
+    {
+     "id": "IB0036",
+     "name": "CZMP-2"
+    },
+    {
+     "id": "IB0039",
+     "name": "CZP-78"
+    },
+    {
+     "id": "IB0042",
+     "name": "CZP-84"
+    },
+    {
+     "id": "IB0040",
+     "name": "CZP-85"
+    },
+    {
+     "id": "IB0035",
+     "name": "CZP-87"
+    },
+    {
+     "id": "IB0062",
+     "name": "ERajPop"
+    },
+    {
+     "id": "IB0054",
+     "name": "GHB 558"
+    },
+    {
+     "id": "IB0048",
+     "name": "Heini Kirey"
+    },
+    {
+     "id": "IB0075",
+     "name": "Heini Kirey"
+    },
+    {
+     "id": "IB0048",
+     "name": "Heini Kirey"
+    },
+    {
+     "id": "IB0071",
+     "name": "ICMH 451"
+    },
+    {
+     "id": "IB0051",
+     "name": "ICMH356-baseline"
+    },
+    {
+     "id": "IB0061",
+     "name": "ICMV 221"
+    },
+    {
+     "id": "IB0083",
+     "name": "ICMVIS 89305"
+    },
+    {
+     "id": "IB0060",
+     "name": "ICTP 8203"
+    },
+    {
+     "id": "IB0067",
+     "name": "Landrace"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "IB0037",
+     "name": "MBH-110"
+    },
+    {
+     "id": "990002",
+     "name": "MIDDLE VARIETY"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "990001",
+     "name": "NORTH VARIETY"
+    },
+    {
+     "id": "IB0063",
+     "name": "NokhaLocal"
+    },
+    {
+     "id": "IB0068",
+     "name": "Non-landrace"
+    },
+    {
+     "id": "IB0052",
+     "name": "PUSA 23"
+    },
+    {
+     "id": "IB0038",
+     "name": "RCB-2"
+    },
+    {
+     "id": "IB0065",
+     "name": "RCBIC 911"
+    },
+    {
+     "id": "990003",
+     "name": "SOUTH VARIETY"
+    },
+    {
+     "id": "IB0149",
+     "name": "Sadore-Local"
+    },
+    {
+     "id": "IM0015",
+     "name": "SaniobaB"
+    },
+    {
+     "id": "IM0016",
+     "name": "SaniobaB"
+    },
+    {
+     "id": "IB0053",
+     "name": "Sharda-baseline"
+    },
+    {
+     "id": "IB0041",
+     "name": "WCC-75"
+    },
+    {
+     "id": "IB0069",
+     "name": "WCC-75"
+    },
+    {
+     "id": "IB0064",
+     "name": "WRajPop"
+    },
+    {
+     "id": "IB0049",
+     "name": "Zatib"
+    },
+    {
+     "id": "IB0076",
+     "name": "Zatib"
+    },
+    {
+     "id": "IB0049",
+     "name": "Zatib"
+    }
+   ],
+   "planting_template": "    15    15     S     R    75     0     5   -99   -99   -99   -99     0                        -99",
+   "harvest": {
+    "mode": "maturity",
+    "days_after_planting": null,
+    "detail_template": null,
+    "harvs": "M"
+   },
+   "methods_line": " ME              M     M     E     R     S     C     R     1     G     R     2",
+   "cycle_days_max": 80,
+   "reference": {
+    "experiment": "PearlMillet/ITHY8201.MLX",
+    "site": " -99 "
+   }
+  },
+  {
+   "code": "RI",
+   "name": "Arroz",
+   "product": "grãos",
+   "yield_variable": "HWAM",
+   "model": "RICER048",
+   "genotype_file": "RICER048",
+   "default_cultivar": {
+    "id": "IB0003",
+    "name": "IR 36"
+   },
+   "cultivars": [
+    {
+     "id": "IB0003",
+     "name": "IR 36"
+    },
+    {
+     "id": "IB0024",
+     "name": "17 BR11,T.AMAN"
+    },
+    {
+     "id": "IB0025",
+     "name": "18 BR22,T.AMAN"
+    },
+    {
+     "id": "IB0026",
+     "name": "19 BR 3,T.AMAN"
+    },
+    {
+     "id": "IB0027",
+     "name": "20 BR 3,BORO"
+    },
+    {
+     "id": "IB0122",
+     "name": "BPRI10"
+    },
+    {
+     "id": "IB0119",
+     "name": "BR11"
+    },
+    {
+     "id": "IB0117",
+     "name": "BR14"
+    },
+    {
+     "id": "IB0055",
+     "name": "Basmati 385"
+    },
+    {
+     "id": "IB0052",
+     "name": "Basmati-515 FRice"
+    },
+    {
+     "id": "TR0004",
+     "name": "CHAINAT 1"
+    },
+    {
+     "id": "IB0021",
+     "name": "CICA8"
+    },
+    {
+     "id": "IB0200",
+     "name": "CL-448"
+    },
+    {
+     "id": "IB0029",
+     "name": "CPIC8"
+    },
+    {
+     "id": "TR0005",
+     "name": "DOA 1"
+    },
+    {
+     "id": "IB0116",
+     "name": "HEAT SENSITIVE"
+    },
+    {
+     "id": "IB0002",
+     "name": "IR 20"
+    },
+    {
+     "id": "IB0004",
+     "name": "IR 43"
+    },
+    {
+     "id": "IB0014",
+     "name": "IR 54"
+    },
+    {
+     "id": "IB0012",
+     "name": "IR 58"
+    },
+    {
+     "id": "IB0016",
+     "name": "IR 60(Est)"
+    },
+    {
+     "id": "IB0015",
+     "name": "IR 64"
+    },
+    {
+     "id": "IB0115",
+     "name": "IR 64*"
+    },
+    {
+     "id": "IB0017",
+     "name": "IR 66"
+    },
+    {
+     "id": "IB0118",
+     "name": "IR 72"
+    },
+    {
+     "id": "IB0018",
+     "name": "IR 72x"
+    },
+    {
+     "id": "IB0001",
+     "name": "IR 8"
+    },
+    {
+     "id": "990001",
+     "name": "IRRI ORIGINALS"
+    },
+    {
+     "id": "990002",
+     "name": "IRRI RECENT"
+    },
+    {
+     "id": "990003",
+     "name": "JAPANESE"
+    },
+    {
+     "id": "IB0121",
+     "name": "JAYA"
+    },
+    {
+     "id": "TR0001",
+     "name": "KDML105"
+    },
+    {
+     "id": "IB0051",
+     "name": "KS-282 CRice"
+    },
+    {
+     "id": "IB0005",
+     "name": "LABELLE"
+    },
+    {
+     "id": "IB0030",
+     "name": "LEMONT"
+    },
+    {
+     "id": "IB0022",
+     "name": "LOW TEMP.SEN"
+    },
+    {
+     "id": "IB0023",
+     "name": "LOW TEMP.TOL"
+    },
+    {
+     "id": "IB0006",
+     "name": "MARS"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "990004",
+     "name": "N.AMERICAN"
+    },
+    {
+     "id": "TR0002",
+     "name": "NIEW SANPATONG"
+    },
+    {
+     "id": "IB0007",
+     "name": "NOVA 66"
+    },
+    {
+     "id": "IB0120",
+     "name": "PANT-4"
+    },
+    {
+     "id": "IB0008",
+     "name": "PETA"
+    },
+    {
+     "id": "IB0050",
+     "name": "PR114"
+    },
+    {
+     "id": "IB0020",
+     "name": "RD 23"
+    },
+    {
+     "id": "MC0020",
+     "name": "RD 23"
+    },
+    {
+     "id": "IB0019",
+     "name": "RD 7 (cal.)"
+    },
+    {
+     "id": "IB0031",
+     "name": "RN12"
+    },
+    {
+     "id": "IB0009",
+     "name": "STARBONNETT"
+    },
+    {
+     "id": "TR0003",
+     "name": "SUPANBURI 60"
+    },
+    {
+     "id": "IB0013",
+     "name": "SenTaNi (???)"
+    },
+    {
+     "id": "IB0032",
+     "name": "TW"
+    },
+    {
+     "id": "IB0010",
+     "name": "UPLRI5"
+    },
+    {
+     "id": "IB0011",
+     "name": "UPLRI7"
+    },
+    {
+     "id": "IB0151",
+     "name": "ZHENG DAO 9380"
+    }
+   ],
+   "planting_template": "   200   200     S     H    25     0   2.5   -99     0     0     3     0                        -99",
+   "harvest": {
+    "mode": "maturity",
+    "days_after_planting": null,
+    "detail_template": null,
+    "harvs": "M"
+   },
+   "methods_line": " ME              M     M     E     R     S     C     R     1     G     R     2",
+   "cycle_days_max": 110,
+   "reference": {
+    "experiment": "Rice/IRPI8001.RIX",
+    "site": "-99 "
+   }
+  },
+  {
+   "code": "SU",
+   "name": "Girassol",
+   "product": "grãos",
+   "yield_variable": "HWAM",
+   "model": "CRGRO048",
+   "genotype_file": "SUGRO048",
+   "default_cultivar": {
+    "id": "IB0018",
+    "name": "Hysun"
+   },
+   "cultivars": [
+    {
+     "id": "IB0018",
+     "name": "Hysun-33"
+    },
+    {
+     "id": "IB0009",
+     "name": "E-353"
+    },
+    {
+     "id": "IB0001",
+     "name": "Ekllor"
+    },
+    {
+     "id": "IB0021",
+     "name": "Heliasol RM"
+    },
+    {
+     "id": "IB0029",
+     "name": "Hysun-38"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "IB0022",
+     "name": "Melody"
+    },
+    {
+     "id": "IB0020",
+     "name": "Pioneer 64A93"
+    },
+    {
+     "id": "IB0015",
+     "name": "S-530"
+    },
+    {
+     "id": "IB0013",
+     "name": "SUNGRO-385"
+    },
+    {
+     "id": "IB0014",
+     "name": "SW-101"
+    },
+    {
+     "id": "IB0019",
+     "name": "Sungold"
+    }
+   ],
+   "planting_template": "     7     6     S     R    70     0     4   -99   -99   -99   -99     0                        -99",
+   "harvest": {
+    "mode": "maturity",
+    "days_after_planting": null,
+    "detail_template": null,
+    "harvs": "M"
+   },
+   "methods_line": " ME              M     M     E     R     S     L     R     1     P     R     2",
+   "cycle_days_max": 122,
+   "reference": {
+    "experiment": "Sunflower/UAFD0801.SUX",
+    "site": "Dr Ashfaq Ahmad,Dr Gerrit Hoogenboom and Wajid Nasim "
+   }
+  },
+  {
+   "code": "CO",
+   "name": "Algodão",
+   "product": "capulhos",
+   "yield_variable": "HWAM",
+   "model": "CRGRO048",
+   "genotype_file": "COGRO048",
+   "default_cultivar": {
+    "id": "TX0003",
+    "name": "GP 37"
+   },
+   "cultivars": [
+    {
+     "id": "TX0003",
+     "name": "GP 3774 (RLD,LAI"
+    },
+    {
+     "id": "IB0052",
+     "name": "03-07       125 5"
+    },
+    {
+     "id": "IB0053",
+     "name": "08-11       125 5"
+    },
+    {
+     "id": "IB0054",
+     "name": "12-15       125 5"
+    },
+    {
+     "id": "IB0055",
+     "name": "16-19       125 5"
+    },
+    {
+     "id": "IB0051",
+     "name": "99-02 arke  125 5"
+    },
+    {
+     "id": "CO0034",
+     "name": "DP 458 BG/RR"
+    },
+    {
+     "id": "CO0033",
+     "name": "DP 90b"
+    },
+    {
+     "id": "CO0027",
+     "name": "Deltapine 0912"
+    },
+    {
+     "id": "CO0036",
+     "name": "Deltapine 1219"
+    },
+    {
+     "id": "CO0005",
+     "name": "Deltapine 555 BG/"
+    },
+    {
+     "id": "CO0008",
+     "name": "Deltapine 77"
+    },
+    {
+     "id": "CO0038",
+     "name": "FM 1944 GLB2"
+    },
+    {
+     "id": "CO0028",
+     "name": "Fibermax 9680B2R"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "CO0032",
+     "name": "Phytogen 333"
+    },
+    {
+     "id": "CO0035",
+     "name": "Phytogen 339"
+    },
+    {
+     "id": "CO0037",
+     "name": "Phytogen 499"
+    }
+   ],
+   "planting_template": "   -99    15     S     R    68   -99     6   -99   -99   -99   -99   -99                        1994 Exp",
+   "harvest": {
+    "mode": "maturity",
+    "days_after_planting": null,
+    "detail_template": null,
+    "harvs": "M"
+   },
+   "methods_line": " ME              M     M     E     R     S     L     R     1     G     R     2",
+   "cycle_days_max": 126,
+   "reference": {
+    "experiment": "Cotton/TXTE8401.COX",
+    "site": "Bland WL, and WA Dugas.      "
+   }
+  },
+  {
+   "code": "PP",
+   "name": "Feijão-guandu",
+   "product": "grãos",
+   "yield_variable": "HWAM",
+   "model": "CRGRO048",
+   "genotype_file": "PPGRO048",
+   "default_cultivar": {
+    "id": "PP0001",
+    "name": "76 W"
+   },
+   "cultivars": [
+    {
+     "id": "PP0001",
+     "name": "76W est"
+    },
+    {
+     "id": "I88039",
+     "name": "ICRISAT ICPL88039"
+    },
+    {
+     "id": "GH0001",
+     "name": "KPATINGA"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    }
+   ],
+   "planting_template": "   -99     9     S     R    76     0   2.5   -99   -99   -99   -99   -99                        -99",
+   "harvest": {
+    "mode": "maturity",
+    "days_after_planting": null,
+    "detail_template": null,
+    "harvs": "M"
+   },
+   "methods_line": " ME              M     M     E     R     S     L     R     1     P     R     2",
+   "cycle_days_max": 152,
+   "reference": {
+    "experiment": "Pigeonpea/UFGA8401.PPX",
+    "site": "K.J. Boote, C. E. Maliro, and P.D. Alderman "
+   }
+  },
+  {
+   "code": "SC",
+   "name": "Cana-de-açúcar",
+   "product": "biomassa (colmos + folhas, matéria seca)",
+   "yield_variable": "CWAM",
+   "model": "SCCAN048",
+   "genotype_file": "SCCAN048",
+   "default_cultivar": {
+    "id": "RB7515",
+    "name": "RB867"
+   },
+   "cultivars": [
+    {
+     "id": "RB7515",
+     "name": "RB867515",
+     "origin": "Brasil",
+     "source": "biblioteca oficial do DSSAT 4.8"
+    },
+    {
+     "id": "CP2086",
+     "name": "CP 72-2086"
+    },
+    {
+     "id": "CP1743",
+     "name": "CP 80-1743"
+    },
+    {
+     "id": "CP1762",
+     "name": "CP 88-1762"
+    },
+    {
+     "id": "CP2143",
+     "name": "CP 89-2143"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "IB0001",
+     "name": "NCo376"
+    }
+   ],
+   "planting_template": "   1.5   1.5     R     R   140   -99    20    10   -99   -99   -99   -99                        Ratoon (R)",
+   "harvest": {
+    "mode": "days_after_planting",
+    "days_after_planting": 327,
+    "detail_template": " GS000     H   -99   100     0 Ratoon (R)",
+    "harvs": "R"
+   },
+   "methods_line": " ME              M     M     E     F     N     C     R     1     G     R     3",
+   "cycle_days_max": 327,
+   "reference": {
+    "experiment": "Sugarcane/ESAL1401.SCX",
+    "site": "Murilo Vianna, Daniel Nassif, Leandro Garcia, Kassio Carvalho, Fabio Marin "
+   }
+  },
+  {
+   "code": "PI",
+   "name": "Abacaxi",
+   "product": "frutos (matéria seca)",
+   "yield_variable": "HWAM",
+   "model": "PIALO048",
+   "genotype_file": "PIALO048",
+   "default_cultivar": {
+    "id": "IB0066",
+    "name": "SC-F1"
+   },
+   "cultivars": [
+    {
+     "id": "IB0066",
+     "name": "SC-F153"
+    },
+    {
+     "id": "IB0068",
+     "name": "HB-MD2CR"
+    },
+    {
+     "id": "IB0069",
+     "name": "HB-MD2CRp"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "IB0067",
+     "name": "SC-ANGUE"
+    }
+   ],
+   "planting_template": "   2.6   2.6     S     R    53     0     5   595   -99   -99   -99     0                        -99",
+   "harvest": {
+    "mode": "maturity",
+    "days_after_planting": null,
+    "detail_template": null,
+    "harvs": "M"
+   },
+   "methods_line": " ME              M     M     E     R     S     C     R     1     G     R     1",
+   "cycle_days_max": 678,
+   "reference": {
+    "experiment": "PineApple/UHKN8901.PIX",
+    "site": "    -99   -99   -99   -99   -99   -99   -99   -99   -99   -99 "
+   }
+  },
+  {
+   "code": "TR",
+   "name": "Inhame (taro)",
+   "product": "cormos (matéria seca)",
+   "yield_variable": "HWAM",
+   "model": "TRARO048",
+   "genotype_file": "TRARO048",
+   "default_cultivar": {
+    "id": "IB0001",
+    "name": "LEHUA"
+   },
+   "cultivars": [
+    {
+     "id": "IB0001",
+     "name": "LEHUA"
+    },
+    {
+     "id": "IB0008",
+     "name": "BLANCA"
+    },
+    {
+     "id": "IB0002",
+     "name": "BUN LONG"
+    },
+    {
+     "id": "IB0010",
+     "name": "LEHUA-MAUI"
+    },
+    {
+     "id": "IB0009",
+     "name": "LILA"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "IB0003",
+     "name": "SAMOA HYBRID"
+    },
+    {
+     "id": "IB0004",
+     "name": "TAUSALA-SAMOA"
+    }
+   ],
+   "planting_template": "  2.78  2.78     S     R    60     0    15   -99   -99    21   -99     0                        -99",
+   "harvest": {
+    "mode": "maturity",
+    "days_after_planting": null,
+    "detail_template": null,
+    "harvs": "M"
+   },
+   "methods_line": " ME              M     M     E     R     S     C     R     1     G     R     2",
+   "cycle_days_max": 417,
+   "reference": {
+    "experiment": "Taro/IBHK8901.TRX",
+    "site": "-99 "
+   }
+  },
+  {
+   "code": "TN",
+   "name": "Taioba (tanier)",
+   "product": "cormos (matéria seca)",
+   "yield_variable": "HWAM",
+   "model": "TNARO048",
+   "genotype_file": "TNARO048",
+   "default_cultivar": {
+    "id": "IB0006",
+    "name": "BLANC"
+   },
+   "cultivars": [
+    {
+     "id": "IB0006",
+     "name": "BLANCA"
+    },
+    {
+     "id": "IB0005",
+     "name": "KELLY"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "IB0007",
+     "name": "MORANDA"
+    }
+   ],
+   "planting_template": "   2.4   2.4     S     R    91     0    13   -99   -99   -99   -99     0                        -99",
+   "harvest": {
+    "mode": "maturity",
+    "days_after_planting": null,
+    "detail_template": null,
+    "harvs": "M"
+   },
+   "methods_line": " ME              M     M     E     R     S     C     R     1     G     R     2",
+   "cycle_days_max": 440,
+   "reference": {
+    "experiment": "Tanier/MTIS8901.TNX",
+    "site": "-99 "
+   }
+  },
+  {
+   "code": "TM",
+   "name": "Tomate",
+   "product": "frutos (matéria seca)",
+   "yield_variable": "HWAM",
+   "model": "CRGRO048",
+   "genotype_file": "TMGRO048",
+   "default_cultivar": {
+    "id": "TM0001",
+    "name": "Flori"
+   },
+   "cultivars": [
+    {
+     "id": "TM0001",
+     "name": "Florida 47 2010 C"
+    },
+    {
+     "id": "TM0005",
+     "name": "Agriset 761 10' C"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "TM0002",
+     "name": "Solarset 2010 Cal"
+    },
+    {
+     "id": "TM0007",
+     "name": "Sunny S-D 2010 Ca"
+    }
+   ],
+   "planting_template": "   1.2   1.2     T     R   183    90     1     3    28    25     1   -99                        -99",
+   "harvest": {
+    "mode": "days_after_planting",
+    "days_after_planting": 88,
+    "detail_template": " GS000   -99   -99   -99   -99 Control",
+    "harvs": "R"
+   },
+   "methods_line": " ME              M     M     E     R     S     L     R     1     G     R     2",
+   "cycle_days_max": 88,
+   "reference": {
+    "experiment": "Tomato/UFGA0602.TMX",
+    "site": "Rybak, R., Boote K., Scholberg J. "
+   }
+  },
+  {
+   "code": "PR",
+   "name": "Pimentão",
+   "product": "frutos (matéria seca)",
+   "yield_variable": "HWAM",
+   "model": "CRGRO048",
+   "genotype_file": "PRGRO048",
+   "default_cultivar": {
+    "id": "PR0001",
+    "name": "CAPIS"
+   },
+   "cultivars": [
+    {
+     "id": "PR0001",
+     "name": "CAPISTRANO"
+    },
+    {
+     "id": "PR0002",
+     "name": "BISCAYNE"
+    },
+    {
+     "id": "PR0003",
+     "name": "BISCAYNE-JJ"
+    },
+    {
+     "id": "PRX001",
+     "name": "CAPISTRANO"
+    },
+    {
+     "id": "PR0011",
+     "name": "CAPISTRANO-GL"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    }
+   ],
+   "planting_template": "   4.3   4.3     T     R    75    90     1  12.9    16    20     1   -99                        -99",
+   "harvest": {
+    "mode": "days_after_planting",
+    "days_after_planting": 115,
+    "detail_template": " GS000   -99   -99   -99   -99 ",
+    "harvs": "R"
+   },
+   "methods_line": " ME              M     M     H     R     S     L     R     1     P     R     2",
+   "cycle_days_max": 115,
+   "reference": {
+    "experiment": "BellPepper/UFBR9601.PRX",
+    "site": " K.F. Schulbach, C.D. Stanley, B.L.M. McNeal "
+   }
+  },
+  {
+   "code": "GB",
+   "name": "Feijão-vagem",
+   "product": "vagens (matéria seca)",
+   "yield_variable": "HWAM",
+   "model": "CRGRO048",
+   "genotype_file": "GBGRO048",
+   "default_cultivar": {
+    "id": "GB0001",
+    "name": "Bronc"
+   },
+   "cultivars": [
+    {
+     "id": "GB0001",
+     "name": "Bronco Habit 1"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    }
+   ],
+   "planting_template": "    34    34     S     R    61   -99   2.5   -99   -99   -99   -99   -99                        -99",
+   "harvest": {
+    "mode": "days_after_planting",
+    "days_after_planting": 62,
+    "detail_template": " GS000   -99   -99   100     0 DRY BEAN",
+    "harvs": "R"
+   },
+   "methods_line": " ME              M     M     E     R     S     L     R     1     P     R     2",
+   "cycle_days_max": 83,
+   "reference": {
+    "experiment": "GreenBean/UFGA0701.GBX",
+    "site": "Desire DJIDONOU & K.J. Boote "
+   }
+  },
+  {
+   "code": "SW",
+   "name": "Milho-verde",
+   "product": "espigas (matéria seca)",
+   "yield_variable": "HWAM",
+   "model": "SWCER048",
+   "genotype_file": "SWCER048",
+   "default_cultivar": {
+    "id": "SW0001",
+    "name": "GSS09"
+   },
+   "cultivars": [
+    {
+     "id": "SW0001",
+     "name": "GSS0966 sh2"
+    },
+    {
+     "id": "SW0003",
+     "name": "BSS0977 sh2"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "SW0002",
+     "name": "Saturn sh2"
+    }
+   ],
+   "planting_template": "   5.5   5.5     S     R    76    90     2   -99   -99   -99   -99   -99                        -99",
+   "harvest": {
+    "mode": "days_after_planting",
+    "days_after_planting": 69,
+    "detail_template": " GS000     H     A   -99   -99 MAIZE",
+    "harvs": "R"
+   },
+   "methods_line": " ME              M     M     E     R     S     R     R     1     G     R     2",
+   "cycle_days_max": 69,
+   "reference": {
+    "experiment": "SweetCorn/UFCI0201.SWX",
+    "site": " CHERR, C. SCHOLBERG, J. LIZASO, J. "
+   }
+  },
+  {
+   "code": "CB",
+   "name": "Repolho",
+   "product": "cabeças (matéria seca)",
+   "yield_variable": "HWAM",
+   "model": "CRGRO048",
+   "genotype_file": "CBGRO048",
+   "default_cultivar": {
+    "id": "CB0001",
+    "name": "Tasti"
+   },
+   "cultivars": [
+    {
+     "id": "CB0001",
+     "name": "Tastie"
+    },
+    {
+     "id": "CB0002",
+     "name": "CG"
+    },
+    {
+     "id": "CB0003",
+     "name": "Kalorama"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    }
+   ],
+   "planting_template": "     5     5     T     R    53     0     5   9.5    13  22.2   -99   -99                        -99",
+   "harvest": {
+    "mode": "days_after_planting",
+    "days_after_planting": 62,
+    "detail_template": " GS000   -99   -99   -99   -99 ",
+    "harvs": "R"
+   },
+   "methods_line": " ME              M     M     E     R     R     L     R     1     G     R     2",
+   "cycle_days_max": 62,
+   "reference": {
+    "experiment": "Cabbage/IBMC9601.CBX",
+    "site": "RICHARD OGOSHI, SERV LAMER "
+   }
+  },
+  {
+   "code": "PT",
+   "name": "Batata",
+   "product": "tubérculos (matéria seca)",
+   "yield_variable": "HWAM",
+   "model": "PTSUB048",
+   "genotype_file": "PTSUB048",
+   "default_cultivar": {
+    "id": "AR0003",
+    "name": "ACHIR"
+   },
+   "cultivars": [
+    {
+     "id": "AR0003",
+     "name": "ACHIRANA"
+    },
+    {
+     "id": "IB0005",
+     "name": "ATLANTIC"
+    },
+    {
+     "id": "IB0010",
+     "name": "C14-343"
+    },
+    {
+     "id": "CI0001",
+     "name": "CLON7316"
+    },
+    {
+     "id": "CI0002",
+     "name": "CLON7716"
+    },
+    {
+     "id": "IB0008",
+     "name": "DESIREE"
+    },
+    {
+     "id": "IB0018",
+     "name": "Hilite Russet"
+    },
+    {
+     "id": "DM0004",
+     "name": "KAPTAH"
+    },
+    {
+     "id": "IB0004",
+     "name": "KATHADIN"
+    },
+    {
+     "id": "IB0007",
+     "name": "KING EDWARD"
+    },
+    {
+     "id": "IB0009",
+     "name": "LT-1"
+    },
+    {
+     "id": "IB0001",
+     "name": "MAJESTIC"
+    },
+    {
+     "id": "IB0006",
+     "name": "MARIS PIPER"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "IB0011",
+     "name": "NORCHIP"
+    },
+    {
+     "id": "UF0001",
+     "name": "RED LASODA"
+    },
+    {
+     "id": "IB0003",
+     "name": "Russet Burbank"
+    },
+    {
+     "id": "IB0002",
+     "name": "SEBAGO"
+    },
+    {
+     "id": "IB0012",
+     "name": "SHEPODY"
+    }
+   ],
+   "planting_template": " 3.333 3.333     S   -99   100   -99     5   444   -99   -99   -99     2                        -99",
+   "harvest": {
+    "mode": "days_after_planting",
+    "days_after_planting": 105,
+    "detail_template": " GS000   -99   -99   -99   -99 ",
+    "harvs": "R"
+   },
+   "methods_line": " ME              M     M     E     R     S     L     R     1     P     R     2",
+   "cycle_days_max": 105,
+   "reference": {
+    "experiment": "Potato/CPSR1302.PTX",
+    "site": "Manuel Gastelo, Juan Concha "
+   }
+  },
+  {
+   "code": "CH",
+   "name": "Grão-de-bico",
+   "product": "grãos",
+   "yield_variable": "HWAM",
+   "model": "CRGRO048",
+   "genotype_file": "CHGRO048",
+   "default_cultivar": {
+    "id": "IB0001",
+    "name": "ANNIG"
+   },
+   "cultivars": [
+    {
+     "id": "IB0001",
+     "name": "ANNIGERI v48calib"
+    },
+    {
+     "id": "990002",
+     "name": "Desi Type"
+    },
+    {
+     "id": "IB0003",
+     "name": "G 130   v48calib"
+    },
+    {
+     "id": "IB0009",
+     "name": "ICCC 32    v48cal"
+    },
+    {
+     "id": "IB0010",
+     "name": "ICCC 37"
+    },
+    {
+     "id": "IB0006",
+     "name": "ICCC 42    v48cal"
+    },
+    {
+     "id": "IB0007",
+     "name": "ICCV 10    v48cal"
+    },
+    {
+     "id": "IB0008",
+     "name": "ICCV 2     v48cal"
+    },
+    {
+     "id": "IB0005",
+     "name": "ICCV 88202 v48cal"
+    },
+    {
+     "id": "IB0013",
+     "name": "JG 218"
+    },
+    {
+     "id": "IB0004",
+     "name": "JG 74  v48calib"
+    },
+    {
+     "id": "GF0505",
+     "name": "JG11-10%long+yiel"
+    },
+    {
+     "id": "GF0205",
+     "name": "JG11-10%longercyc"
+    },
+    {
+     "id": "GF0405",
+     "name": "JG11-10%short+yie"
+    },
+    {
+     "id": "GF0105",
+     "name": "JG11-10%shortcycl"
+    },
+    {
+     "id": "GF0305",
+     "name": "JG11-base+yield"
+    },
+    {
+     "id": "GF0005",
+     "name": "JG11-baseline"
+    },
+    {
+     "id": "IB0002",
+     "name": "K 850   v48calib"
+    },
+    {
+     "id": "IB0012",
+     "name": "KAK-2"
+    },
+    {
+     "id": "990001",
+     "name": "Kabuli Type"
+    },
+    {
+     "id": "999992",
+     "name": "MAXIMA"
+    },
+    {
+     "id": "999991",
+     "name": "MINIMA"
+    },
+    {
+     "id": "GF0506",
+     "name": "RSG888-10%long+yi"
+    },
+    {
+     "id": "GF0206",
+     "name": "RSG888-10%longerc"
+    },
+    {
+     "id": "GF0406",
+     "name": "RSG888-10%short+y"
+    },
+    {
+     "id": "GF0106",
+     "name": "RSG888-10%shortcy"
+    },
+    {
+     "id": "GF0306",
+     "name": "RSG888-base+yield"
+    },
+    {
+     "id": "GF0006",
+     "name": "RSG888-baseline"
+    },
+    {
+     "id": "GF0507",
+     "name": "Vijay-10%long+yie"
+    },
+    {
+     "id": "GF0207",
+     "name": "Vijay-10%longercy"
+    },
+    {
+     "id": "GF0407",
+     "name": "Vijay-10%short+yi"
+    },
+    {
+     "id": "GF0107",
+     "name": "Vijay-10%shortcyc"
+    },
+    {
+     "id": "GF0307",
+     "name": "Vijay-base+yield"
+    },
+    {
+     "id": "GF0007",
+     "name": "Vijay-baseline"
+    }
+   ],
+   "planting_template": "    30    30     S     R    30     0     5   -99   -99   -99   -99     0                        -99",
+   "harvest": {
+    "mode": "maturity",
+    "days_after_planting": null,
+    "detail_template": null,
+    "harvs": "M"
+   },
+   "methods_line": " ME              M     M     E     R     S     L     R     1     G     R     1",
+   "cycle_days_max": 108,
+   "reference": {
+    "experiment": "Chickpea/ITBP8502.CHX",
+    "site": "Dr. PIARA SINGH "
+   }
+  }
+ ],
+ "brazil_cultivars": {
+  "registry": "apps/dssat/cultivars_br.json",
+  "not_imported": [
+   {
+    "crop": "SC",
+    "source": "Nassif, D. S. P. et al. (2012). Pesquisa Agropecuária Brasileira, v.47, n.3, p.311-318 (DSSAT/Canegro).",
+    "cultivars": "CTC4, CTC7, CTC20, RB867515, RB835486",
+    "reason": "calibrados no DSSAT 4.5 (Canegro antigo); a escala de parâmetros mudou no 4.8 (ex.: MaxPARCE 9.9 no artigo x 5.7 no 4.8). RB867515 já existe na biblioteca do 4.8 como RB7515."
+   },
+   {
+    "crop": "BN",
+    "source": "Meireles, E. J. L. (2002). Calibração do CROPGRO para feijão Carioca.",
+    "cultivars": "Carioca",
+    "reason": "tabela ilegível no PDF e modelo CROPGRO v2.02; a biblioteca do 4.8 já tem IB0010 Carioca."
+   },
+   {
+    "crop": "CP",
+    "source": "Bastos, E. A.; Andrade Júnior, A. S.; Sales, R. A.; Bezerra, R. L. S.; Cuadra, S. V.; Silva, F. A. M. (2023). Calibração do modelo CROPGRO-cowpea para simulação do crescimento e rendimento de grãos de feijão-caupi com e sem déficit hídrico. Embrapa Meio-Norte, Boletim de Pesquisa e Desenvolvimento 149.",
+    "cultivars": "BRS Tumucumaque",
+    "reason": "o artigo publica a linha completa do cultivar, mas a calibração usou um arquivo de espécie próprio, não publicado. Com o arquivo de espécie oficial do DSSAT 4.8 a produtividade simulada fica cerca de 4 vezes menor que a do VERDE BRASIL (CP0006) nas mesmas condições (WTPSD 0,6 g e XFRT 0,6 não são compatíveis com a espécie oficial). Fica fora até haver o arquivo de espécie dos autores."
+   },
+   {
+    "crop": "CP",
+    "source": "Lima Filho, A. F.; Coelho Filho, M. A.; Heinemann, A. B. (2013). Calibração e avaliação do modelo CROPGRO para a cultura do feijão caupi no Recôncavo Baiano. RBEAA, v.17, n.12, p.1286-1293.",
+    "cultivars": "BRS Guariba",
+    "reason": "o artigo publica só parte dos coeficientes, sem os códigos do modelo; não dá para montar a linha do cultivar sem inventar valores."
+   },
+   {
+    "crop": "SG",
+    "source": "Grossi, M. C.; Andrade, C. L. T.; Justino, F. B. (2012-2013). CSM-CERES-Sorghum para BRS 310 (Embrapa Milho e Sorgo / UFV).",
+    "cultivars": "BRS 310",
+    "reason": "tabela de coeficientes não disponível nos textos abertos acessados (dissertação bloqueada para leitura automática; artigo em periódico pago)."
+   },
+   {
+    "crop": "MZ",
+    "source": "Santana, C. B. et al. Parametrização do modelo CSM-Ceres-Maize (Embrapa Milho e Sorgo).",
+    "cultivars": "BRS 1010, BRS 1030, BRS 1040, AL Bandeirantes",
+    "reason": "o texto aberto não publica os valores dos coeficientes."
+   }
+  ]
+ }
+}

@@ -54,6 +54,12 @@ jobs:
       - name: Teste de fumaça local (experimento de referência)
         run: docker run --rm "$IMAGE_REPO:$SHORT"
 
+      # Roda a suíte completa DENTRO da imagem: todas as culturas do catálogo precisam simular todas as safras
+      - name: Testes de todas as culturas dentro da imagem
+        run: |
+          docker run --rm --user root -v "$PWD/apps:/apps" -w /apps/dssat --entrypoint sh "$IMAGE_REPO:$SHORT" -c \
+            "pip install -q --break-system-packages pytest && python3 -m pytest -q -p no:cacheprovider"
+
       - id: auth
         uses: google-github-actions/auth@v2
         with:

@@ -174,7 +174,8 @@ def summarize(rows: list[dict]) -> list[dict]:
 
 
 def doy_diff(a: int | None, b: int | None) -> int | None:
-    if a is None or b is None:
+    # alguns modelos (ex.: inhame/taioba) gravam 0 em vez de -99 para datas ausentes
+    if not a or not b or len(str(a)) != 7 or len(str(b)) != 7:
         return None
     da = datetime.strptime(str(a), "%Y%j")
     db = datetime.strptime(str(b), "%Y%j")
@@ -247,16 +248,25 @@ def percentile(xs: list[float], q: float) -> float | None:
 
 
 def aggregate(meta: dict, seasons: list[dict], low_yield: float = 1000.0) -> list[dict]:
-    """Resumo por cenário ao longo dos anos: distribuição, não um número único."""
+    """Resumo por cenário ao longo dos anos: distribuição, não um número único.
+
+    'Quebra forte' = safra abaixo de metade da mediana do cenário irrigado (potencial hídrico do local).
+    """
+    var = "biomass_kg_ha" if (meta.get("crop") or {}).get("yield_variable") == "CWAM" else "yield_kg_ha"
+    irrigated = [x[var] or 0 for sc in meta["scenarios"] if sc["irrigated"]
+                 for x in seasons if x["treatment"] == sc["trno"]]
+    potential = percentile(irrigated, .5) or 0
     out = []
     for sc in meta["scenarios"]:
         v = [x for x in seasons if x["treatment"] == sc["trno"]]
-        y = [x["yield_kg_ha"] or 0 for x in v]
+        y = [x[var] or 0 for x in v]
         out.append({
             **sc,
             "n_seasons": len(v),
             "yield_kg_ha": {"p10": percentile(y, .1), "p50": percentile(y, .5), "p90": percentile(y, .9)},
             "share_seasons_below_1000_kg_ha": round(sum(1 for t in y if t < low_yield) / len(y), 3) if y else None,
+            "share_seasons_below_half_irrigated_p50":
+                round(sum(1 for t in y if t < 0.5 * potential) / len(y), 3) if y and potential else None,
             "maturity_dap_p50": percentile([x["maturity_dap"] for x in v], .5),
             "rain_mm_p50": percentile([x["rain_mm"] for x in v], .5),
             "irrigation_mm_p50": percentile([x["irrigation_mm"] for x in v], .5),
@@ -316,7 +326,7 @@ def run_scenarios() -> int:
                 n = gcs_upload(indir, f"gs://{bucket}/runs/scenarios/{stamp}/{site}/")
                 log(f"{site}: {len(seasons)}/{expected} safras, {n} arquivos gravados")
                 if ok:
-                    results.append({k: meta[k] for k in ("site", "title", "lat", "lon", "seasons",
+                    results.append({k: meta[k] for k in ("site", "title", "lat", "lon", "seasons", "crop",
                                                           "scenario_summary", "assumptions", "evidence")} |
                                    {"soil_texture_top": meta["soil"]["texture_top"],
                                     "soil_warnings": meta["soil"]["warnings"]})
@@ -420,7 +430,8 @@ def run_point() -> int:
             indir = work / "run"
             meta = fi.build_site("FSPT", req.get("label") or f"{lat:.4f},{lon:.4f}", work / "power.json",
                                  work / "soil.csv", indir, soil_analysis=req.get("soil_analysis"),
-                                 windows=windows, auto_window=True)
+                                 windows=windows, auto_window=True,
+                                 crop_code=req.get("crop") or "MZ", cultivar_id=req.get("cultivar"))
             proc = run_dssat(indir, meta["filex"])
             seasons = summarize(parse_summary(indir / "Summary.OUT")) if (indir / "Summary.OUT").exists() else []
             expected = meta["seasons"]["n_years"] * len(meta["scenarios"])
@@ -432,9 +443,9 @@ def run_point() -> int:
             "id": rid, "status": "done",
             "started_utc": started.isoformat(timespec="seconds"),
             "finished_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "request": {k: req.get(k) for k in ("lat", "lon", "label", "crop", "planting_windows")},
+            "request": {k: req.get(k) for k in ("lat", "lon", "label", "crop", "cultivar", "planting_windows")},
             "location": {"lat": lat, "lon": lon, "elev_m": meta["elev_m"], "power_cell": power_cell(lat, lon)},
-            "crop": "milho (CERES-Maize)",
+            "crop": meta["crop"],
             "seasons": meta["seasons"],
             "scenario_summary": aggregate(meta, seasons),
             "climate": {"source": "NASA POWER diário (AG)", "period": meta["weather_period"],

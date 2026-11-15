@@ -1,6 +1,6 @@
 """Field Shift API — única porta de entrada do app e dos outros devs (ninguém acessa o bucket).
 
-Públicas:      GET /health, /version, /scenarios, /scenarios/{site}
+Públicas:      GET /health, /version, /scenarios, /scenarios/{site}, /crops, /crops/{code}
 Simulações:    POST /simulations, GET /simulations/{id}
                Por enquanto ABERTAS (sem chave), com limite por IP e teto diário global.
                Para exigir chave: variável de ambiente REQUIRE_API_KEY=true no serviço.
@@ -23,7 +23,7 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 API_VERSION = "0.3.0"
 DATA_BUCKET = os.environ.get("DATA_BUCKET", "fieldshift-data-fieldshift-harvest71-2026")
@@ -34,7 +34,25 @@ RATE_PER_MINUTE = int(os.environ.get("RATE_PER_MINUTE", "6"))
 RATE_PER_DAY = int(os.environ.get("RATE_PER_DAY", "200"))
 GLOBAL_PER_DAY = int(os.environ.get("GLOBAL_PER_DAY", "500"))   # teto por instância (máx. 2 instâncias)
 RESULT_TIMEOUT_S = 15 * 60
-BRAZIL_BBOX = (-34.0, 5.5, -74.5, -28.5)  # lat_min, lat_max, lon_min, lon_max (cobertura do PronaSolos)
+BRAZIL_BBOX = (-34.0, 5.5, -74.5, -28.5)
+CROPS = json.loads((__import__("pathlib").Path(__file__).with_name("crops.json")).read_text())["crops"]
+
+
+def _norm(s: str) -> str:
+    import unicodedata
+    return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower().strip()
+
+
+def find_crop(value: str) -> Optional[dict]:
+    """Aceita o código (MZ) ou o nome em português, com ou sem acento (milho, feijão-caupi)."""
+    v = _norm(value or "")
+    for c in CROPS:
+        if v in (c["code"].lower(), _norm(c["name"])):
+            return c
+    aliases = {"maize": "MZ", "caupi": "CP", "feijao de corda": "CP", "macaxeira": "CS", "aipim": "CS",
+               "guandu": "PP", "cana": "SC", "inhame": "TR", "taioba": "TN"}
+    code = aliases.get(v)
+    return next((c for c in CROPS if c["code"] == code), None) if code else None  # lat_min, lat_max, lon_min, lon_max (cobertura do PronaSolos)
 SCENARIOS_OBJECT = "runs/scenarios/latest.json"
 CACHE_SECONDS = 300
 _cache: dict = {"t": 0.0, "doc": None}
@@ -194,7 +212,8 @@ class SimulationRequest(BaseModel):
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
     label: Optional[str] = Field(default=None, max_length=60)
-    crop: str = Field(default="milho")
+    crop: str = Field(default="milho", description="código (MZ) ou nome (milho, feijão-caupi...) — ver GET /crops")
+    cultivar: Optional[str] = Field(default=None, max_length=6, description="id do cultivar (GET /crops/{code}); vazio = padrão")
     planting_windows: Optional[list[str]] = Field(default=None, min_length=1, max_length=3,
                                                   description="datas MM-DD, ex.: ['11-15','12-15']")
     soil_analysis: Optional[SoilAnalysis] = None
@@ -202,9 +221,20 @@ class SimulationRequest(BaseModel):
     @field_validator("crop")
     @classmethod
     def _crop(cls, v):
-        if v.lower() not in ("milho", "maize"):
-            raise ValueError("por enquanto só 'milho' (outras culturas em avaliação)")
-        return "milho"
+        c = find_crop(v)
+        if not c:
+            raise ValueError(f"cultura desconhecida: {v} (veja GET /crops)")
+        return c["code"]
+
+    @model_validator(mode="after")
+    def _cultivar(self):
+        if self.cultivar:
+            c = find_crop(self.crop)
+            ids = {x["id"] for x in c["cultivars"]}
+            if self.cultivar.upper() not in ids:
+                raise ValueError(f"cultivar {self.cultivar} não existe para {c['name']} (veja GET /crops/{c['code']})")
+            self.cultivar = self.cultivar.upper()
+        return self
 
     @field_validator("planting_windows")
     @classmethod
@@ -276,3 +306,23 @@ def get_simulation(rid: str, key: str = Depends(require_key)) -> dict:
     if (datetime.now(timezone.utc) - created).total_seconds() > RESULT_TIMEOUT_S:
         return {"id": rid, "status": "failed", "error": "tempo esgotado sem resultado"}
     return {"id": rid, "status": (result or {}).get("status", "queued"), "created_utc": req["created_utc"]}
+
+
+# ----------------------------------------------------------------------------- culturas
+
+@app.get("/crops")
+def list_crops() -> dict:
+    """Culturas disponíveis no DSSAT do Field Shift (para o menu do app)."""
+    return {"crops": [{"code": c["code"], "name": c["name"], "product": c["product"],
+                       "default_cultivar": c["default_cultivar"], "n_cultivars": len(c["cultivars"]),
+                       "harvest": c["harvest"]["mode"], "cycle_days_max": c.get("cycle_days_max")} for c in CROPS],
+            "note": "Coeficientes da biblioteca DSSAT (não calibrados no local). Sem cultivares de origem chinesa."}
+
+
+@app.get("/crops/{code}")
+def get_crop(code: str) -> dict:
+    c = find_crop(code)
+    if not c:
+        raise HTTPException(status_code=404, detail="cultura não encontrada")
+    return {k: c[k] for k in ("code", "name", "product", "model", "default_cultivar", "cultivars",
+                              "cycle_days_max", "reference")} | {"harvest": c["harvest"]["mode"]}

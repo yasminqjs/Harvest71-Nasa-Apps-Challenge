@@ -19,7 +19,66 @@ código preparado para enviar a chave se ela existir. **Nunca** coloque a chave 
 - `GET /health` → `{"status":"ok"}`
 - `GET /version` → `{"service","version","commit"}`
 - `GET /scenarios` → cenários prontos de 5 locais do Nordeste (milho, 33 safras)
-- `GET /scenarios/{site}` → detalhe de um local (`JUAZ`, `IREC`, `CRUZ`, `CGPB`, `QUIX`), com suposições
+- `GET /scenarios/{site}` → detalhe de um local (`JUAZ`, `IREC`, `CRUZ`, `CGPB`, `QUIX`), com suposições (milho)
+- `GET /crops` → culturas disponíveis para o menu do app
+- `GET /crops/{code}` → uma cultura com **todos os cultivares** (aceita código ou nome: `MZ`, `milho`, `feijão-caupi`, `macaxeira`)
+
+## Culturas disponíveis
+| Código | Cultura | Produção medida | Cultivar padrão | Cultivares | Experimento de referência |
+|---|---|---|---|---|---|
+| `MZ` | Milho | grãos | AG901 (IB0171) | 168 | BRPI0202.MZX |
+| `BN` | Feijão | grãos | Porri (IB0001) | 32 | CCPA8629.BNX |
+| `CP` | Feijão-caupi | grãos | VERDE (CP0006) | 14 | CCPA9701.CPX |
+| `SB` | Soja | grãos | M 706 (BR7062) | 61 | LQBR1905.SBX |
+| `PN` | Amendoim | grãos (vagens) | FLORU (IB0002) | 39 | UFGA7601.PNX |
+| `CS` | Mandioca | raízes (matéria seca) | MCol- (UC0006) | 21 | CCPA7801.CSX |
+| `SG` | Sorgo | grãos | CSH-1 (IB0026) | 57 | ITHY8001.SGX |
+| `ML` | Milheto | grãos | BJ104 (IB0033) | 62 | ITHY8201.MLX |
+| `RI` | Arroz | grãos | IR 36 (IB0003) | 57 | IRPI8001.RIX |
+| `SU` | Girassol | grãos | Hysun (IB0018) | 13 | UAFD0801.SUX |
+| `CO` | Algodão | capulhos | GP 37 (TX0003) | 19 | TXTE8401.COX |
+| `PP` | Feijão-guandu | grãos | 76 W (PP0001) | 5 | UFGA8401.PPX |
+| `SC` | Cana-de-açúcar | biomassa (colmos + folhas, matéria seca) | RB867 (RB7515) | 8 | ESAL1401.SCX |
+| `PI` | Abacaxi | frutos (matéria seca) | SC-F1 (IB0066) | 6 | UHKN8901.PIX |
+| `TR` | Inhame (taro) | cormos (matéria seca) | LEHUA (IB0001) | 9 | IBHK8901.TRX |
+| `TN` | Taioba (tanier) | cormos (matéria seca) | BLANC (IB0006) | 5 | MTIS8901.TNX |
+| `TM` | Tomate | frutos (matéria seca) | Flori (TM0001) | 6 | UFGA0602.TMX |
+| `PR` | Pimentão | frutos (matéria seca) | CAPIS (PR0001) | 7 | UFBR9601.PRX |
+| `GB` | Feijão-vagem | vagens (matéria seca) | Bronc (GB0001) | 3 | UFGA0701.GBX |
+| `SW` | Milho-verde | espigas (matéria seca) | GSS09 (SW0001) | 5 | UFCI0201.SWX |
+| `CB` | Repolho | cabeças (matéria seca) | Tasti (CB0001) | 5 | IBMC9601.CBX |
+| `PT` | Batata | tubérculos (matéria seca) | ACHIR (AR0003) | 20 | CPSR1302.PTX |
+| `CH` | Grão-de-bico | grãos | ANNIG (IB0001) | 34 | ITBP8502.CHX |
+
+Todas rodam a simulação completa nos testes (33 safras × 4 cenários). Os coeficientes vêm da biblioteca
+do DSSAT e **não foram calibrados** no local. Produção em **kg/ha de matéria seca** da parte indicada
+(para cana, biomassa total). Compare cenários de uma mesma cultura; entre culturas, compare risco
+(`share_seasons_below_half_irrigated_p50`), não toneladas.
+
+### Cultivares brasileiros
+Em `GET /crops/{code}`, cada cultivar brasileiro tem `"origin": "Brasil"` e `"source"`. Os que vieram de
+artigos têm também `source_institution`, `source_location`, `calibration_model` e `inherited` (campos que o
+artigo não traz e foram copiados de um cultivar base). Use o `id` no campo `cultivar` de `POST /simulations`.
+
+| ID | Cultura | Cultivar | Fonte (calibração) | Local |
+|---|---|---|---|---|
+| `FSCS01` | Mandioca | BRS Novo Horizonte | Melo et al. (2025) | Cruz das Almas, BA |
+| `FSCS02` | Mandioca | Eucalipto | Melo et al. (2025) | Cruz das Almas, BA |
+| `FSBN01` | Feijão | Perola | Oliveira et al. (2012) | Viçosa, MG |
+| `FSBN02` | Feijão | Ouro Negro | Oliveira et al. (2012) | Viçosa, MG |
+| `FSBN03` | Feijão | Ouro Vermelho | Oliveira et al. (2012) | Viçosa, MG |
+| `FSSB01` | Soja | M-SOY 6101 | Rodrigues et al. (2012) | Viçosa, MG (safra 2009/10) |
+| `FSSB02` | Soja | MG/BR 46 Conquista | Rodrigues et al. (2012) | Viçosa, MG (safra 2009/10) |
+| `FSSB03` | Soja | CD 202 | Dallacort et al. (2006) | Palotina, PR |
+| `FSSB04` | Soja | CD 204 | Dallacort et al. (2006) | Palotina, PR |
+| `FSSB05` | Soja | CD 206 | Dallacort et al. (2006) | Palotina, PR |
+| `FSSB06` | Soja | CD 210 | Dallacort et al. (2006) | Palotina, PR |
+
+Também marcados como brasileiros (biblioteca oficial do DSSAT 4.8): feijão IB0010 Carioca e IB0037;
+caupi CP0006 VERDE BRASIL; milho IB0171 AG9010, IB0172, IB0173, EBSL06 BRS1030; soja 990248 BRS 399,
+BR7063, BR7062, BR7901, BR6565, BR0858; cana RB7515 (RB867515). Os calibrados fora do Nordeste
+(Viçosa, Palotina, Cruz das Almas para mandioca) servem para comparar cultivares, não substituem
+calibração local. Registro completo e o que ficou de fora: `apps/dssat/cultivars_br.json`.
 
 ## Simular uma localização
 
@@ -29,7 +88,8 @@ código preparado para enviar a chave se ela existir. **Nunca** coloque a chave 
   "lat": -9.41,
   "lon": -40.50,
   "label": "Roça do Zé",
-  "crop": "milho",
+  "crop": "feijão-caupi",
+  "cultivar": null,
   "planting_windows": ["11-15", "12-15"],
   "soil_analysis": {
     "lab": "Laboratório X",
@@ -47,7 +107,8 @@ código preparado para enviar a chave se ela existir. **Nunca** coloque a chave 
 |---|---|---|
 | `lat`, `lon` | sim | graus decimais; só Brasil (cobertura do PronaSolos) |
 | `label` | não | nome livre, até 60 caracteres (acentos ok) |
-| `crop` | não | por enquanto só `"milho"` |
+| `crop` | não | código ou nome de `GET /crops` (padrão `milho`) |
+| `cultivar` | não | id de `GET /crops/{code}`; vazio = cultivar padrão da cultura |
 | `planting_windows` | não | 1 a 3 datas `MM-DD` (sem `02-29`). **Se omitido**, o servidor escolhe pelo clima do ponto (dia 1 do mês que abre o quadrimestre mais chuvoso e dos 2 seguintes) — marcado como suposição |
 | `soil_analysis` | não | **modo padrão é a estimativa** (PronaSolos). Se enviada, cada camada (`top_cm`–`bottom_cm`) substitui a estimativa nas profundidades do modelo cujo ponto médio cai nela |
 
@@ -196,7 +257,9 @@ Exemplo de `done` (valores **ilustrativos**, gerados com clima sintético num te
 ### Como mostrar ao agricultor
 - `scenario_summary[]`: um item por cenário (3 janelas em sequeiro + a 2ª janela com irrigação automática).
   - `yield_kg_ha.p10/p50/p90`: produtividade simulada num ano ruim / típico / bom (33 safras históricas).
-  - `share_seasons_below_1000_kg_ha`: fração de anos com safra muito fraca (risco).
+  - `share_seasons_below_half_irrigated_p50`: fração de anos com quebra forte (abaixo de metade do potencial
+    irrigado no mesmo local) — **use este para comparar risco entre culturas**.
+  - `share_seasons_below_1000_kg_ha`: fração de anos abaixo de 1000 kg/ha (útil só para grãos).
   - `irrigation_mm_p50`: água que a irrigação automática usou (1 mm em 1 ha = 10 000 litros).
 - `soil.layers[].origem`: "medido (análise do agricultor)" ou "estimado (PronaSolos 90 m)".
 - `evidence`: **sempre** mostrar que é comparação exploratória, não previsão de safra.

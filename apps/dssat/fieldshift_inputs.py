@@ -384,12 +384,41 @@ def _n(v: float, dec: int) -> str:
     return f"{-99:>6}" if v is None or v == -99 else f"{v:6.{dec}f}"
 
 
+# ----------------------------------------------------------------------------- culturas
+
+CATALOG_PATH = Path(__file__).with_name("crops.json")
+_CATALOG: dict | None = None
+
+
+def catalog() -> dict:
+    """Catálogo gerado por tools/build_crop_catalog.py a partir dos experimentos de referência do DSSAT."""
+    global _CATALOG
+    if _CATALOG is None:
+        _CATALOG = json.loads(CATALOG_PATH.read_text())
+    return _CATALOG
+
+
+def get_crop(code: str) -> dict:
+    code = (code or "MZ").upper()
+    for c in catalog()["crops"]:
+        if c["code"] == code:
+            return c
+    raise ValueError(f"cultura não disponível: {code}")
+
+
+def pick_cultivar(crop: dict, cultivar_id: str | None) -> dict:
+    if not cultivar_id:
+        return crop["default_cultivar"]
+    for c in crop["cultivars"]:
+        if c["id"] == cultivar_id.upper():
+            return c
+    raise ValueError(f"cultivar {cultivar_id} não existe para {crop['name']}")
+
+
 # ----------------------------------------------------------------------------- cenários
 
 # SUPOSIÇÕES DE CENÁRIO (não são dados): devem ser revistas com o zoneamento agrícola (ZARC)
 # e com a prática local. Janelas = início da estação chuvosa típica de cada local.
-CULTIVAR = ("IB0171", "AG9010")  # híbrido brasileiro da biblioteca DSSAT (calibrado em Piracicaba-SP)
-PLANTING = {"PPOP": 5.0, "PPOE": 5.0, "PLRS": 80, "PLDP": 5}  # plantas/m², espaçamento cm, profundidade cm
 WINDOWS = {
     "JUAZ": [(11, 15), (12, 15), (1, 15)],
     "IREC": [(11, 15), (12, 15), (1, 15)],
@@ -413,8 +442,9 @@ def scenarios_for(site: str, first_year: int, windows: list[tuple[int, int]] | N
     out = []
     for i, (m, d) in enumerate(wins, start=1):
         out.append(Scenario(i, f"Janela {i} {d:02d}/{m:02d} sequeiro", date(first_year, m, d), False))
-    m, d = wins[1]
-    out.append(Scenario(len(wins) + 1, f"Janela 2 {d:02d}/{m:02d} irrigado auto", date(first_year, m, d), True))
+    m, d = wins[1] if len(wins) > 1 else wins[0]
+    k = 2 if len(wins) > 1 else 1
+    out.append(Scenario(len(wins) + 1, f"Janela {k} {d:02d}/{m:02d} irrigado auto", date(first_year, m, d), True))
     return out
 
 
@@ -424,21 +454,34 @@ def _yyddd(d: date) -> str:
 
 
 def write_filex(path: Path, site: str, title: str, soil: SoilProfile, scen: list[Scenario],
-                n_years: int, init_frac: float = 0.25) -> None:
-    """FileX de milho (CERES-Maize), análise sazonal: NYERS anos, reinício a cada ano."""
+                n_years: int, crop: dict | None = None, cultivar: dict | None = None,
+                init_frac: float = 0.25) -> None:
+    """FileX genérico (qualquer cultura do catálogo), análise sazonal: NYERS anos, reinício a cada ano.
+
+    Plantio, colheita e métodos vêm do experimento de referência da cultura; local, clima, solo,
+    datas e manejo hídrico são os do cenário.
+    """
+    crop = crop or get_crop("MZ")
+    cultivar = cultivar or crop["default_cultivar"]
+    code = crop["code"]
+    by_days = crop["harvest"]["mode"] == "days_after_planting"
+    harvs = "R" if by_days else "M"
+    methods = crop.get("methods_line") or " ME              M     M     E     R     S     R     R     1     G     R     2"
     L = []
     title = ascii_text(title)
-    L.append(f"*EXP.DETAILS: {path.stem[:8]}MZ FIELD SHIFT {title.upper()[:40]}")
+    L.append(f"*EXP.DETAILS: {path.stem[:8]}{code} FIELD SHIFT {title.upper()[:40]}")
     L += ["", "*GENERAL", "@PEOPLE", "Field Shift (NASA Space Apps 2026) - gerado automaticamente",
           "@SITE", title, "@NOTES",
-          " Clima: NASA POWER diario (AG). Solo: PronaSolos 90 m (estimativa). Cultivar, janelas,",
-          " densidade e condicao inicial sao SUPOSICOES de cenario. N nao simulado (sem limitacao).",
+          f" Cultura {ascii_text(crop['name'])}; plantio/colheita do experimento de referencia {crop['reference']['experiment']}.",
+          " Clima: NASA POWER diario (AG). Solo: PronaSolos 90 m (estimativa). Janelas e condicao",
+          " inicial sao SUPOSICOES de cenario. N nao simulado (sem limitacao).",
           " Uso: comparacao relativa entre cenarios; nao e previsao de produtividade.", ""]
     L.append("*TREATMENTS                        -------------FACTOR LEVELS------------")
     L.append("@N R O C TNAME.................... CU FL SA IC MP MI MF MR MC MT ME MH SM")
     for s in scen:
-        L.append(f"{s.trno:2d} 1 0 0 {s.name[:25]:<25} 1  1  0 {s.trno:2d} {s.trno:2d}  0  0  0  0  0  0  0 {s.trno:2d}")
-    L += ["", "*CULTIVARS", "@C CR INGENO CNAME", f" 1 MZ {CULTIVAR[0]} {CULTIVAR[1]}", ""]
+        mh = s.trno if by_days else 0
+        L.append(f"{s.trno:2d} 1 0 0 {s.name[:25]:<25} 1  1  0 {s.trno:2d} {s.trno:2d}  0  0  0  0  0  0 {mh:2d} {s.trno:2d}")
+    L += ["", "*CULTIVARS", "@C CR INGENO CNAME", f" 1 {code} {cultivar['id']} {ascii_text(cultivar['name'])}", ""]
     L += ["*FIELDS",
           "@L ID_FIELD WSTA....  FLSA  FLOB  FLDT  FLDD  FLDS  FLST SLTX  SLDP  ID_SOIL    FLNAME",
           f" 1 {site}0001 {site}       -99     0 DR000     0     0 00000 {soil.text:<5}{soil.layers[-1]['SLB']:5d}  {soil.soil_id} {site}",
@@ -447,7 +490,7 @@ def write_filex(path: Path, site: str, title: str, soil: SoilProfile, scen: list
     for s in scen:
         start = s.planting - timedelta(days=30)
         L.append("@C   PCR ICDAT  ICRT  ICND  ICRN  ICRE  ICWD ICRES ICREN ICREP ICRIP ICRID ICNAME")
-        L.append(f"{s.trno:2d}    MZ {_yyddd(start)}   -99   -99     1     1   -99     0   -99   -99   -99   -99 inicio")
+        L.append(f"{s.trno:2d}    {code} {_yyddd(start)}   -99   -99     1     1   -99     0   -99   -99   -99   -99 inicio")
         L.append("@C  ICBL  SH2O  SNH4  SNO3")
         for lay in soil.layers:
             sh2o = lay["SLLL"] + init_frac * (lay["SDUL"] - lay["SLLL"])
@@ -456,22 +499,28 @@ def write_filex(path: Path, site: str, title: str, soil: SoilProfile, scen: list
     L.append("*PLANTING DETAILS")
     L.append("@P PDATE EDATE  PPOP  PPOE  PLME  PLDS  PLRS  PLRD  PLDP  PLWT  PAGE  PENV  PLPH  SPRL                        PLNAME")
     for s in scen:
-        L.append(f"{s.trno:2d} {_yyddd(s.planting)}   -99 {PLANTING['PPOP']:5.1f} {PLANTING['PPOE']:5.1f}     S     R"
-                 f" {PLANTING['PLRS']:5d}     0 {PLANTING['PLDP']:5d}   -99   -99   -99   -99     0                        -99")
+        L.append(f"{s.trno:2d} {_yyddd(s.planting)}   -99{crop['planting_template']}")
     L.append("")
+    if by_days:
+        off = crop["harvest"]["days_after_planting"]
+        L.append("*HARVEST DETAILS")
+        L.append("@H HDATE  HSTG  HCOM HSIZE   HPC  HBPC HNAME")
+        for s in scen:
+            L.append(f"{s.trno:2d} {_yyddd(s.planting + timedelta(days=off))}{crop['harvest']['detail_template']}")
+        L.append("")
     L.append("*SIMULATION CONTROLS")
     for s in scen:
         start = s.planting - timedelta(days=30)
         irr = "A" if s.irrigated else "N"
         L += [
             "@N GENERAL     NYERS NREPS START SDATE RSEED SNAME.................... SMODEL",
-            f"{s.trno:2d} GE          {n_years:5d}     1     S {_yyddd(start)}  2150 {s.name[:25]:<25}",
+            f"{s.trno:2d} GE          {n_years:5d}     1     S {_yyddd(start)}  2150 {s.name[:25]:<25} {crop['model']}",
             "@N OPTIONS     WATER NITRO SYMBI PHOSP POTAS DISES  CHEM  TILL   CO2",
             f"{s.trno:2d} OP              Y     N     N     N     N     N     N     N     M",
             "@N METHODS     WTHER INCON LIGHT EVAPO INFIL PHOTO HYDRO NSWIT MESOM MESEV MESOL",
-            f"{s.trno:2d} ME              M     M     E     R     S     R     R     1     G     R     2",
+            f"{s.trno:2d}{methods}",
             "@N MANAGEMENT  PLANT IRRIG FERTI RESID HARVS",
-            f"{s.trno:2d} MA              R     {irr}     N     N     M",
+            f"{s.trno:2d} MA              R     {irr}     N     N     {harvs}",
             "@N OUTPUTS     FNAME OVVEW SUMRY FROPT GROUT CAOUT WAOUT NIOUT MIOUT DIOUT VBOSE CHOUT OPOUT FMOPT",
             f"{s.trno:2d} OU              N     N     Y     1     N     N     N     N     N     N     0     N     N     A",
             "",
@@ -491,32 +540,46 @@ def write_filex(path: Path, site: str, title: str, soil: SoilProfile, scen: list
     path.write_text("\n".join(L) + "\n")
 
 
-ASSUMPTIONS = {
-    "cultivar": f"{CULTIVAR[1]} ({CULTIVAR[0]}), híbrido calibrado em Piracicaba-SP; não calibrado no Nordeste",
-    "janelas_plantio": "início típico da estação chuvosa de cada local; validar com o ZARC (MAPA)",
-    "densidade_plantio": f"{PLANTING['PPOP']} plantas/m², espaçamento {PLANTING['PLRS']} cm, profundidade {PLANTING['PLDP']} cm",
-    "condicao_inicial": "água do solo a 25% da água disponível 30 dias antes do plantio; N mineral baixo",
-    "nitrogenio": "não simulado (NITRO=N): resultado é limitado por clima, água e solo, não por adubação",
-    "irrigacao_auto": "irrigação automática a 50% da água disponível em 30 cm, eficiência 0,75 (teto hídrico)",
-    "superficie_solo": "albedo, drenagem e curva de escoamento padrão (sem dado local)",
-    "fontes_excluidas": "nenhuma fonte, autor ou dado de origem chinesa (política da equipe)",
-}
+def assumptions_for(crop: dict, cultivar: dict) -> dict:
+    ref = crop["reference"]["experiment"]
+    return {
+        "cultura": f"{crop['name']} (modelo {crop['model']}); produção = {crop['product']}",
+        "cultivar": f"{cultivar['name']} ({cultivar['id']}) da biblioteca DSSAT; não calibrado no local",
+        "plantio_e_colheita": f"densidade, espaçamento, método e colheita copiados do experimento de referência {ref}",
+        "janelas_plantio": "informadas, por local, ou automáticas pelo clima; validar com o ZARC (MAPA)",
+        "condicao_inicial": "água do solo a 25% da água disponível 30 dias antes do plantio; N mineral baixo",
+        "nitrogenio": "não simulado (NITRO=N): resultado é limitado por clima, água e solo, não por adubação",
+        "irrigacao_auto": "irrigação automática a 50% da água disponível em 30 cm, eficiência 0,75 (teto hídrico)",
+        "superficie_solo": "albedo, drenagem e curva de escoamento padrão (sem dado local)",
+        "fontes_excluidas": "nenhuma fonte, autor, cultivar ou dado de origem chinesa (política da equipe)",
+    }
+
+
+ASSUMPTIONS = None  # mantido por compatibilidade; use assumptions_for()
 
 
 # ----------------------------------------------------------------------------- orquestração
 
+def last_planting_year(windows: list[tuple[int, int]], last_day: date, cycle_days: int) -> int:
+    """Maior ano em que TODAS as janelas terminam o ciclo (+30 d de margem) dentro da série de clima."""
+    years = []
+    for m, d in windows:
+        y = last_day.year
+        while date(y, m, d) + timedelta(days=cycle_days + 30) > last_day:
+            y -= 1
+        years.append(y)
+    return min(years)
+
+
 def build_site(site: str, title: str, power_json: Path, soil_csv: Path, outdir: Path,
                soil_analysis: dict | None = None, windows: list[tuple[int, int]] | None = None,
-               auto_window: bool = False) -> dict:
-    """Gera .WTH, .SOL e .MZX de um local. Devolve metadados de proveniência."""
+               auto_window: bool = False, crop_code: str = "MZ", cultivar_id: str | None = None) -> dict:
+    """Gera .WTH, .SOL e o FileX de um local para a cultura escolhida. Devolve metadados."""
+    crop = get_crop(crop_code)
+    cultivar = pick_cultivar(crop, cultivar_id)
     outdir.mkdir(parents=True, exist_ok=True)
     w = read_power_json(power_json)
     wth = write_wth_files(w, site, outdir, f"{title} - NASA POWER diario (AG)")
-    first = min(w.days).year + 1                    # margem para o início 30 dias antes do plantio
-    last_planting_year = max(w.days).year - 1       # garante que a última safra termine dentro dos dados
-    n_years = last_planting_year - first + 1
-    if n_years < 1:
-        raise ValueError("série de clima curta demais para uma safra completa")
     ps, origin, soil_notes = merge_soil_analysis(read_pronasolos_csv(soil_csv), soil_analysis)
     soil = build_soil(ps, soil_id=f"FS{site}0001", origin=origin)
     soil.warnings.extend(soil_notes)
@@ -524,13 +587,24 @@ def build_site(site: str, title: str, power_json: Path, soil_csv: Path, outdir: 
     if not windows and auto_window:
         windows = auto_windows(w)
         window_source = "automática: início do quadrimestre mais chuvoso (NASA POWER) — suposição"
+    wins = windows or WINDOWS.get(site, DEFAULT_WINDOWS)
+    first = min(w.days).year + 1                    # margem para o início 30 dias antes do plantio
+    cycle = int(crop.get("cycle_days_max") or 180)
+    if crop["harvest"]["mode"] == "days_after_planting":
+        cycle = max(cycle, int(crop["harvest"]["days_after_planting"]))
+    n_years = last_planting_year(wins, max(w.days), cycle) - first + 1
+    if n_years < 1:
+        raise ValueError("série de clima curta demais para uma safra completa")
     write_sol(soil, outdir / "FS.SOL", title, w.lat, w.lon)
-    scen = scenarios_for(site, first, windows)
-    filex = outdir / f"{site}0001.MZX"
-    write_filex(filex, site, title, soil, scen, n_years)
+    scen = scenarios_for(site, first, wins)
+    filex = outdir / f"{site}0001.{crop['code']}X"
+    write_filex(filex, site, title, soil, scen, n_years, crop=crop, cultivar=cultivar)
     tav, amp = tav_amp(w)
     return {
         "site": site, "title": title, "lat": w.lat, "lon": w.lon, "elev_m": w.elev,
+        "crop": {"code": crop["code"], "name": crop["name"], "product": crop["product"],
+                 "yield_variable": crop["yield_variable"], "model": crop["model"], "cultivar": cultivar,
+                 "reference_experiment": crop["reference"]["experiment"]},
         "filex": filex.name, "weather_files": len(wth),
         "weather_period": [min(w.days).isoformat(), max(w.days).isoformat()],
         "weather_gap_filled_days": w.filled, "tav_c": round(tav, 2), "amp_c": round(amp, 2),
@@ -546,7 +620,8 @@ def build_site(site: str, title: str, power_json: Path, soil_csv: Path, outdir: 
         "provenance": {
             "weather": "DADO: NASA POWER (SRAD, TMAX, TMIN, RAIN, DEWP, WIND, RHUM); WIND m/s×86,4 = km/dia",
             "soil": soil.provenance,
+            "crop": f"DSSAT-CSM: genética {crop['genotype_file']}, plantio do experimento {crop['reference']['experiment']}",
         },
-        "assumptions": ASSUMPTIONS,
-        "soil_analysis_record": soil_analysis,   # P, K etc. ficam registrados (não entram no milho sem N/P)
+        "assumptions": assumptions_for(crop, cultivar),
+        "soil_analysis_record": soil_analysis,   # P, K etc. ficam registrados (não entram sem N/P simulados)
     }
