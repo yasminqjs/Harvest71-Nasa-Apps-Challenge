@@ -6,12 +6,18 @@ Modos:
                        teste de fumaça do contêiner e do acesso ao bucket.
   run                  Baixa as entradas de gs://<INPUT_PREFIX>, roda o arquivo FILEX
                        e grava saídas, log e metadados em gs://<OUTPUT_PREFIX>.
+  scenarios            Para cada local: lê NASA POWER e PronaSolos de gs://<DATA_BUCKET>/raw/,
+                       gera .WTH/.SOL/.MZX, roda as safras históricas e grava um resumo
+                       comparável por cenário em gs://<DATA_BUCKET>/runs/scenarios/.
 
 Variáveis de ambiente:
   MODE            reference | run                     (padrão: reference)
   OUTPUT_PREFIX   gs://bucket/caminho/  (opcional em reference; obrigatório em run)
   INPUT_PREFIX    gs://bucket/caminho/  (run)  .WTH, .SOL, FileX, .CUL etc.
   FILEX           nome do arquivo de experimento, ex.: FSHT0001.MZX (run)
+  DATA_BUCKET     bucket com raw/ (scenarios)
+  SITES           ids separados por vírgula (scenarios; padrão: todos com clima e solo)
+  POWER_PERIOD    pasta do período do POWER (padrão 19910101_20251231)
   DSSAT_HOME      instalação do DSSAT (padrão /opt/dssat)
   RUN_TIMEOUT     segundos (padrão 600)
 
@@ -205,9 +211,133 @@ def metadata(workdir: Path, mode: str, filex: str, inputs: list[str], rc: int, s
         },
     }
 
+# ---------- Cenários a partir dos dados coletados ----------
+def gcs_list(bucket_name: str, prefix: str) -> list[str]:
+    from google.cloud import storage
+    return [b.name for b in storage.Client().list_blobs(bucket_name, prefix=prefix)]
+
+
+def gcs_get(bucket_name: str, name: str, dest: Path) -> None:
+    from google.cloud import storage
+    storage.Client().bucket(bucket_name).blob(name).download_to_filename(dest)
+
+
+def gcs_put_json(bucket_name: str, name: str, obj) -> None:
+    from google.cloud import storage
+    storage.Client().bucket(bucket_name).blob(name).upload_from_string(
+        json.dumps(obj, indent=2, ensure_ascii=False), content_type="application/json")
+
+
+def percentile(xs: list[float], q: float) -> float | None:
+    xs = sorted(x for x in xs if x is not None)
+    if not xs:
+        return None
+    k = (len(xs) - 1) * q
+    lo, hi = int(k), min(int(k) + 1, len(xs) - 1)
+    return round(xs[lo] + (xs[hi] - xs[lo]) * (k - lo), 1)
+
+
+def aggregate(meta: dict, seasons: list[dict], low_yield: float = 1000.0) -> list[dict]:
+    """Resumo por cenário ao longo dos anos: distribuição, não um número único."""
+    out = []
+    for sc in meta["scenarios"]:
+        v = [x for x in seasons if x["treatment"] == sc["trno"]]
+        y = [x["yield_kg_ha"] or 0 for x in v]
+        out.append({
+            **sc,
+            "n_seasons": len(v),
+            "yield_kg_ha": {"p10": percentile(y, .1), "p50": percentile(y, .5), "p90": percentile(y, .9)},
+            "share_seasons_below_1000_kg_ha": round(sum(1 for t in y if t < low_yield) / len(y), 3) if y else None,
+            "maturity_dap_p50": percentile([x["maturity_dap"] for x in v], .5),
+            "rain_mm_p50": percentile([x["rain_mm"] for x in v], .5),
+            "irrigation_mm_p50": percentile([x["irrigation_mm"] for x in v], .5),
+            "et_mm_p50": percentile([x["et_mm"] for x in v], .5),
+        })
+    return out
+
+
+def run_scenarios() -> int:
+    import fieldshift_inputs as fi
+
+    bucket = os.environ["DATA_BUCKET"]
+    period = os.environ.get("POWER_PERIOD", "19910101_20251231")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    names = gcs_list(bucket, "raw/")
+    have_w = {n.split("/")[-1][:-5] for n in names if n.startswith(f"raw/nasa-power/{period}/") and n.endswith(".json")}
+    have_s = {n.split("/")[-1][:-4] for n in names if n.startswith("raw/pronasolos/v1/") and n.endswith(".csv")}
+    sites = [x for x in os.environ.get("SITES", "").split(",") if x] or sorted(have_w & have_s)
+    titles = {}
+    for n in names:  # títulos a partir do manifesto mais recente
+        if n.startswith("raw/manifests/"):
+            titles["_m"] = n
+    if "_m" in titles:
+        with tempfile.TemporaryDirectory() as t:
+            gcs_get(bucket, titles["_m"], Path(t) / "m.json")
+            for p in json.loads((Path(t) / "m.json").read_text()).get("points", []):
+                titles[p["id"]] = p["name"]
+    log(f"locais: {sites or 'nenhum'} (clima: {sorted(have_w)}, solo: {sorted(have_s)})")
+    if not sites:
+        log("ERRO: nenhum local com clima e solo no bucket")
+        return 1
+
+    results, failures = [], []
+    for site in sites:
+        with tempfile.TemporaryDirectory(prefix=f"fs-{site}-") as tmp:
+            work = Path(tmp)
+            try:
+                gcs_get(bucket, f"raw/nasa-power/{period}/{site}.json", work / "power.json")
+                gcs_get(bucket, f"raw/pronasolos/v1/{site}.csv", work / "soil.csv")
+                indir = work / "run"
+                meta = fi.build_site(site, titles.get(site, site), work / "power.json", work / "soil.csv", indir)
+                proc = run_dssat(indir, meta["filex"])
+                seasons = summarize(parse_summary(indir / "Summary.OUT")) if (indir / "Summary.OUT").exists() else []
+                expected = meta["seasons"]["n_years"] * len(meta["scenarios"])
+                ok = proc.returncode == 0 and len(seasons) == expected and any((x["yield_kg_ha"] or 0) > 0 for x in seasons)
+                meta.update({
+                    "dssat_return_code": proc.returncode, "seasons_expected": expected, "seasons_simulated": len(seasons),
+                    "scenario_summary": aggregate(meta, seasons) if seasons else [],
+                    "evidence": {"quality_level": "exploratorio", "local_calibration_available": False,
+                                 "is_actual_forecast": False,
+                                 "note": "Comparação relativa entre janelas e manejo hídrico; não é previsão de produtividade."},
+                })
+                (indir / "site_metadata.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
+                (indir / "seasons.json").write_text(json.dumps(seasons, ensure_ascii=False))
+                for junk in ("power.json",):
+                    (work / junk).unlink(missing_ok=True)
+                n = gcs_upload(indir, f"gs://{bucket}/runs/scenarios/{stamp}/{site}/")
+                log(f"{site}: {len(seasons)}/{expected} safras, {n} arquivos gravados")
+                if ok:
+                    results.append({k: meta[k] for k in ("site", "title", "lat", "lon", "seasons",
+                                                          "scenario_summary", "assumptions", "evidence")} |
+                                   {"soil_texture_top": meta["soil"]["texture_top"],
+                                    "soil_warnings": meta["soil"]["warnings"]})
+                else:
+                    failures.append({"site": site, "reason": "simulação incompleta", "seasons": len(seasons)})
+            except Exception as e:  # um local com problema não derruba os outros
+                failures.append({"site": site, "reason": f"{type(e).__name__}: {e}"})
+                log(f"{site}: ERRO {e}")
+
+    build = json.loads((DSSAT_HOME / "BUILD_INFO.json").read_text()) if (DSSAT_HOME / "BUILD_INFO.json").exists() else {}
+    report = {"generated_utc": stamp, "image_git_commit": os.environ.get("GIT_COMMIT", "unknown"),
+              "dssat_build": build, "crop": "milho (CERES-Maize)",
+              "data_sources": {"clima": "NASA POWER (NASA Langley), diário 1991–2025",
+                               "solo": "PronaSolos 90 m (Embrapa/SGB) + Saxton & Rawls 2006 (USDA-ARS)",
+                               "modelo": "DSSAT-CSM 4.8.6, só arquivos de milho; cultivar AG9010 (Brasil)",
+                               "excluidas": "nenhuma fonte, autor ou dado de origem chinesa (política da equipe)"},
+              "sites": results, "failures": failures}
+    gcs_put_json(bucket, f"runs/scenarios/{stamp}/summary.json", report)
+    if results:
+        gcs_put_json(bucket, "runs/scenarios/latest.json", report)
+    print(json.dumps({"sites_ok": [r["site"] for r in results], "failures": failures}, ensure_ascii=False))
+    log(f"resumo: gs://{bucket}/runs/scenarios/{stamp}/summary.json")
+    return 0 if results and not failures else 1
+
 
 def main() -> int:
     mode = os.environ.get("MODE", "reference")
+    if mode == "scenarios":
+        return run_scenarios()
+
     output_prefix = os.environ.get("OUTPUT_PREFIX", "").strip()
     with tempfile.TemporaryDirectory(prefix="dssat-") as tmp:
         work = Path(tmp)

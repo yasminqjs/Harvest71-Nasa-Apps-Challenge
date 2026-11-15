@@ -1,0 +1,53 @@
+name: scenarios
+
+# Roda os cenários DSSAT (milho, safras históricas) com os dados coletados no bucket.
+# Dispara sozinho quando a coleta (ingest-data) ou a imagem do DSSAT (dssat) terminam com
+# sucesso na main, ou manualmente. Executa o Cloud Run Job em modo "scenarios";
+# o resumo fica em gs://…/runs/scenarios/latest.json e a API o expõe em /scenarios.
+on:
+  workflow_run:
+    workflows: [ingest-data, dssat]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: scenarios
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: fieldshift-harvest71-2026
+  REGION: us-central1
+  JOB: fieldshift-dssat
+  WIF_PROVIDER: projects/475766990512/locations/global/workloadIdentityPools/github/providers/github-oidc
+  DEPLOY_SA: fieldshift-deploy-sa@fieldshift-harvest71-2026.iam.gserviceaccount.com
+  BUCKET: fieldshift-data-fieldshift-harvest71-2026
+
+jobs:
+  run:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Executar cenários no Cloud Run Job
+        run: |
+          gcloud run jobs execute "$JOB" --project="$PROJECT_ID" --region="$REGION" --wait \
+            --update-env-vars="MODE=scenarios,DATA_BUCKET=$BUCKET"
+
+      - name: Conferir pela API
+        run: |
+          sleep 5
+          curl -fsS https://fieldshift-api-avshjoa6eq-uc.a.run.app/scenarios \
+            | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['generated_utc'], [s['site'] for s in d['sites']])" \
+            || echo "API ainda sem o endpoint /scenarios ou sem dados (o deploy da API pode estar em andamento)"

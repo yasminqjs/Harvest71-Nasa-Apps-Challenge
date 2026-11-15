@@ -1,6 +1,6 @@
 # Field Shift — status técnico
 
-Atualizado: 2026-11-15
+Atualizado: 2026-11-15 (cenários)
 Agente / responsável: Claude (sessões com a Yasmin)
 
 ## No ar
@@ -27,11 +27,13 @@ GitHub Actions entra por Workload Identity Federation (pool `github`, provedor `
 |---|---|---|
 | `test` | todo push/PR | pytest da API |
 | `deploy-api` | `main` + `apps/api/**` | testes → imagem → Cloud Run → confere `/version` |
-| `ingest-data` | `main` + `data/**` | DSSAT, NASA POWER e SoilGrids → `gs://…/raw/` (incremental) |
+| `ingest-data` | `main` + `data/**` | NASA POWER e PronaSolos → `gs://…/raw/` (incremental) |
 | `dssat` | `main` + `apps/dssat/**` | testes → compila DSSAT na imagem → teste de referência → Job `fieldshift-dssat` → executa na nuvem |
+| `scenarios` | após `ingest-data` ou `dssat` com sucesso, ou manual | Job em modo `scenarios` → `gs://…/runs/scenarios/latest.json` → API `/scenarios` |
 
 ## DSSAT
-- DSSAT-CSM **4.8.6.004**, `dssat-csm-os` commit `25c93b9`, `dssat-csm-data` commit `99c95b3` (BSD-3-Clause).
+- DSSAT-CSM **4.8.6.004**, `dssat-csm-os` commit `25c93b9` (BSD-3-Clause). Da `dssat-csm-data` (`99c95b3`) só os 5 arquivos do
+  experimento BRPI0202; na imagem só a genética do milho e `BR.SOL` (build verifica ausência de dados chineses).
 - Compilado com gfortran 13 (Ubuntu 24.04). Executável `dscsm048`, ~0,4 s por experimento de 8 tratamentos.
 - **Experimento de referência** BRPI0202 (milho, Piracicaba-SP, 2002, sequeiro e irrigado, 4 híbridos):
   - reexecução idêntica (Summary/PlantGro/SoilWat sem diferença);
@@ -43,14 +45,25 @@ GitHub Actions entra por Workload Identity Federation (pool `github`, provedor `
 
 ## Dados coletados (`gs://fieldshift-data-fieldshift-harvest71-2026/raw/`)
 - Pontos: Juazeiro-BA, Irecê-BA, Cruz das Almas-BA, Campina Grande-PB, Quixadá-CE (`data/points.csv`).
-- NASA POWER diário 1991–2025 (JSON + ICASA); SoilGrids v2 (11 propriedades × 6 profundidades × média/Q05/Q95);
-  DSSAT por commit; manifestos com sha256 em `raw/manifests/`.
+- NASA POWER diário 1991–2025 (JSON + ICASA); PronaSolos 90 m (8 atributos × 6 profundidades); manifestos com sha256.
+- Fontes e exclusões: `docs/decisions/0002-fontes-de-dados.md` (nenhum dado de origem chinesa; SoilGrids descartado).
+
+## Cenários com os dados essenciais (`apps/dssat/fieldshift_inputs.py`)
+- **Clima** NASA POWER → `.WTH` anual (SRAD, TMAX, TMIN, RAIN, DEWP, WIND km/dia, RHUM); TAV/AMP de longo prazo.
+  Validado por ida e volta: clima oficial de Piracicaba passado pelo conversor reproduz o experimento de referência exatamente.
+- **Solo** PronaSolos → `.SOL` em 6 camadas até 200 cm. SLLL, SDUL, SSAT, densidade e SSKS por Saxton & Rawls 2006
+  a partir de areia, argila e matéria orgânica. Sem N total e cascalho (-99). Superfície (albedo, drenagem, CN) = suposição.
+- **Cenários (suposições explícitas):** milho AG9010 (IB0171), 3 janelas de plantio por local + irrigação automática na
+  janela 2, 5 pl/m², N não simulado, 33 safras (1992–2024). Resultado por cenário: p10/p50/p90 de produtividade,
+  fração de safras < 1000 kg/ha, ciclo, chuva, irrigação e ET. Nível de evidência: **exploratório**.
+- API: `GET /scenarios` e `GET /scenarios/{site}` (somente leitura, cache de 5 min). Nenhum endpoint dispara job.
 
 ## Pendências e riscos
-- Gerar `.WTH` a partir do POWER e `.SOL` a partir do SoilGrids (conversão de unidades + parâmetros hidráulicos).
+- Validar janelas de plantio com o ZARC (MAPA) e trocar a cultivar por uma adequada ao Nordeste quando houver.
 - API ainda **não** dispara o Job; antes disso: autenticação e cota (o serviço é público).
 - Papel para a API disparar o Job deve ficar **no recurso do Job**, não no projeto.
 - P e K disponíveis não vêm de nenhuma fonte coletada.
 - Auditoria de procedência do DSSAT (política editorial da equipe) pendente.
-- Coleta regional (grade do Nordeste via Zarr do POWER, recorte SoilGrids, NASADEM, INMET) não iniciada.
+- Coleta regional (grade do Nordeste via Zarr do POWER, PronaSolos em grade, NASADEM, INMET) não iniciada.
+- Objetos antigos `raw/dssat/` e `raw/soilgrids/` no bucket vieram de fontes descartadas: apagar.
 - Repositório é público por decisão da equipe (protótipo).

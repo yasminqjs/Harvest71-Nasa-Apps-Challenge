@@ -45,7 +45,7 @@ Nada disso dispara deploy da API.
 
 ## 2. Conta Earthdata (opcional: só para GPM IMERG)
 
-**Para quê:** chuva diária GPM IMERG, mais detalhada (~10 km) que a do NASA POWER. A NASA exige login para esse produto. O resto (POWER, SoilGrids, relevo NASADEM pelo Planetary Computer, DSSAT, INMET) **não precisa de conta**.
+**Para quê:** chuva diária GPM IMERG, mais detalhada (~10 km) que a do NASA POWER. A NASA exige login para esse produto. O resto (NASA POWER, PronaSolos, relevo NASADEM, INMET) **não precisa de conta**.
 
 **Pode pular** se o tempo estiver curto: o NASA POWER já tem chuva diária suficiente para o DSSAT.
 
@@ -82,13 +82,13 @@ Se algum servidor recusar o download vindo do Google Cloud, eu aviso qual. Aí b
 
 | Fonte | Conteúdo | Recorte |
 |---|---|---|
-| DSSAT-CSM + dssat-csm-data | Código, cultivares (.CUL/.ECO/.SPE), experimentos de referência, solos genéricos | Commits fixos |
 | NASA POWER (pontos) | Clima diário 1991–2025, JSON e ICASA | 5 pontos de `data/points.csv` |
-| NASA POWER (Zarr na AWS) | Clima diário 1981–2025 em grade | Caixa do Nordeste |
-| SoilGrids (ISRIC, CC BY 4.0) | Textura, carbono, densidade, pH, CTC, N, água retida; 6 profundidades | Pontos + recorte do Nordeste |
+| PronaSolos 90 m (Embrapa/SGB) | Areia, silte, argila, carbono orgânico, CTC, pH, salinidade; 6 profundidades | 5 pontos |
 | NASADEM (Planetary Computer) | Relevo 30 m (declividade) | Nordeste |
 | INMET | Estações automáticas, para validação | Nordeste |
 
 Tudo com `manifest.json` (origem, data de acesso, sha256).
 
-**Limites a lembrar:** nenhuma dessas fontes dá P e K disponíveis por propriedade; POWER e SoilGrids são estimativas em grade, não medição local.
+**Limites a lembrar:** nenhuma dessas fontes dá P e K disponíveis por propriedade; POWER e PronaSolos são estimativas em grade, não medição local.
+
+**Política de fontes:** nenhuma fonte, autor ou dado de origem chinesa (ver `docs/decisions/0002-fontes-de-dados.md`). O SoilGrids foi descartado por isso.

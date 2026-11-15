@@ -1,6 +1,6 @@
 name: ingest-data
 
-# Baixa os dados essenciais (DSSAT, NASA POWER, SoilGrids) e grava no bucket privado.
+# Baixa os dados essenciais (NASA POWER e PronaSolos) e grava no bucket privado.
 # Roda no runner do GitHub, que tem internet aberta; autentica por Workload Identity
 # Federation (sem chave). Dispara quando a main muda em data/ ou manualmente.
 on:

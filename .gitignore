@@ -18,6 +18,7 @@ venv/
 
 # Saídas pesadas / dados reais
 *.OUT
+!apps/dssat/tests/fixtures/*.OUT
 runs/
 data/private/
 *.zip
