@@ -455,7 +455,7 @@ def _yyddd(d: date) -> str:
 
 def write_filex(path: Path, site: str, title: str, soil: SoilProfile, scen: list[Scenario],
                 n_years: int, crop: dict | None = None, cultivar: dict | None = None,
-                init_frac: float = 0.25) -> None:
+                init_frac: float = 0.25, *, daily_water_output: bool = False) -> None:
     """FileX genérico (qualquer cultura do catálogo), análise sazonal: NYERS anos, reinício a cada ano.
 
     Plantio, colheita e métodos vêm do experimento de referência da cultura; local, clima, solo,
@@ -522,7 +522,7 @@ def write_filex(path: Path, site: str, title: str, soil: SoilProfile, scen: list
             "@N MANAGEMENT  PLANT IRRIG FERTI RESID HARVS",
             f"{s.trno:2d} MA              R     {irr}     N     N     {harvs}",
             "@N OUTPUTS     FNAME OVVEW SUMRY FROPT GROUT CAOUT WAOUT NIOUT MIOUT DIOUT VBOSE CHOUT OPOUT FMOPT",
-            f"{s.trno:2d} OU              N     N     Y     1     N     N     N     N     N     N     0     N     N     A",
+            f"{s.trno:2d} OU              N     N     Y     1     N     N     {'Y' if daily_water_output else 'N'}     N     N     N     0     N     N     A",
             "",
             "@  AUTOMATIC MANAGEMENT",
             "@N PLANTING    PFRST PLAST PH2OL PH2OU PH2OD PSTMX PSTMN",
