@@ -81,7 +81,7 @@ jobs:
             --image="$IMAGE_REPO:$SHORT" \
             --service-account="$RUNTIME_SA" \
             --tasks=1 --parallelism=1 --max-retries=0 \
-            --task-timeout=900s --cpu=1 --memory=1Gi \
+            --task-timeout=3600s --cpu=1 --memory=1Gi \
             --set-env-vars="MODE=reference,OUTPUT_PREFIX=gs://$BUCKET/runs/reference/$SHORT/"
 
       - name: Executar o Job na nuvem (referência + gravação no bucket)

@@ -83,6 +83,8 @@ da `main` deste repositório. Forks e outras branches não conseguem publicar.
 | `apps/dssat/runner.py` | modos do Job: `reference`, `scenarios`, `point`, `run` |
 | `apps/dssat/fieldshift_inputs.py` | NASA POWER → `.WTH`; PronaSolos (+ análise) → `.SOL`; cenários → FileX da cultura |
 | `apps/dssat/crops.json` (= `apps/api/app/crops.json`) | catálogo de culturas gerado de experimentos de referência |
+| `apps/dssat/nex_gddp.py` | clima futuro da NASA (NEX-GDDP-CMIP6): catálogo, download, delta mensal aplicado ao NASA POWER |
+| `data/nex_gddp.json`, `data/scripts/nex_gddp_prefetch.py` | pré-processamento regional (Nordeste) das projeções; workflow `nex-gddp` |
 | `apps/dssat/cultivars_br.json` | cultivares brasileiros de artigos (valores + fonte); `tools/br_cultivars.py` os grava no `.CUL`/`.ECO` no build e marca o catálogo |
 | `data/points.csv`, `data/scripts/` | pontos fixos e coleta |
 | `infra/gcp/scripts/` | configuração única do Google Cloud (só a dona roda) |
