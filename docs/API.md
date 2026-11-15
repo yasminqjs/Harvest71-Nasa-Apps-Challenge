@@ -2,16 +2,18 @@
 
 Base: `https://fieldshift-api-avshjoa6eq-uc.a.run.app` · JSON UTF-8 · sem conta Google necessária.
 
-## Autenticação
-Rotas de simulação exigem o cabeçalho `X-API-Key: <chave>`. A chave é entregue pela dona do projeto por
-canal privado. **Nunca** a coloque no repositório (ele é público), em prints ou logs.
+## Acesso
+**Por enquanto o acesso é livre:** não precisa de chave. Cada IP pode fazer 6 simulações por minuto e
+200 por dia, e o servidor tem um teto diário global. Quando a equipe ligar a exigência de chave
+(`REQUIRE_API_KEY=true`), o app passa a enviar o cabeçalho `X-API-Key: <chave>` — já pode deixar o
+código preparado para enviar a chave se ela existir. **Nunca** coloque a chave no repositório (ele é público).
 
 | Código | Significado |
 |---|---|
-| 401 | chave ausente ou errada |
+| 401 | chave ausente ou errada (só quando a exigência de chave estiver ligada) |
 | 422 | dados inválidos (mensagem em `detail`) |
-| 429 | limite atingido (6/min, 200/dia por chave) |
-| 503 | simulações ainda não habilitadas no servidor |
+| 429 | limite atingido (por IP/chave ou teto diário do servidor) |
+| 503 | exigência de chave ligada sem chaves configuradas |
 
 ## Rotas públicas
 - `GET /health` → `{"status":"ok"}`
@@ -21,7 +23,7 @@ canal privado. **Nunca** a coloque no repositório (ele é público), em prints 
 
 ## Simular uma localização
 
-### `POST /simulations` (com chave) → `202`
+### `POST /simulations` → `202`
 ```json
 {
   "lat": -9.41,
@@ -59,7 +61,7 @@ Resposta:
  "poll": "/simulations/3f9c2a7b1d4e8f60", "note": "a simulação leva cerca de 15 a 60 s; ..."}
 ```
 
-### `GET /simulations/{id}` (com chave)
+### `GET /simulations/{id}`
 Consulte a cada ~5 s. `status`: `queued` → `running` → `done` | `failed` (com `error`). Sem resultado
 em 15 min vira `failed`.
 
@@ -202,19 +204,20 @@ Exemplo de `done` (valores **ilustrativos**, gerados com clima sintético num te
 ## Exemplo em JavaScript
 ```js
 const BASE = "https://fieldshift-api-avshjoa6eq-uc.a.run.app";
-const KEY = process.env.FIELDSHIFT_API_KEY;            // nunca no código
+const KEY = process.env.FIELDSHIFT_API_KEY;            // opcional por enquanto; nunca no código
+const auth = KEY ? { "X-API-Key": KEY } : {};
 
 async function simular(lat, lon, soil_analysis) {
   const r = await fetch(`${BASE}/simulations`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-API-Key": KEY },
+    headers: { "Content-Type": "application/json", ...auth },
     body: JSON.stringify({ lat, lon, soil_analysis }),
   });
   if (!r.ok) throw new Error((await r.json()).detail);
   const { id } = await r.json();
   for (let i = 0; i < 60; i++) {                        // até ~5 min
     await new Promise((ok) => setTimeout(ok, 5000));
-    const s = await (await fetch(`${BASE}/simulations/${id}`, { headers: { "X-API-Key": KEY } })).json();
+    const s = await (await fetch(`${BASE}/simulations/${id}`, { headers: auth })).json();
     if (s.status === "done" || s.status === "failed") return s;
   }
   throw new Error("tempo esgotado");
@@ -223,9 +226,8 @@ async function simular(lat, lon, soil_analysis) {
 
 ## Exemplo com curl
 ```bash
-curl -s -X POST "$BASE/simulations" -H "X-API-Key: $FIELDSHIFT_API_KEY" \
-     -H "Content-Type: application/json" -d '{"lat":-12.67,"lon":-39.10}'
-curl -s "$BASE/simulations/<id>" -H "X-API-Key: $FIELDSHIFT_API_KEY"
+curl -s -X POST "$BASE/simulations" -H "Content-Type: application/json" -d '{"lat":-12.67,"lon":-39.10}'
+curl -s "$BASE/simulations/<id>"
 ```
 
 ## Offline

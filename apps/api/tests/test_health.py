@@ -80,14 +80,42 @@ def sim(monkeypatch):
     return m, store, runs
 
 
-def test_simulations_disabled_without_keys(monkeypatch):
+def test_open_mode_works_without_key(sim, monkeypatch):
+    monkeypatch.delenv("REQUIRE_API_KEY", raising=False)
+    monkeypatch.delenv("API_KEYS", raising=False)
+    r = client.post("/simulations", json=GOOD)
+    assert r.status_code == 202
+    assert client.get(f"/simulations/{r.json()['id']}").json()["status"] == "queued"
+
+
+def test_open_mode_limits_per_ip(sim, monkeypatch):
+    m, _, _ = sim
+    monkeypatch.setattr(m, "RATE_PER_MINUTE", 2)
+    a = {"X-Forwarded-For": "200.1.1.1"}
+    b = {"X-Forwarded-For": "200.2.2.2, 10.0.0.1"}
+    assert [client.post("/simulations", json=GOOD, headers=a).status_code for _ in range(3)] == [202, 202, 429]
+    assert client.post("/simulations", json=GOOD, headers=b).status_code == 202   # outro IP não é afetado
+
+
+def test_global_daily_cap(sim, monkeypatch):
+    m, _, _ = sim
+    monkeypatch.setattr(m, "GLOBAL_PER_DAY", 2)
+    codes = [client.post("/simulations", json=GOOD, headers={"X-Forwarded-For": f"200.0.0.{i}"}).status_code
+             for i in range(3)]
+    assert codes == [202, 202, 429]
+
+
+def test_key_mode_disabled_without_keys(monkeypatch):
+    monkeypatch.setenv("REQUIRE_API_KEY", "true")
     monkeypatch.delenv("API_KEYS", raising=False)
     assert client.post("/simulations", json=GOOD).status_code == 503
 
 
-def test_simulations_require_valid_key(sim):
+def test_key_mode_requires_valid_key(sim, monkeypatch):
+    monkeypatch.setenv("REQUIRE_API_KEY", "true")
     assert client.post("/simulations", json=GOOD).status_code == 401
     assert client.post("/simulations", json=GOOD, headers={"X-API-Key": "errada"}).status_code == 401
+    assert client.post("/simulations", json=GOOD, headers={"X-API-Key": "chave-teste"}).status_code == 202
 
 
 def test_simulation_flow(sim):
@@ -102,7 +130,6 @@ def test_simulation_flow(sim):
     assert client.get(f"/simulations/{rid}", headers=h).json()["status"] == "queued"
     store[f"results/{rid}.json"] = {"id": rid, "status": "done", "scenario_summary": []}
     assert client.get(f"/simulations/{rid}", headers=h).json()["status"] == "done"
-    assert client.get(f"/simulations/{rid}").status_code == 401
     assert client.get("/simulations/0123456789abcdef", headers=h).status_code == 404
     assert client.get("/simulations/../../etc", headers=h).status_code == 404
 

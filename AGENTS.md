@@ -29,13 +29,14 @@ Base: `https://fieldshift-api-avshjoa6eq-uc.a.run.app` · contrato completo: `do
 |---|---|---|
 | `GET /health`, `GET /version` | não | saúde e commit no ar |
 | `GET /scenarios`, `GET /scenarios/{site}` | não | cenários prontos de 5 locais do Nordeste |
-| `POST /simulations` | **sim** | simular uma coordenada (com análise de solo opcional) |
-| `GET /simulations/{id}` | **sim** | buscar o resultado (consultar a cada 5 s) |
+| `POST /simulations` | não (por enquanto) | simular uma coordenada (com análise de solo opcional) |
+| `GET /simulations/{id}` | não (por enquanto) | buscar o resultado (consultar a cada 5 s) |
 
-- A chave vai no cabeçalho `X-API-Key`. **Peça à dona do projeto (Yasmin)** por canal privado.
-- **Nunca** coloque a chave no código, em issue, PR, commit, print ou log. O repositório é público.
-  No app, leia de variável de ambiente ou de configuração fora do repositório.
-- Limites: 6 simulações/minuto e 200/dia por chave. Respeite `429` e tente depois.
+- **Acesso livre por enquanto**, com limite por IP (6/min, 200/dia) e teto diário do servidor.
+  Respeite `429` e tente depois.
+- A exigência de chave será ligada depois (`REQUIRE_API_KEY=true`). Deixe o app pronto para enviar
+  `X-API-Key` se houver chave configurada. A chave é entregue pela Yasmin por canal privado e
+  **nunca** vai para código, issue, PR, commit, print ou log (o repositório é público).
 - Simulação leva ~15–60 s. Fluxo: `POST` → recebe `id` → `GET /simulations/{id}` até `status` ser
   `done` ou `failed`.
 
@@ -69,7 +70,7 @@ da `main` deste repositório. Forks e outras branches não conseguem publicar.
 - **Honestidade científica:** os resultados são comparações relativas (nível "exploratório"), não
   previsão de safra. Não remova `evidence`, `assumptions` nem `provenance` das respostas, e não
   apresente número como medição.
-- **Sem rota que dispare simulação sem chave e limite.**
+- **Sem rota que dispare simulação sem limite de uso.** O acesso livre é temporário (decisão da equipe).
 - **Não use `--allow-unauthenticated` nem altere IAM pelo CI.** Mudanças de permissão são feitas
   pela dona do projeto com os scripts de `infra/gcp/scripts/`.
 
@@ -89,4 +90,4 @@ da `main` deste repositório. Forks e outras branches não conseguem publicar.
 - Só **milho** (cultivar AG9010, calibrado em SP). Outras culturas exigem checar a origem dos arquivos de genética.
 - Janelas de plantio automáticas = suposição pelo clima; validar com o ZARC (MAPA).
 - Sem calibração local; N, P e K não entram no cálculo do milho como está configurado.
-- Autenticação por chave é de protótipo; para produção, trocar por login de usuário.
+- Acesso livre temporário; depois ligar a chave e, para produção, login de usuário.

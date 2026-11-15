@@ -1,7 +1,9 @@
 """Field Shift API — única porta de entrada do app e dos outros devs (ninguém acessa o bucket).
 
 Públicas:      GET /health, /version, /scenarios, /scenarios/{site}
-Com chave:     POST /simulations, GET /simulations/{id}   (cabeçalho X-API-Key)
+Simulações:    POST /simulations, GET /simulations/{id}
+               Por enquanto ABERTAS (sem chave), com limite por IP e teto diário global.
+               Para exigir chave: variável de ambiente REQUIRE_API_KEY=true no serviço.
 
 POST /simulations dispara o Cloud Run Job fieldshift-dssat em modo "point": clima NASA POWER e
 solo PronaSolos são buscados automaticamente para a coordenada; a análise de solo do agricultor
@@ -19,7 +21,7 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
@@ -30,6 +32,7 @@ REGION = os.environ.get("REGION", "us-central1")
 DSSAT_JOB = os.environ.get("DSSAT_JOB", "fieldshift-dssat")
 RATE_PER_MINUTE = int(os.environ.get("RATE_PER_MINUTE", "6"))
 RATE_PER_DAY = int(os.environ.get("RATE_PER_DAY", "200"))
+GLOBAL_PER_DAY = int(os.environ.get("GLOBAL_PER_DAY", "500"))   # teto por instância (máx. 2 instâncias)
 RESULT_TIMEOUT_S = 15 * 60
 BRAZIL_BBOX = (-34.0, 5.5, -74.5, -28.5)  # lat_min, lat_max, lon_min, lon_max (cobertura do PronaSolos)
 SCENARIOS_OBJECT = "runs/scenarios/latest.json"
@@ -117,19 +120,34 @@ _hits: dict[str, deque] = defaultdict(deque)
 _lock = threading.Lock()
 
 
-def require_key(x_api_key: Optional[str] = Header(default=None)) -> str:
+def _require_key_enabled() -> bool:
+    return os.environ.get("REQUIRE_API_KEY", "false").strip().lower() in ("1", "true", "sim", "yes")
+
+
+def require_key(request: Request, x_api_key: Optional[str] = Header(default=None)) -> str:
+    """Devolve a identidade usada no limite de uso: a chave, ou o IP de origem no modo aberto."""
     keys = _api_keys()
-    if not keys:
-        raise HTTPException(status_code=503, detail="simulações ainda não habilitadas (sem chaves configuradas)")
-    if not x_api_key or not any(secrets.compare_digest(x_api_key, k) for k in keys):
+    if x_api_key and keys and any(secrets.compare_digest(x_api_key, k) for k in keys):
+        return f"key:{x_api_key}"
+    if _require_key_enabled():
+        if not keys:
+            raise HTTPException(status_code=503, detail="simulações ainda não habilitadas (sem chaves configuradas)")
         raise HTTPException(status_code=401, detail="chave de API ausente ou inválida (cabeçalho X-API-Key)")
-    return x_api_key
+    # Modo aberto: limite por IP (Cloud Run coloca o IP do cliente no início de X-Forwarded-For)
+    fwd = request.headers.get("x-forwarded-for", "")
+    ip = fwd.split(",")[0].strip() or (request.client.host if request.client else "desconhecido")
+    return f"ip:{ip}"
 
 
 def rate_limit(key: str) -> None:
-    """Limite por chave (por instância; máx. 2 instâncias): N/min e N/dia."""
+    """Limite por chave ou IP (por instância; máx. 2 instâncias): N/min e N/dia, mais teto global diário."""
     now = time.time()
     with _lock:
+        g = _hits["__global__"]
+        while g and now - g[0] > 86400:
+            g.popleft()
+        if len(g) >= GLOBAL_PER_DAY:
+            raise HTTPException(status_code=429, detail="limite diário do servidor atingido; tente amanhã")
         q = _hits[key]
         while q and now - q[0] > 86400:
             q.popleft()
@@ -138,6 +156,7 @@ def rate_limit(key: str) -> None:
         if sum(1 for t in q if now - t < 60) >= RATE_PER_MINUTE:
             raise HTTPException(status_code=429, detail="muitas simulações por minuto; tente em instantes")
         q.append(now)
+        g.append(now)
 
 
 # ----------------------------------------------------------------------------- simulações

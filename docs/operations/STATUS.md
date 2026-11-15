@@ -59,7 +59,8 @@ GitHub Actions entra por Workload Identity Federation (pool `github`, provedor `
 - API: `GET /scenarios` e `GET /scenarios/{site}` (somente leitura, cache de 5 min).
 
 ## Simulação sob demanda (qualquer coordenada do Brasil)
-- `POST /simulations` (chave `X-API-Key`, 6/min e 200/dia por chave) grava o pedido e dispara o Job em modo `point`;
+- `POST /simulations` (**acesso livre por enquanto**: 6/min e 200/dia por IP, teto global de 500/dia por instância; chave
+  opcional, exigida quando `REQUIRE_API_KEY=true`) grava o pedido e dispara o Job em modo `point`;
   `GET /simulations/{id}` devolve o resultado. Contrato: `docs/API.md`.
 - O Job busca NASA POWER (1991–2025) e PronaSolos na hora, com cache no bucket (`cache/`); clima é reaproveitado
   por célula da grade do POWER (0,5° × 0,625°).
@@ -67,7 +68,8 @@ GitHub Actions entra por Workload Identity Federation (pool `github`, provedor `
   P e K são registrados, não usados pelo milho.
 - Janelas de plantio: informadas ou automáticas (quadrimestre mais chuvoso do ponto) — suposição.
 - **Ativação:** `infra/gcp/scripts/setup-api-access.sh` (Secret Manager com a chave; papel
-  `run.jobsExecutorWithOverrides` só no Job para `fieldshift-api-sa`). Sem isso, `/simulations` responde 503.
+  `run.jobsExecutorWithOverrides` só no Job para `fieldshift-api-sa`) — **já executado** em 2026-11-15.
+- Teste real: Cruz das Almas-BA pela API, ~1 min do pedido ao resultado (10 s de cálculo); números iguais aos cenários fixos.
 - Correções desta etapa: acentos quebravam os arquivos do DSSAT (agora removidos só dentro deles); data de plantio
   no dia 366 de ano bissexto invalidava as safras seguintes; leitor do `Summary.OUT` passou a ler por posição.
 
