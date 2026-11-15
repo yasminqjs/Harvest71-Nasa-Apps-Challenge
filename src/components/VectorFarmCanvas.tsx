@@ -5,27 +5,40 @@ import { AppTheme } from '../theme/tokens';
 import { GeoPoint, NdviZonePatch, WellPoint } from '../types/domain';
 import { sortPolygonPoints } from '../utils/geoprocessing';
 
+export interface MapLotOverlay {
+  id: string;
+  nome: string;
+  corHex: string;
+  polygon: GeoPoint[];
+}
+
 export interface FarmMapCanvasProps {
   centroid: GeoPoint;
   polygon: GeoPoint[];
-  wells: WellPoint[];
+  lots?: MapLotOverlay[];
+  activeLotId?: string;
+  wells?: WellPoint[];
   ndviZones?: NdviZonePatch[];
   showWells: boolean;
   showNdvi?: boolean;
   drawingMode: boolean;
+  height?: number;
   onAddPoint: (point: GeoPoint) => void;
   theme: AppTheme;
 }
 
-/** Canvas vetorial offline para demarcação do talhão, manchas NDVI e poços SIAGAS. */
+/** Canvas vetorial offline para demarcação do terreno e dos lotes de plantio. */
 export const VectorFarmCanvas: React.FC<FarmMapCanvasProps> = ({
   centroid,
   polygon,
-  wells,
+  lots = [],
+  activeLotId,
+  wells = [],
   ndviZones = [],
   showWells,
-  showNdvi = true,
+  showNdvi = false,
   drawingMode,
+  height = 280,
   onAddPoint,
   theme,
 }) => {
@@ -74,7 +87,7 @@ export const VectorFarmCanvas: React.FC<FarmMapCanvasProps> = ({
       onPress={handlePress}
       style={[
         styles.canvasWrap,
-        { backgroundColor: '#E8F0E3', borderColor: theme.border },
+        { height, backgroundColor: '#E8F0E3', borderColor: theme.border },
       ]}
     >
       <Svg width="100%" height="100%">
@@ -175,26 +188,103 @@ export const VectorFarmCanvas: React.FC<FarmMapCanvasProps> = ({
         {polygon.length >= 3 && (
           <Polygon
             points={polygonPointsAttr}
-            fill="rgba(31, 110, 67, 0.24)"
+            fill="rgba(31, 110, 67, 0.20)"
             stroke="#1F6E43"
             strokeWidth={3}
           />
         )}
 
-        {polygon.map((p, idx) => {
-          const { x, y } = project(p);
+        {lots.map((lot) => {
+          const isSelected = lot.id === activeLotId;
+          const lotPts = lot.polygon || [];
+          const orderedLot = lotPts.length >= 3 ? sortPolygonPoints(lotPts) : lotPts;
+          const ptsAttr = orderedLot
+            .map((p) => {
+              const { x, y } = project(p);
+              return `${x.toFixed(1)},${y.toFixed(1)}`;
+            })
+            .join(' ');
+          const avgPt = orderedLot.length > 0
+            ? orderedLot.reduce(
+                (acc, p) => ({
+                  latitude: acc.latitude + p.latitude / orderedLot.length,
+                  longitude: acc.longitude + p.longitude / orderedLot.length,
+                }),
+                { latitude: 0, longitude: 0 }
+              )
+            : centroid;
+          const labelPos = project(avgPt);
           return (
-            <Circle
-              key={`${idx}-${p.latitude}`}
-              cx={x}
-              cy={y}
-              r={5.5}
-              fill="#1F6E43"
-              stroke="#FFFFFF"
-              strokeWidth={2}
-            />
+            <React.Fragment key={lot.id}>
+              {lotPts.length >= 3 && (
+                <>
+                  <Polygon
+                    points={ptsAttr}
+                    fill={`${lot.corHex}44`}
+                    stroke={lot.corHex}
+                    strokeWidth={isSelected ? 3.5 : 2}
+                  />
+                  <SvgText
+                    x={labelPos.x}
+                    y={labelPos.y + 3}
+                    fontSize="10"
+                    fontWeight="900"
+                    fill="#111827"
+                    textAnchor="middle"
+                  >
+                    {lot.nome}
+                  </SvgText>
+                </>
+              )}
+              {isSelected && lotPts.length === 2 && (() => {
+                const p1 = project(lotPts[0]);
+                const p2 = project(lotPts[1]);
+                return (
+                  <Line
+                    x1={p1.x}
+                    y1={p1.y}
+                    x2={p2.x}
+                    y2={p2.y}
+                    stroke={lot.corHex}
+                    strokeWidth={2.5}
+                    strokeDasharray="4,4"
+                  />
+                );
+              })()}
+              {isSelected &&
+                lotPts.map((p, idx) => {
+                  const pt = project(p);
+                  return (
+                    <Circle
+                      key={`${lot.id}-pt-${idx}`}
+                      cx={pt.x}
+                      cy={pt.y}
+                      r={5}
+                      fill={lot.corHex}
+                      stroke="#FFFFFF"
+                      strokeWidth={2}
+                    />
+                  );
+                })}
+            </React.Fragment>
           );
         })}
+
+        {!activeLotId &&
+          polygon.map((p, idx) => {
+            const { x, y } = project(p);
+            return (
+              <Circle
+                key={`${idx}-${p.latitude}`}
+                cx={x}
+                cy={y}
+                r={5.5}
+                fill="#1F6E43"
+                stroke="#FFFFFF"
+                strokeWidth={2}
+              />
+            );
+          })}
       </Svg>
 
       <View style={styles.overlayTop}>
@@ -203,10 +293,10 @@ export const VectorFarmCanvas: React.FC<FarmMapCanvasProps> = ({
         </Text>
         <Text style={styles.modeTag}>
           {drawingMode
-            ? '👆 Toque para marcar cantos'
+            ? '👆 Toque para demarcar'
             : showWells
-            ? '💧 Heatmap SIAGAS + GRACE-FO'
-            : '🛰️ Zonas NDVI (Bahia)'}
+            ? '💧 Mapa + Poços'
+            : '🛰️ Mapa da Roça Offline'}
         </Text>
       </View>
     </Pressable>

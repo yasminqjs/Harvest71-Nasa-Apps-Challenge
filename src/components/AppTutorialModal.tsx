@@ -50,16 +50,16 @@ const TUTORIAL_STEPS: TutorialStep[] = [
       'Passo 3 do tutorial. Na aba Safra, confira se já é hora de plantar, fotografe folhas com a câmera offline e gere seu resumo para o PRONAF.',
   },
   {
-    icon: 'mic',
-    title: '4. Aba Comida & Voz: Pergunte falando',
-    subtitle: 'Plantas resistentes (PANCs) e assistente em áudio',
+    icon: 'people',
+    title: '4. Aba Comunidade: Grafo e Troca de Ideias',
+    subtitle: 'Perguntas, relatos e rede regional de agricultores',
     bullets: [
-      'Toque no microfone e pergunte com suas palavras: "Falta água?", "Já posso plantar?", "Onde furar poço?".',
-      'Consulte plantas nativas e comestíveis indicadas para o solo e clima da sua terra.',
-      'No topo da tela, ligue ou desligue a leitura em voz alta quando quiser.',
+      'Veja no grafo regional de onde outros agricultores estão reportando secas, pragas e rotações.',
+      'Toque em um polo do grafo para filtrar experiências perto de você ou no mesmo bioma.',
+      'Publique dúvidas, responda outros produtores e ouça os relatos em voz alta.',
     ],
     voiceText:
-      'Passo 4 do tutorial. Na aba Comida e Voz, pergunte falando no microfone e veja plantas resistentes que garantem o alimento da família mesmo na seca.',
+      'Passo 4 do tutorial. Na aba Comunidade, veja o grafo de relatos de outras regiões, faça perguntas e troque experiências com outros agricultores.',
   },
   {
     icon: 'chatbox-ellipses',

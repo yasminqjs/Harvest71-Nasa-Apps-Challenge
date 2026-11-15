@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { getAppTheme } from '../theme/tokens';
 
-export type MainTabKey = 'inicio' | 'mapa' | 'safra' | 'pancs';
+export type MainTabKey = 'inicio' | 'mapa' | 'safra' | 'comunidade';
 
 interface BottomTabBarProps {
   activeTab: MainTabKey;
@@ -20,7 +20,7 @@ const TABS: {
   { key: 'inicio', label: 'Início', icon: 'home', iconInactive: 'home-outline' },
   { key: 'mapa', label: 'Mapa', icon: 'map', iconInactive: 'map-outline' },
   { key: 'safra', label: 'Safra', icon: 'leaf', iconInactive: 'leaf-outline' },
-  { key: 'pancs', label: 'PANCs', icon: 'nutrition', iconInactive: 'nutrition-outline' },
+  { key: 'comunidade', label: 'Comunidade', icon: 'people', iconInactive: 'people-outline' },
 ];
 
 export const BottomTabBar: React.FC<BottomTabBarProps> = ({
@@ -42,7 +42,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
     >
       {TABS.map((t) => {
         const isActive = activeTab === t.key;
-        const showBadge = t.key === 'pancs' && foodAlertActive;
+        const showBadge = t.key === 'comunidade' && foodAlertActive;
 
         return (
           <Pressable

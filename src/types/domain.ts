@@ -88,7 +88,82 @@ export interface CropHistoryRecord {
   quantidadeColhida?: number;
   unidadeQuantidade?: HarvestQuantityUnit;
   periodoSafra?: string;
+  observacao?: string;
+  tipoSistema?: 'monocultura' | 'rotacao';
+  plantas?: string[];
+  duracaoTexto?: string;
+  loteNome?: string;
   registradaEm: string;
+}
+
+export interface LotPhotoRecord {
+  id: string;
+  uri: string;
+  label: string;
+  criadoEm: string;
+}
+
+export interface PlantingLot {
+  id: string;
+  nome: string;
+  corHex: string;
+  polygon: GeoPoint[];
+  areaHectares: number;
+  areaTarefasBa: number;
+  sistema: 'monocultura' | 'rotacao';
+  culturaAtual: string;
+  plantasRotacao: string[];
+  tempoPlantadaDias: number;
+  temDataColheita: boolean;
+  dataColheitaPrevista?: string;
+  cronogramaPlantacao: string;
+  progressoRealPct: number;
+  progressoEsperadoPct: number;
+  retornoFinanceiroEstR$: number;
+  historicoTerra: string[];
+  culturasFuturas: string[];
+  fotosValidacao?: LotPhotoRecord[];
+}
+
+export type ProblemReportType =
+  | 'seca_estiagem'
+  | 'excesso_chuva'
+  | 'praga_inseto'
+  | 'doenca_folha'
+  | 'erosao_solo'
+  | 'solo_fraco'
+  | 'outro';
+
+export interface RegionalProblemReport {
+  id: string;
+  autor: string;
+  municipio: string;
+  bioma: 'Caatinga' | 'Mata Atlântica' | 'Cerrado';
+  tipoProblema: ProblemReportType;
+  titulo: string;
+  descricao: string;
+  haQuantosDias: number;
+  acaoQueFuncionou: string;
+}
+
+export interface RotationComparisonStrategy {
+  id: string;
+  nome: string;
+  isAtual: boolean;
+  sistema: 'monocultura' | 'rotacao';
+  plantas: string[];
+  scoreResiliencia: number; // 0-100
+  demandaAgua: 'baixa' | 'media' | 'alta';
+  fixacaoNitrogenio: boolean;
+  valorForragem: 'alto' | 'medio' | 'baixo';
+  quebraCicloPragas: 'alta' | 'media' | 'baixa';
+  reducaoErosaoPct: number;
+  retornoLiquidoEstHaR$: number;
+  porqueSugerida: string;
+  evidencias: string;
+  beneficios: string;
+  lacunasInformacao: string;
+  riscosRevisaoLocal: string;
 }
 
 export interface GeoPoint {
@@ -300,6 +375,7 @@ export interface FarmProperty {
   areaTarefasBa: number;
   raioBuscaKm: number;
   culturaPrincipal: string;
+  lotes?: PlantingLot[];
   diagnostico: NasaDiagnosticsPackage;
 }
 
@@ -311,7 +387,8 @@ export interface FieldValidationLog {
     | 'terra_umida'
     | 'poco_perfurado'
     | 'analise_foliar'
-    | 'inspecao_completa';
+    | 'inspecao_completa'
+    | 'problema_relatado';
   choveuHoje?: boolean;
   intensidadeChuva?: 'sem_chuva' | 'garoa_fraca' | 'chuva_boa' | 'temporal_forte';
   milimetrosEstimados?: number;
@@ -321,6 +398,10 @@ export interface FieldValidationLog {
   sinaisErosao?: boolean;
   temperaturaPercebida?: 'amena' | 'quente' | 'calor_extremo';
   pragaOuDoenca?: string;
+  tipoProblema?: ProblemReportType;
+  fotoUri?: string;
+  loteId?: string;
+  loteNome?: string;
   pocoDeuAgua?: boolean;
   pocoProfundidadeM?: number;
   observacao: string;
@@ -347,4 +428,56 @@ export interface SyncQueueItem {
   status: 'pendente' | 'sincronizado' | 'erro';
   criadoEm: string;
   tentativas: number;
+}
+
+export type CommunityTopic = 'seca' | 'praga' | 'rotacao' | 'solo' | 'duvida';
+
+export interface CommunityReply {
+  id: string;
+  autor: string;
+  regiaoNome: string;
+  municipio: string;
+  texto: string;
+  criadoEm: string;
+}
+
+export interface CommunityPost {
+  id: string;
+  autor: string;
+  regiaoNome: string;
+  municipio: string;
+  estado: string;
+  bioma: 'Caatinga' | 'Mata Atlântica' | 'Cerrado';
+  centroid: GeoPoint;
+  topico: CommunityTopic;
+  tipo: 'pergunta' | 'relato';
+  titulo: string;
+  mensagem: string;
+  curtidas: number;
+  curtidoPorMim?: boolean;
+  haQuantoTempo: string;
+  respostas: CommunityReply[];
+}
+
+export interface CommunityGraphNode {
+  id: string;
+  regiaoNome: string;
+  municipio: string;
+  estado: string;
+  bioma: 'Caatinga' | 'Mata Atlântica' | 'Cerrado';
+  isUserFarm: boolean;
+  reportCount: number;
+  dominantTopic: CommunityTopic;
+  distanceKm: number;
+  x: number;
+  y: number;
+  autores: string[];
+}
+
+export interface CommunityGraphEdge {
+  id: string;
+  fromId: string;
+  toId: string;
+  relation: 'mesmo_bioma' | 'mesmo_tema' | 'vizinho';
+  label: string;
 }

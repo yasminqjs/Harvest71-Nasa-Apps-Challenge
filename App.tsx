@@ -18,8 +18,8 @@ import {
   AccessibilityProvider,
   useAccessibility,
 } from './src/context/AccessibilityContext';
+import { CommunityScreen } from './src/screens/CommunityScreen';
 import { DecisionScreen } from './src/screens/DecisionScreen';
-import { FoodSecurityScreen } from './src/screens/FoodSecurityScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { MapScreen } from './src/screens/MapScreen';
 import { NordesteOnboardingScreen } from './src/screens/NordesteOnboardingScreen';
@@ -123,7 +123,7 @@ const RoçaVivaRoot: React.FC = () => {
             )}
             {activeTab === 'mapa' && <MapScreen />}
             {activeTab === 'safra' && <DecisionScreen />}
-            {activeTab === 'pancs' && <FoodSecurityScreen />}
+            {activeTab === 'comunidade' && <CommunityScreen />}
           </View>
           <BottomTabBar activeTab={activeTab} onChangeTab={setActiveTab} />
           {settingsOpen && (

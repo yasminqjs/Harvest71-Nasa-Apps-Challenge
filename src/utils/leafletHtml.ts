@@ -357,8 +357,10 @@ ${HOST_EMITTER_HELPER}
   var state = {
     centroid: { latitude: -12.9714, longitude: -38.5014 },
     polygon: [],
+    lots: [],
+    activeLotId: null,
     wells: [],
-    showWells: true,
+    showWells: false,
     drawingMode: false,
     basemap: 'satellite'
   };
@@ -394,7 +396,9 @@ ${HOST_EMITTER_HELPER}
   satLabelsLayer.addTo(map);
 
   var polyLayer = L.layerGroup().addTo(map);
+  var lotsLayer = L.layerGroup().addTo(map);
   var wellsLayer = L.layerGroup().addTo(map);
+  var hasFittedInitialView = false;
 
   map.on('click', function(e) {
     if (!state.drawingMode) return;
@@ -424,6 +428,7 @@ ${HOST_EMITTER_HELPER}
 
   function renderOverlays(shouldFit) {
     polyLayer.clearLayers();
+    lotsLayer.clearLayers();
     wellsLayer.clearLayers();
 
     if (state.polygon && state.polygon.length >= 3) {
@@ -433,30 +438,67 @@ ${HOST_EMITTER_HELPER}
         color: '#22C55E',
         weight: 3,
         fillColor: '#1B6B40',
-        fillOpacity: 0.34
+        fillOpacity: 0.24
       }).addTo(polyLayer);
-      if (shouldFit && !state.drawingMode) {
+      if (shouldFit) {
         try {
-          if (state.showWells && state.wells.length > 0) {
-            map.setView([state.centroid.latitude, state.centroid.longitude], 12);
+          if (state.showWells && state.wells && state.wells.length > 0) {
+            map.setView([state.centroid.latitude, state.centroid.longitude], 12, { animate: false });
           } else {
-            map.fitBounds(poly.getBounds(), { padding: [24, 24], maxZoom: 17 });
+            map.fitBounds(poly.getBounds(), { padding: [28, 28], maxZoom: 16, animate: false });
           }
-        } catch (e) {}
+        } catch (e) {
+          map.setView([state.centroid.latitude, state.centroid.longitude], 15, { animate: false });
+        }
       }
     } else if (shouldFit) {
-      map.setView([state.centroid.latitude, state.centroid.longitude], state.showWells ? 12 : 16);
+      map.setView([state.centroid.latitude, state.centroid.longitude], state.showWells ? 12 : 15, { animate: false });
     }
 
-    (state.polygon || []).forEach(function(pt, idx) {
-      L.circleMarker([pt.latitude, pt.longitude], {
-        radius: 5.5,
-        color: '#FFFFFF',
-        weight: 2,
-        fillColor: '#16A34A',
-        fillOpacity: 1
-      }).bindTooltip('Ponto ' + (idx + 1)).addTo(polyLayer);
+    (state.lots || []).forEach(function(lot) {
+      var isActive = state.activeLotId && lot.id === state.activeLotId;
+      var lotPts = lot.polygon || [];
+      if (lotPts.length >= 3) {
+        var orderedLot = sortPolygonVertices(lotPts);
+        var lotLatLngs = orderedLot.map(function(p) { return [p.latitude, p.longitude]; });
+        L.polygon(lotLatLngs, {
+          color: lot.corHex || '#2563EB',
+          weight: isActive ? 3.5 : 2,
+          dashArray: isActive ? null : '5,4',
+          fillColor: lot.corHex || '#2563EB',
+          fillOpacity: isActive ? 0.42 : 0.26
+        }).bindTooltip(lot.nome || 'Lote', { sticky: true }).addTo(lotsLayer);
+      } else if (isActive && lotPts.length === 2) {
+        L.polyline(
+          lotPts.map(function(p) { return [p.latitude, p.longitude]; }),
+          { color: lot.corHex || '#2563EB', weight: 3, dashArray: '5,4' }
+        ).addTo(lotsLayer);
+      }
+
+      if (isActive) {
+        lotPts.forEach(function(pt, idx) {
+          L.circleMarker([pt.latitude, pt.longitude], {
+            radius: 6,
+            color: '#FFFFFF',
+            weight: 2,
+            fillColor: lot.corHex || '#2563EB',
+            fillOpacity: 1
+          }).bindTooltip((lot.nome || 'Lote') + ' · Ponto ' + (idx + 1)).addTo(lotsLayer);
+        });
+      }
     });
+
+    if (!state.activeLotId) {
+      (state.polygon || []).forEach(function(pt, idx) {
+        L.circleMarker([pt.latitude, pt.longitude], {
+          radius: 5.5,
+          color: '#FFFFFF',
+          weight: 2,
+          fillColor: '#16A34A',
+          fillOpacity: 1
+        }).bindTooltip('Ponto ' + (idx + 1)).addTo(polyLayer);
+      });
+    }
 
     if (state.showWells) {
       (state.wells || []).forEach(function(w) {
@@ -505,9 +547,13 @@ ${HOST_EMITTER_HELPER}
     }
 
     var moved =
-      Math.abs((prevCentroid.latitude || 0) - state.centroid.latitude) > 0.01 ||
-      Math.abs((prevCentroid.longitude || 0) - state.centroid.longitude) > 0.01 ||
+      !hasFittedInitialView ||
+      Math.abs((prevCentroid.latitude || 0) - state.centroid.latitude) > 0.002 ||
+      Math.abs((prevCentroid.longitude || 0) - state.centroid.longitude) > 0.002 ||
       prevShowWells !== state.showWells;
+    if (moved || next.forceFit) {
+      hasFittedInitialView = true;
+    }
     renderOverlays(moved || Boolean(next.forceFit));
   };
 

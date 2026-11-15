@@ -17,9 +17,12 @@ const LeafletFarmWebCanvas: React.FC<
 > = ({
   centroid,
   polygon,
-  wells,
+  lots = [],
+  activeLotId,
+  wells = [],
   showWells,
   drawingMode,
+  height = 280,
   onAddPoint,
   onFallbackOffline,
   theme,
@@ -37,6 +40,8 @@ const LeafletFarmWebCanvas: React.FC<
   const latestStateRef = useRef({
     centroid,
     polygon,
+    lots,
+    activeLotId,
     wells,
     showWells,
     drawingMode,
@@ -47,12 +52,14 @@ const LeafletFarmWebCanvas: React.FC<
     latestStateRef.current = {
       centroid,
       polygon,
+      lots,
+      activeLotId,
       wells,
       showWells,
       drawingMode,
       basemap,
     };
-  }, [centroid, polygon, wells, showWells, drawingMode, basemap]);
+  }, [centroid, polygon, lots, activeLotId, wells, showWells, drawingMode, basemap]);
 
   const getFrameWin = (): FarmIframeWindow | null =>
     (iframeRef.current?.contentWindow as FarmIframeWindow | null) ?? null;
@@ -86,13 +93,15 @@ const LeafletFarmWebCanvas: React.FC<
     getFrameWin()?.__updateFarmMap?.({
       centroid,
       polygon,
+      lots,
+      activeLotId,
       wells,
       showWells,
       drawingMode,
       basemap,
       forceFit: false,
     });
-  }, [ready, centroid, polygon, wells, showWells, drawingMode, basemap]);
+  }, [ready, centroid, polygon, lots, activeLotId, wells, showWells, drawingMode, basemap]);
 
   const handleIframeLoad = () => {
     setReady(true);
@@ -103,7 +112,7 @@ const LeafletFarmWebCanvas: React.FC<
   };
 
   return (
-    <View style={[styles.wrap, { borderColor: theme.border }]}>
+    <View style={[styles.wrap, { height, borderColor: theme.border }]}>
       <iframe
         ref={iframeRef}
         title="Mapa interativo da roça"
@@ -182,12 +191,12 @@ const LeafletFarmWebCanvas: React.FC<
       <View style={styles.badge}>
         <Text style={styles.badgeText}>
           {drawingMode
-            ? 'Clique no mapa para demarcar cantos da roça'
+            ? 'Toque no mapa para demarcar os cantos'
             : showWells
             ? `${basemap === 'streets' ? 'Cartográfico' : 'Satélite'} + Poços (SIAGAS)`
             : basemap === 'streets'
-            ? 'Talhão Cartográfico (Esri/OSM)'
-            : 'Talhão em Satélite (Esri)'}
+            ? 'Mapa Cartográfico (Esri/OSM)'
+            : 'Satélite da Roça (Esri)'}
         </Text>
       </View>
     </View>

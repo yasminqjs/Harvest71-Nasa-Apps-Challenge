@@ -34,9 +34,12 @@ class MapErrorBoundary extends React.Component<
 const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () => void }> = ({
   centroid,
   polygon,
-  wells,
+  lots = [],
+  activeLotId,
+  wells = [],
   showWells,
   drawingMode,
+  height = 280,
   onAddPoint,
   onFallbackOffline,
   theme,
@@ -51,13 +54,15 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
     const payload = JSON.stringify({
       centroid,
       polygon,
+      lots,
+      activeLotId,
       wells,
       showWells,
       drawingMode,
       basemap,
     });
     webViewRef.current?.injectJavaScript(`window.__updateFarmMap && window.__updateFarmMap(${payload}); true;`);
-  }, [ready, centroid, polygon, wells, showWells, drawingMode, basemap]);
+  }, [ready, centroid, polygon, lots, activeLotId, wells, showWells, drawingMode, basemap]);
 
   const handleMessage = (event: WebViewMessageEvent) => {
     try {
@@ -72,6 +77,8 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
           `window.__updateFarmMap && window.__updateFarmMap(${JSON.stringify({
             centroid,
             polygon,
+            lots,
+            activeLotId,
             wells,
             showWells,
             drawingMode,
@@ -90,7 +97,7 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
   };
 
   return (
-    <View style={[styles.wrap, { borderColor: theme.border }]}>
+    <View style={[styles.wrap, { height, borderColor: theme.border }]}>
       <LeafletWebView
         ref={webViewRef}
         originWhitelist={['*']}
@@ -157,12 +164,12 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
       <View style={[styles.badge, { elevation: 10 }]}>
         <Text style={styles.badgeText}>
           {drawingMode
-            ? 'Toque no mapa para demarcar cantos da roça'
+            ? 'Toque no mapa para demarcar os cantos'
             : showWells
             ? `${basemap === 'streets' ? 'Cartográfico' : 'Satélite'} + Poços (SIAGAS)`
             : basemap === 'streets'
-            ? 'Talhão Cartográfico (Esri/OSM)'
-            : 'Talhão em Satélite (Esri)'}
+            ? 'Mapa Cartográfico (Esri/OSM)'
+            : 'Satélite da Roça (Esri)'}
         </Text>
       </View>
     </View>
@@ -172,7 +179,18 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
 export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
   const { isOnline } = useAccessibility();
   const [forceVectorOffline, setForceVectorOffline] = useState(false);
-  const { centroid, polygon, wells, showWells, drawingMode, onAddPoint, theme } = props;
+  const {
+    centroid,
+    polygon,
+    lots = [],
+    activeLotId,
+    wells = [],
+    showWells,
+    drawingMode,
+    height = 280,
+    onAddPoint,
+    theme,
+  } = props;
   const delta = showWells ? 0.14 : 0.0045;
   const hasGoogleMapsKey = Boolean(
     Constants.expoConfig?.android?.config?.googleMaps?.apiKey
@@ -202,7 +220,7 @@ export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
 
   return (
     <MapErrorBoundary fallback={<VectorFallbackCanvas {...props} />}>
-      <View style={[styles.wrap, { borderColor: theme.border }]}>
+      <View style={[styles.wrap, { height, borderColor: theme.border }]}>
         <MapView
           style={StyleSheet.absoluteFill}
           mapType="hybrid"
@@ -217,20 +235,47 @@ export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
           {polygon.length >= 3 && (
             <Polygon
               coordinates={sortPolygonPoints(polygon)}
-              fillColor="rgba(31, 110, 67, 0.34)"
+              fillColor="rgba(31, 110, 67, 0.24)"
               strokeColor="#22C55E"
               strokeWidth={3}
             />
           )}
 
-          {polygon.map((pt, idx) => (
-            <Marker
-              key={`${idx}-${pt.latitude}`}
-              coordinate={pt}
-              title={`Ponto ${idx + 1}`}
-              pinColor="#16A34A"
-            />
-          ))}
+          {lots.map((lot) =>
+            lot.polygon.length >= 3 ? (
+              <Polygon
+                key={lot.id}
+                coordinates={sortPolygonPoints(lot.polygon)}
+                fillColor={`${lot.corHex}44`}
+                strokeColor={lot.corHex}
+                strokeWidth={lot.id === activeLotId ? 3.5 : 2.5}
+              />
+            ) : null
+          )}
+
+          {activeLotId &&
+            lots
+              .filter((lot) => lot.id === activeLotId)
+              .flatMap((lot) =>
+                lot.polygon.map((pt, idx) => (
+                  <Marker
+                    key={`${lot.id}-pt-${idx}-${pt.latitude}`}
+                    coordinate={pt}
+                    title={`${lot.nome} • Ponto ${idx + 1}`}
+                    pinColor={lot.corHex}
+                  />
+                ))
+              )}
+
+          {!activeLotId &&
+            polygon.map((pt, idx) => (
+              <Marker
+                key={`${idx}-${pt.latitude}`}
+                coordinate={pt}
+                title={`Ponto ${idx + 1}`}
+                pinColor="#16A34A"
+              />
+            ))}
 
           {showWells &&
             wells.map((w) => {

@@ -120,3 +120,18 @@ export function createMicroPlotAroundPoint(
     { latitude: center.latitude - halfLatDeg, longitude: center.longitude - halfLonDeg * 0.92 },
   ];
 }
+
+export function isPointInPolygon(point: GeoPoint, polygon: GeoPoint[]): boolean {
+  if (polygon.length < 3) return true;
+  const orderedPoints = sortPolygonPoints(polygon);
+  const ring = orderedPoints.map((p) => [p.longitude, p.latitude]);
+  const first = ring[0];
+  const last = ring[ring.length - 1];
+  if (first[0] !== last[0] || first[1] !== last[1]) {
+    ring.push([...first]);
+  }
+  const poly = turf.polygon([ring]);
+  const pt = turf.point([point.longitude, point.latitude]);
+  return turf.booleanPointInPolygon(pt, poly);
+}
+

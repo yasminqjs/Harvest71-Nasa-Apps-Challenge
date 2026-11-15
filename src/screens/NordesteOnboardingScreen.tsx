@@ -10,22 +10,29 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { FarmBoundaryStep, FarmLotsStep } from '../components/onboarding/FarmLotDemarcationStep';
 import { NordesteSvgMap } from '../components/NordesteSvgMap';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { BahiaRegionPreset, NORDESTE_REGIONS } from '../data/seedData';
 import { getAppTheme } from '../theme/tokens';
-import { findNearestRegion } from '../utils/geoprocessing';
+import {
+  calculatePolygonMetrics,
+  createMicroPlotAroundPoint,
+  findNearestRegion,
+} from '../utils/geoprocessing';
 import {
   FarmObjective,
   FarmingTenureOption,
   FinancialTier,
   GenderOption,
+  GeoPoint,
   LaborType,
+  PlantingLot,
   WaterAccess,
   WaterStorageType,
 } from '../types/domain';
 
-type OnboardingStage = 'mapa' | 'cadastro';
+type OnboardingStage = 'mapa' | 'demarcacao_fazenda' | 'lotes' | 'cadastro';
 
 type ParamTabKey =
   | 'identidade'
@@ -54,11 +61,11 @@ const PARAM_TABS: ParamTabMeta[] = [
   },
   {
     key: 'terra_tempo',
-    shortLabel: 'Terra e Tempo',
+    shortLabel: 'Tempo na Roça',
     icon: 'time-outline',
-    title: 'Tempo na Agricultura e Tamanho da Terra',
+    title: 'Experiência na Agricultura',
     voice:
-      'Aba 2: Informe há quanto tempo você está na agricultura familiar e o tamanho aproximado da terra.',
+      'Aba 2: Informe há quanto tempo você trabalha na agricultura familiar.',
   },
   {
     key: 'agua',
@@ -204,14 +211,16 @@ export const NordesteOnboardingScreen: React.FC = () => {
   const [tempoAgricultura, setTempoAgricultura] = useState<FarmingTenureOption>(
     activeFarmer?.tempoAgriculturaFamiliar ?? 'mais_15'
   );
-  const [tamanhoHa, setTamanhoHa] = useState<number>(
-    activeFarmer?.tamanhoEstimadoHa ?? activeFarm?.areaHectares ?? 3.5
+  const [farmPolygonDraft, setFarmPolygonDraft] = useState<GeoPoint[]>(
+    activeFarm?.polygon && activeFarm.polygon.length >= 3
+      ? activeFarm.polygon
+      : createMicroPlotAroundPoint(
+          activeFarm?.centroid ?? { latitude: -12.9714, longitude: -38.5014 },
+          3.8
+        )
   );
-  const [culturaPrincipal, setCulturaPrincipal] = useState<string>(
-    activeFarmer?.culturaDesejada ??
-      activeFarm?.culturaPrincipal ??
-      'Feijão-Caupi + Mandioca'
-  );
+  const [lotesDraft, setLotesDraft] = useState<PlantingLot[]>([]);
+  const [lotStepError, setLotStepError] = useState<string | null>(null);
   const [waterAccess, setWaterAccess] = useState<WaterAccess>(
     activeFarmer?.waterAccess ?? 'sequeiro'
   );
@@ -272,6 +281,9 @@ export const NordesteOnboardingScreen: React.FC = () => {
       setGpsMatch(match);
       setGpsStatus('found');
       await selectBahiaRegion(match.region.id);
+      setFarmPolygonDraft(createMicroPlotAroundPoint(match.region.centroid, 3.8));
+      setLotesDraft([]);
+      setLotStepError(null);
       speak(
         `Local detectado pelo GPS: ${match.region.nome}, em ${match.region.municipio}. Toque em confirmar se estiver correto ou escolha outra região no mapa.`
       );
@@ -288,21 +300,43 @@ export const NordesteOnboardingScreen: React.FC = () => {
     return () => clearTimeout(timer);
   }, [stage, gpsStatus, detectRegionViaGps]);
 
+  const stageVoicePrompt =
+    stage === 'mapa'
+      ? 'Primeiro, confirme sua região detectada pelo GPS ou toque em outro ponto no mapa do Nordeste.'
+      : stage === 'demarcacao_fazenda'
+      ? 'Toque nos cantos do terreno da sua fazenda no mapa com zoom para calcular a área.'
+      : stage === 'lotes'
+      ? 'Informe quantos lotes de plantio existem na fazenda, demarque cada lote e diga o que está plantado, se é monocultura ou rotação, há quantos dias foi plantado e se já tem data de colheita.'
+      : currentTab.voice;
+
   useEffect(() => {
     if (!accessibility.voiceGuidanceEnabled) return;
-    if (stage === 'mapa') {
-      speak(
-        'Primeiro, confirme sua região detectada pelo GPS ou toque em outro ponto no mapa do Nordeste.'
-      );
-    } else {
-      speak(currentTab.voice);
-    }
+    speak(stageVoicePrompt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, activeParamIdx]);
 
   const handleSelectRegion = async (reg: BahiaRegionPreset) => {
     await selectBahiaRegion(reg.id);
+    const freshPoly = createMicroPlotAroundPoint(reg.centroid, 3.8);
+    setFarmPolygonDraft(freshPoly);
+    setLotesDraft([]);
+    setLotStepError(null);
     speak(`Região selecionada: ${reg.nome}, ${reg.municipio} - ${reg.estado}.`);
+  };
+
+  const handleGoToFarmDemarcation = () => {
+    if (activeFarm) {
+      const m = calculatePolygonMetrics(farmPolygonDraft);
+      const distLat = Math.abs(m.centroid.latitude - activeFarm.centroid.latitude);
+      const distLon = Math.abs(m.centroid.longitude - activeFarm.centroid.longitude);
+      if (farmPolygonDraft.length < 3 || distLat > 0.2 || distLon > 0.2) {
+        const freshPoly = createMicroPlotAroundPoint(activeFarm.centroid, 3.8);
+        setFarmPolygonDraft(freshPoly);
+        setLotesDraft([]);
+        setLotStepError(null);
+      }
+    }
+    setStage('demarcacao_fazenda');
   };
 
   const toggleDesafio = (id: string) => {
@@ -312,6 +346,8 @@ export const NordesteOnboardingScreen: React.FC = () => {
   };
 
   const handleFinish = async () => {
+    const farmMetrics = calculatePolygonMetrics(farmPolygonDraft);
+    const primaryCulture = lotesDraft[0]?.culturaAtual || 'Feijão-Caupi + Mandioca';
     if (activeFarmer) {
       await applyRegistrationSetup(
         {
@@ -326,13 +362,14 @@ export const NordesteOnboardingScreen: React.FC = () => {
           laborType,
           financialTier,
           objective,
-          tamanhoEstimadoHa: tamanhoHa,
-          culturaDesejada: culturaPrincipal,
+          tamanhoEstimadoHa: farmMetrics.areaHectares,
+          culturaDesejada: primaryCulture,
           desafiosPrincipais: desafios,
         },
         {
-          tamanhoEstimadoHa: tamanhoHa,
-          culturaPrincipal,
+          polygon: farmPolygonDraft.length >= 3 ? farmPolygonDraft : undefined,
+          lotes: lotesDraft,
+          culturaPrincipal: primaryCulture,
         }
       );
     }
@@ -345,8 +382,12 @@ export const NordesteOnboardingScreen: React.FC = () => {
 
   const progressPct =
     stage === 'mapa'
-      ? 14
-      : Math.round(((activeParamIdx + 2) / (PARAM_TABS.length + 1)) * 100);
+      ? 12
+      : stage === 'demarcacao_fazenda'
+      ? 26
+      : stage === 'lotes'
+      ? 42
+      : Math.round(((activeParamIdx + 4) / (PARAM_TABS.length + 3)) * 100);
 
   return (
     <View style={[styles.root, { backgroundColor: theme.bg }]}>
@@ -356,8 +397,12 @@ export const NordesteOnboardingScreen: React.FC = () => {
           <View style={styles.titleStack}>
             <Text style={[styles.stepBadge, { color: theme.primary }]}>
               {stage === 'mapa'
-                ? 'Etapa 1 • Seleção do Local'
-                : `Etapa 2 • Parâmetros (${activeParamIdx + 1}/${PARAM_TABS.length})`}
+                ? 'Etapa 1 • Região no Nordeste'
+                : stage === 'demarcacao_fazenda'
+                ? 'Etapa 2 • Demarcar Fazenda'
+                : stage === 'lotes'
+                ? 'Etapa 3 • Lotes e Culturas Atuais'
+                : `Etapa 4 • Perfil (${activeParamIdx + 1}/${PARAM_TABS.length})`}
             </Text>
             <Text
               style={[
@@ -365,20 +410,19 @@ export const NordesteOnboardingScreen: React.FC = () => {
                 { color: theme.text, fontSize: 20 * theme.scale },
               ]}
             >
-              {stage === 'mapa' ? 'Onde fica a sua roça?' : 'Cadastro da Roça'}
+              {stage === 'mapa'
+                ? 'Onde fica a sua roça?'
+                : stage === 'demarcacao_fazenda'
+                ? 'Demarque a área da fazenda'
+                : stage === 'lotes'
+                ? 'Demarcar e cadastrar plantios'
+                : 'Cadastro do Produtor'}
             </Text>
           </View>
 
           <View style={styles.headerActions}>
             <Pressable
-              onPress={() =>
-                speak(
-                  stage === 'mapa'
-                    ? 'Toque em um ponto no mapa ou nas pílulas para escolher a região da sua roça.'
-                    : currentTab.voice,
-                  true
-                )
-              }
+              onPress={() => speak(stageVoicePrompt, true)}
               style={[
                 styles.listenStepBtn,
                 { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
@@ -496,13 +540,53 @@ export const NordesteOnboardingScreen: React.FC = () => {
         )}
       </View>
 
-      {/* Conteúdo principal */}
+        {/* Conteúdo principal */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={styles.stepBody}
         showsVerticalScrollIndicator={false}
       >
-        {stage === 'mapa' ? (
+        {stage === 'demarcacao_fazenda' ? (
+          <FarmBoundaryStep
+            regiaoNome={activeFarm?.regiaoNome ?? 'Recôncavo Baiano'}
+            municipio={activeFarm?.municipio ?? 'Cruz das Almas'}
+            estado={activeFarm?.estado ?? 'BA'}
+            centroid={activeFarm?.centroid ?? { latitude: -12.9714, longitude: -38.5014 }}
+            farmPolygon={farmPolygonDraft}
+            onChangeFarmPolygon={setFarmPolygonDraft}
+            onSpeak={(txt) => speak(txt)}
+            theme={theme}
+          />
+        ) : stage === 'lotes' ? (
+          <View style={{ gap: 10 }}>
+            <FarmLotsStep
+              farmPolygon={farmPolygonDraft}
+              farmCentroid={calculatePolygonMetrics(farmPolygonDraft).centroid}
+              lotes={lotesDraft}
+              onChangeLotes={(next) => {
+                setLotesDraft(next);
+                if (lotStepError) setLotStepError(null);
+              }}
+              onSpeak={(txt) => speak(txt)}
+              theme={theme}
+            />
+            {lotStepError && (
+              <View
+                style={{
+                  borderRadius: 12,
+                  borderWidth: 1.5,
+                  padding: 12,
+                  backgroundColor: theme.dangerBg,
+                  borderColor: theme.dangerBorder,
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '800', color: theme.dangerText }}>
+                  {lotStepError}
+                </Text>
+              </View>
+            )}
+          </View>
+        ) : stage === 'mapa' ? (
           <View
             style={[
               styles.mapCard,
@@ -581,10 +665,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
                 gpsMatch &&
                 activeFarm?.regiaoNome === gpsMatch.region.nome && (
                   <Pressable
-                    onPress={() => {
-                      setStage('cadastro');
-                      setActiveParamIdx(0);
-                    }}
+                    onPress={handleGoToFarmDemarcation}
                     style={[styles.gpsConfirmBtn, { backgroundColor: theme.primary }]}
                   >
                     <Ionicons
@@ -799,82 +880,6 @@ export const NordesteOnboardingScreen: React.FC = () => {
                     title={opt.title}
                     subtitle={opt.sub}
                     onPress={() => setTempoAgricultura(opt.id)}
-                    theme={theme}
-                  />
-                ))}
-
-                <Text style={[styles.groupTitle, { color: theme.text, marginTop: 8 }]}>
-                  Tamanho aproximado da terra:
-                </Text>
-                {[
-                  {
-                    ha: 1.5,
-                    icon: 'resize-outline' as const,
-                    title: 'Até 2 hectares (até 4,5 tarefas)',
-                    sub: 'Roça pequena ou quintal produtivo',
-                  },
-                  {
-                    ha: 3.5,
-                    icon: 'grid-outline' as const,
-                    title: '2 a 5 hectares (5 a 11 tarefas)',
-                    sub: 'Agricultura familiar típica',
-                  },
-                  {
-                    ha: 10.0,
-                    icon: 'map-outline' as const,
-                    title: '5 a 15 hectares (12 a 34 tarefas)',
-                    sub: 'Lavoura e criação integrada',
-                  },
-                  {
-                    ha: 20.0,
-                    icon: 'earth-outline' as const,
-                    title: 'Mais de 15 hectares',
-                    sub: 'Área ampla ou associação comunitária',
-                  },
-                ].map((opt) => (
-                  <BigOptionCard
-                    key={opt.ha}
-                    selected={Math.abs(tamanhoHa - opt.ha) < 0.6}
-                    icon={opt.icon}
-                    title={opt.title}
-                    subtitle={opt.sub}
-                    onPress={() => setTamanhoHa(opt.ha)}
-                    theme={theme}
-                  />
-                ))}
-
-                <Text style={[styles.groupTitle, { color: theme.text, marginTop: 8 }]}>
-                  O que você mais planta hoje?
-                </Text>
-                {[
-                  {
-                    crop: 'Feijão-Caupi + Mandioca',
-                    icon: 'nutrition-outline' as const,
-                    sub: 'Base alimentar resistente no Nordeste',
-                  },
-                  {
-                    crop: 'Milho + Feijão',
-                    icon: 'flower-outline' as const,
-                    sub: 'Consórcio tradicional de chuva',
-                  },
-                  {
-                    crop: 'Palma + Sorgo',
-                    icon: 'shield-checkmark-outline' as const,
-                    sub: 'Alta resistência ao calor e forragem',
-                  },
-                  {
-                    crop: 'Horta + PANCs Nativas',
-                    icon: 'basket-outline' as const,
-                    sub: 'Segurança alimentar e renda rápida',
-                  },
-                ].map((opt) => (
-                  <BigOptionCard
-                    key={opt.crop}
-                    selected={culturaPrincipal === opt.crop}
-                    icon={opt.icon}
-                    title={opt.crop}
-                    subtitle={opt.sub}
-                    onPress={() => setCulturaPrincipal(opt.crop)}
                     theme={theme}
                   />
                 ))}
@@ -1152,14 +1157,85 @@ export const NordesteOnboardingScreen: React.FC = () => {
           <>
             <View />
             <Pressable
+              onPress={handleGoToFarmDemarcation}
+              style={[styles.nextBtn, { backgroundColor: theme.primary }]}
+            >
+              <Text style={[styles.nextText, { color: theme.primaryText }]}>
+                Confirmar local e demarcar terreno
+              </Text>
+              <Ionicons name="arrow-forward" size={20} color={theme.primaryText} />
+            </Pressable>
+          </>
+        ) : stage === 'demarcacao_fazenda' ? (
+          <>
+            <Pressable
+              onPress={() => setStage('mapa')}
+              style={[
+                styles.backBtn,
+                { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
+              ]}
+            >
+              <Ionicons name="arrow-back" size={20} color={theme.text} />
+              <Text style={[styles.backText, { color: theme.text }]}>Região</Text>
+            </Pressable>
+
+            <Pressable
               onPress={() => {
+                if (farmPolygonDraft.length < 3) {
+                  handleGoToFarmDemarcation();
+                  return;
+                }
+                setLotStepError(null);
+                setStage('lotes');
+              }}
+              style={[styles.nextBtn, { backgroundColor: theme.primary }]}
+            >
+              <Text style={[styles.nextText, { color: theme.primaryText }]}>
+                Avançar para lotes de plantio
+              </Text>
+              <Ionicons name="arrow-forward" size={20} color={theme.primaryText} />
+            </Pressable>
+          </>
+        ) : stage === 'lotes' ? (
+          <>
+            <Pressable
+              onPress={() => {
+                setLotStepError(null);
+                setStage('demarcacao_fazenda');
+              }}
+              style={[
+                styles.backBtn,
+                { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
+              ]}
+            >
+              <Ionicons name="arrow-back" size={20} color={theme.text} />
+              <Text style={[styles.backText, { color: theme.text }]}>Fazenda</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => {
+                if (lotesDraft.length === 0) {
+                  const msg =
+                    'Selecione quantos lotes tem na sua fazenda (ou toque em Adicionar lote) antes de continuar.';
+                  setLotStepError(msg);
+                  speak(msg);
+                  return;
+                }
+                const undemarcated = lotesDraft.find((lot) => lot.polygon.length < 3);
+                if (undemarcated) {
+                  const msg = `Demarque a área de "${undemarcated.nome}" no mapa (mínimo 3 pontos dentro do terreno) antes de avançar.`;
+                  setLotStepError(msg);
+                  speak(msg);
+                  return;
+                }
+                setLotStepError(null);
                 setStage('cadastro');
                 setActiveParamIdx(0);
               }}
               style={[styles.nextBtn, { backgroundColor: theme.primary }]}
             >
               <Text style={[styles.nextText, { color: theme.primaryText }]}>
-                Confirmar local e ir para o cadastro
+                Ir para dados do produtor
               </Text>
               <Ionicons name="arrow-forward" size={20} color={theme.primaryText} />
             </Pressable>
@@ -1168,7 +1244,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
           <>
             <Pressable
               onPress={() => {
-                if (activeParamIdx === 0) setStage('mapa');
+                if (activeParamIdx === 0) setStage('lotes');
                 else setActiveParamIdx((i) => Math.max(0, i - 1));
               }}
               style={[
@@ -1178,7 +1254,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
             >
               <Ionicons name="arrow-back" size={20} color={theme.text} />
               <Text style={[styles.backText, { color: theme.text }]}>
-                {activeParamIdx === 0 ? 'Mapa' : 'Anterior'}
+                {activeParamIdx === 0 ? 'Lotes' : 'Anterior'}
               </Text>
             </Pressable>
 

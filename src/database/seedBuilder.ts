@@ -6,6 +6,7 @@ import {
   buildInitialSeedFarms,
 } from '../data/seedData';
 import { runLocalAgronomicEngine } from '../services/localAgronomicEngine';
+import { createDefaultLotsForFarm } from '../utils/agronomyHelpers';
 import {
   AccessibilityProfile,
   AppFeedbackItem,
@@ -63,6 +64,7 @@ export function buildSeedSnapshot(): LocalDatabaseSnapshot {
       areaTarefasBa: pf.areaTarefasBa!,
       raioBuscaKm: raio,
       culturaPrincipal: cultura,
+      lotes: createDefaultLotsForFarm(centroid, pf.areaHectares ?? 3.8, cultura),
       diagnostico: runLocalAgronomicEngine(centroid, cultura, raio),
     };
   });

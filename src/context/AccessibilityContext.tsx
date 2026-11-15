@@ -25,10 +25,12 @@ import {
   FieldValidationLog,
   GeoPoint,
   LeafAnalysisResult,
+  PlantingLot,
   ProactiveAlertItem,
   SyncQueueItem,
   WellPoint,
 } from '../types/domain';
+import { createDefaultLotsForFarm } from '../utils/agronomyHelpers';
 import { calculatePolygonMetrics, createMicroPlotAroundPoint } from '../utils/geoprocessing';
 
 interface AccessibilityContextValue {
@@ -68,9 +70,16 @@ interface AccessibilityContextValue {
   ) => Promise<void>;
   applyRegistrationSetup: (
     farmer: FarmerProfile,
-    options: { tamanhoEstimadoHa?: number; culturaPrincipal?: string }
+    options: {
+      tamanhoEstimadoHa?: number;
+      culturaPrincipal?: string;
+      polygon?: GeoPoint[];
+      lotes?: PlantingLot[];
+    }
   ) => Promise<void>;
   updateFarmPolygon: (polygon: GeoPoint[], customName?: string) => Promise<void>;
+  updateFarmLots: (lotes: PlantingLot[]) => Promise<void>;
+  updateLotDetails: (lotId: string, patch: Partial<PlantingLot>) => Promise<void>;
   selectBahiaRegion: (regionId: string) => Promise<void>;
   updateFarmRadius: (raioKm: number) => Promise<void>;
   simulateDroughtLevel: (boost: number) => Promise<void>;
@@ -124,7 +133,14 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
     const applySnapshot = (snap: ReturnType<typeof buildSeedSnapshot>) => {
       const fallback = buildSeedSnapshot();
       const safeFarmers = snap.usuarios.length > 0 ? snap.usuarios : fallback.usuarios;
-      const safeFarms = snap.fazendas.length > 0 ? snap.fazendas : fallback.fazendas;
+      const rawFarms = snap.fazendas.length > 0 ? snap.fazendas : fallback.fazendas;
+      const safeFarms = rawFarms.map((f) => ({
+        ...f,
+        lotes:
+          f.lotes && f.lotes.length > 0
+            ? f.lotes
+            : createDefaultLotsForFarm(f.centroid, f.areaHectares, f.culturaPrincipal),
+      }));
       setAccessibility(snap.accessibility);
       setFarmers(safeFarmers);
       setFarms(safeFarms);
@@ -404,29 +420,52 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
   const applyRegistrationSetup = useCallback(
     async (
       farmer: FarmerProfile,
-      options: { tamanhoEstimadoHa?: number; culturaPrincipal?: string }
+      options: {
+        tamanhoEstimadoHa?: number;
+        culturaPrincipal?: string;
+        polygon?: GeoPoint[];
+        lotes?: PlantingLot[];
+      }
     ) => {
       await sqliteDb.upsertUsuario(farmer);
       setFarmers((prev) => prev.map((f) => (f.id === farmer.id ? farmer : f)));
 
       if (activeFarm) {
-        const targetHa = options.tamanhoEstimadoHa ?? activeFarm.areaHectares;
-        const targetCrop = options.culturaPrincipal ?? activeFarm.culturaPrincipal;
-        const polygon = createMicroPlotAroundPoint(activeFarm.centroid, targetHa);
+        const polygon =
+          options.polygon && options.polygon.length >= 3
+            ? options.polygon
+            : createMicroPlotAroundPoint(
+                activeFarm.centroid,
+                options.tamanhoEstimadoHa ?? activeFarm.areaHectares
+              );
         const metrics = calculatePolygonMetrics(polygon);
+        const lotsToSave =
+          options.lotes && options.lotes.length > 0
+            ? options.lotes
+            : createDefaultLotsForFarm(
+                metrics.centroid,
+                metrics.areaHectares,
+                options.culturaPrincipal ?? activeFarm.culturaPrincipal
+              );
+        const primaryLotCrop =
+          lotsToSave[0]?.culturaAtual ||
+          options.culturaPrincipal ||
+          activeFarm.culturaPrincipal;
+
         const diag = runLocalAgronomicEngine(
           metrics.centroid,
-          targetCrop,
+          primaryLotCrop,
           activeFarm.raioBuscaKm,
           { dryStressBoost }
         );
         const updatedFarm: FarmProperty = {
           ...activeFarm,
-          culturaPrincipal: targetCrop,
+          culturaPrincipal: primaryLotCrop,
           polygon,
           centroid: metrics.centroid,
           areaHectares: metrics.areaHectares,
           areaTarefasBa: metrics.areaTarefasBa,
+          lotes: lotsToSave,
           diagnostico: diag,
         };
         await sqliteDb.upsertFazenda(updatedFarm);
@@ -489,6 +528,47 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
     [activeFarm, dryStressBoost]
   );
 
+  const updateFarmLots = useCallback(
+    async (lotes: PlantingLot[]) => {
+      if (!activeFarm) return;
+      const primaryCrop = lotes[0]?.culturaAtual || activeFarm.culturaPrincipal;
+      const diag = runLocalAgronomicEngine(
+        activeFarm.centroid,
+        primaryCrop,
+        activeFarm.raioBuscaKm,
+        { dryStressBoost }
+      );
+      const updated: FarmProperty = {
+        ...activeFarm,
+        culturaPrincipal: primaryCrop,
+        lotes,
+        diagnostico: diag,
+      };
+      await sqliteDb.upsertFazenda(updated);
+      setFarms((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+    },
+    [activeFarm, dryStressBoost]
+  );
+
+  const updateLotDetails = useCallback(
+    async (lotId: string, patch: Partial<PlantingLot>) => {
+      if (!activeFarm) return;
+      const existingLots =
+        activeFarm.lotes && activeFarm.lotes.length > 0
+          ? activeFarm.lotes
+          : createDefaultLotsForFarm(
+              activeFarm.centroid,
+              activeFarm.areaHectares,
+              activeFarm.culturaPrincipal
+            );
+      const nextLots = existingLots.map((lot) =>
+        lot.id === lotId ? { ...lot, ...patch } : lot
+      );
+      await updateFarmLots(nextLots);
+    },
+    [activeFarm, updateFarmLots]
+  );
+
   const selectBahiaRegion = useCallback(
     async (regionId: string) => {
       if (!activeFarm) return;
@@ -515,6 +595,11 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         polygon,
         areaHectares: metrics.areaHectares,
         areaTarefasBa: metrics.areaTarefasBa,
+        lotes: createDefaultLotsForFarm(
+          metrics.centroid,
+          metrics.areaHectares,
+          activeFarm.culturaPrincipal
+        ),
         diagnostico: diag,
       };
       await sqliteDb.upsertFazenda(updated);
@@ -834,6 +919,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       recordCropHistory,
       applyRegistrationSetup,
       updateFarmPolygon,
+      updateFarmLots,
+      updateLotDetails,
       selectBahiaRegion,
       updateFarmRadius,
       simulateDroughtLevel,
@@ -879,6 +966,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       recordCropHistory,
       applyRegistrationSetup,
       updateFarmPolygon,
+      updateFarmLots,
+      updateLotDetails,
       selectBahiaRegion,
       updateFarmRadius,
       simulateDroughtLevel,
