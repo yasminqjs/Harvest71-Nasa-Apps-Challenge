@@ -69,8 +69,8 @@ def apply_weather_events(weather: Weather, events: Iterable[WeatherEvent]) -> tu
             if values is None or values.get("RAIN") is None:
                 raise ValueError(f"chuva ausente em {day.isoformat()}")
             rain = values["RAIN"]
-            if rain < 0:
-                raise ValueError(f"chuva negativa em {day.isoformat()}")
+            if not math.isfinite(rain) or rain < 0:
+                raise ValueError(f"chuva inválida em {day.isoformat()}")
             values["RAIN"] = rain * event.factor
 
     manifest = {

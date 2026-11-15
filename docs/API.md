@@ -333,6 +333,7 @@ aceita `horizon_start`, `horizon_end`, `known_crops` e uma lista `windows` com
 e `route` com os ciclos e respectivas datas de fim. O cliente informa o
 histórico realizado e as janelas futuras atualizadas. A resposta verifica a
 rota anterior e gera calendários alternativos que preservam os ciclos iniciados.
+`known_crops` limita os novos plantios; os ciclos já iniciados permanecem no histórico.
 O encerramento antecipado fica marcado como indisponível quando há cultura ativa.
 
 Essas rotas devolvem estimativas de calendário baseadas no catálogo. O campo
