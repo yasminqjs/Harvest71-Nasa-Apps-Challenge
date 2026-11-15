@@ -7,3 +7,24 @@ O código fixado pela imagem (`25c93b9a2f73f8ec45bf441b198dac5fb7b22849`) implem
 - [WBSUBS.for](https://github.com/DSSAT/dssat-csm-os/blob/25c93b9a2f73f8ec45bf441b198dac5fb7b22849/Soil/SoilWater/WBSUBS.for#L147) evita a inicialização da água para as etapas posteriores em `Q`. A simulação de referência do projeto usa modo `A`, portanto seu sucesso não verifica esse comportamento.
 
 Na imagem, o caso mínimo precisa usar duas culturas do catálogo, solo e clima com origem já aceita e um intervalo de pousio. Conferir a ordem das etapas, as datas efetivas e o estado hídrico por camada no ponto de transição. Comparar com um controle que reinicializa o segundo cultivo e verificar se o lote repete etapas quando sobram dias no horizonte. Antes de liberar replanejamento, reproduzir um prefixo com clima e operações realizadas até a data de decisão e comparar o estado diário entre os futuros alternativos.
+
+## Executar a comparação de duas ordens
+
+Com o DSSAT instalado e `DSSAT_HOME` apontando para a instalação, entre em
+`apps/dssat` e execute:
+
+```text
+python -m rotation_compare power.json solo.csv saida --crops MZ CP --dates 1992-01-15 1992-07-15
+```
+
+Use uma série NASA POWER com cobertura do período e um CSV PronaSolos no
+formato já usado por `fieldshift_inputs.py`. Use uma pasta de saída nova. O
+comando roda as ordens MZ → CP e CP → MZ sob o mesmo clima, solo inicial e
+datas. Cada ordem tem seu próprio lote `Q` e arquivos de saída. A comparação
+informa as diferenças por cultura (ordem invertida menos ordem inicial) e
+rejeita a saída se o motor não registrar os plantios nas datas solicitadas.
+
+O resultado é exploratório, para um ano histórico e em sequeiro. As duas datas
+trocam de cultura junto com a ordem, então a diferença inclui efeitos de
+calendário. As saídas diárias ficam disponíveis para investigar a água do solo.
+A execução ainda é por linha de comando e pelo teste na imagem do CI.
