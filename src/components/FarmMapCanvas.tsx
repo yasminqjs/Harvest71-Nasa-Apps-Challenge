@@ -26,11 +26,13 @@ const LeafletFarmWebCanvas: React.FC<
   drawingMode,
   height = 280,
   onAddPoint,
+  onSelectLot,
   onFallbackOffline,
   theme,
 }) => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const onAddPointRef = useRef(onAddPoint);
+  const onSelectLotRef = useRef(onSelectLot);
   const [ready, setReady] = useState(false);
   const [basemap, setBasemap] = useState<'satellite' | 'streets'>('satellite');
   const { language } = useLanguage();
@@ -39,6 +41,10 @@ const LeafletFarmWebCanvas: React.FC<
   useEffect(() => {
     onAddPointRef.current = onAddPoint;
   }, [onAddPoint]);
+
+  useEffect(() => {
+    onSelectLotRef.current = onSelectLot;
+  }, [onSelectLot]);
 
   const latestStateRef = useRef({
     centroid,
@@ -75,7 +81,7 @@ const LeafletFarmWebCanvas: React.FC<
       const data = event.data as {
         source?: string;
         channel?: string;
-        payload?: { type?: string; latitude?: number; longitude?: number };
+        payload?: { type?: string; latitude?: number; longitude?: number; lotId?: string };
       } | null;
       if (!data || data.source !== 'rocaviva-leaflet' || data.channel !== 'farm') return;
       const msg = data.payload;
@@ -86,6 +92,10 @@ const LeafletFarmWebCanvas: React.FC<
       }
       if (msg.type === 'addPoint' && msg.latitude !== undefined && msg.longitude !== undefined) {
         onAddPointRef.current({ latitude: msg.latitude, longitude: msg.longitude });
+        return;
+      }
+      if (msg.type === 'selectLot' && msg.lotId) {
+        onSelectLotRef.current?.(msg.lotId);
       }
     };
 

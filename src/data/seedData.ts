@@ -25,6 +25,32 @@ export interface BahiaRegionPreset {
   salinidadeRisco: 'baixo' | 'moderado' | 'alto';
 }
 
+export const DEFAULT_IRECE_FARM_CENTROID = {
+  latitude: -11.346531,
+  longitude: -41.960674,
+};
+
+export const DEFAULT_IRECE_FARM_POLYGON = [
+  { latitude: -11.345537, longitude: -41.962216 },
+  { latitude: -11.345243, longitude: -41.959502 },
+  { latitude: -11.347515, longitude: -41.958997 },
+  { latitude: -11.34783, longitude: -41.96198 },
+];
+
+export const DEFAULT_IRECE_LOT1_POLYGON = [
+  { latitude: -11.346841, longitude: -41.962045 },
+  { latitude: -11.346673, longitude: -41.960564 },
+  { latitude: -11.34762, longitude: -41.960456 },
+  { latitude: -11.347767, longitude: -41.961937 },
+];
+
+export const DEFAULT_IRECE_LOT2_POLYGON = [
+  { latitude: -11.345642, longitude: -41.960585 },
+  { latitude: -11.345516, longitude: -41.959545 },
+  { latitude: -11.347452, longitude: -41.959083 },
+  { latitude: -11.347599, longitude: -41.960392 },
+];
+
 export const NORDESTE_REGIONS: BahiaRegionPreset[] = [
   {
     id: 'reconcavo-ba',

@@ -11,7 +11,9 @@ import { PlantationQualityPlaceholder } from '../components/placeholders/Plantat
 import { FarmVariablesEditorSubscreen } from '../components/subscreens/FarmVariablesEditorSubscreen';
 import { HistoricoPlantioSubscreen } from '../components/subscreens/HistoricoPlantioSubscreen';
 import { RotacaoAtualSubscreen } from '../components/subscreens/RotacaoAtualSubscreen';
+import { SatellitePlantationForecastSubscreen } from '../components/subscreens/SatellitePlantationForecastSubscreen';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { useCropQuality } from '../context/CropQualityContext';
 import { FEATURE_COLOR_STYLES } from '../models/farmArchitecture';
 import { getAppTheme } from '../theme/tokens';
 import { formatArea } from '../utils/regionalize';
@@ -26,24 +28,27 @@ type PlantationBlock =
   | 'talhao_dssat'
   | 'planejar_rotacao'
   | 'qualidade_atual'
+  | 'satelite_previsoes'
   | null;
 
 /**
  * Aba Plantação ("O que o usuário vê" -> aba plantação):
  * - VERDE:   Atualizar dados da plantação e da fazenda (Pegador de informações da fazenda)
  * - CINZA:   Planejar rotações futuras e comparar opções com o DSSAT
- * - ROXO:    Ver qualidade da plantação atual [PLACEHOLDER Visualizador de qualidade]
+ * - ROXO:    Ver qualidade da plantação atual + satélite em tempo real
  */
 export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
   openCurrentRotation = false,
 }) => {
   const { accessibility, activeFarmer, activeFarm, farmArchitecture, speak } = useAccessibility();
+  const { openQualityRequested, clearOpenQualityRequest } = useCropQuality();
   const { language } = useLanguage();
   const en = language === 'en';
   const theme = getAppTheme(accessibility);
   const [activeBlock, setActiveBlock] = useState<PlantationBlock>(
     openCurrentRotation ? 'atualizar_lotes' : null
   );
+  const effectiveBlock: PlantationBlock = openQualityRequested ? 'qualidade_atual' : activeBlock;
   const [plannerLotId, setPlannerLotId] = useState<string>();
   const [showDataLayers, setShowDataLayers] = useState(false);
   const autoSpokenRef = useRef(false);
@@ -52,42 +57,43 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
   const hubCropsText = hubPlantacoes.map((p) => p.culturaAtual.culturaNome).filter(Boolean).join(', ');
   const cropsVoiceText = activeFarm
     ? en
-      ? `Crops tab for ${activeFarm.nome}, ${formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)}, with ${hubPlantacoes.length} plantings${hubCropsText ? `: ${hubCropsText}` : ''}. Choose Update farm details, Plan rotation with DSSAT, My Plot in DSSAT, or Current crop quality.`
-      : `Aba Plantação de ${activeFarm.nome}, com ${formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)} e ${hubPlantacoes.length} plantações${hubCropsText ? `: ${hubCropsText}` : ''}. Você pode escolher: Atualizar dados da fazenda, Planejar rotação, Meu Talhão no DSSAT, ou Ver qualidade da plantação atual.`
+      ? `Crops tab for ${activeFarm.nome}, ${formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)}, with ${hubPlantacoes.length} plantings${hubCropsText ? `: ${hubCropsText}` : ''}. Choose Update farm details, Plan rotation with DSSAT, My Plot in DSSAT, Current crop quality, or Live Satellite & Crop Forecasts.`
+      : `Aba Plantação de ${activeFarm.nome}, com ${formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)} e ${hubPlantacoes.length} plantações${hubCropsText ? `: ${hubCropsText}` : ''}. Você pode escolher: Atualizar dados da fazenda, Planejar rotação, Meu Talhão no DSSAT, Ver qualidade da plantação atual, ou Satélite e Previsões por Grão.`
     : '';
 
   useEffect(() => {
-    if (!accessibility.voiceGuidanceEnabled || autoSpokenRef.current || !cropsVoiceText || activeBlock) {
+    if (!accessibility.voiceGuidanceEnabled || autoSpokenRef.current || !cropsVoiceText || effectiveBlock) {
       return;
     }
     autoSpokenRef.current = true;
     speak(cropsVoiceText);
-  }, [accessibility.voiceGuidanceEnabled, cropsVoiceText, activeBlock, speak]);
+  }, [accessibility.voiceGuidanceEnabled, cropsVoiceText, effectiveBlock, speak]);
 
   const goBack = useCallback(() => {
+    clearOpenQualityRequest();
     if (
-      activeBlock === 'atualizar_lotes' ||
-      activeBlock === 'atualizar_mapa' ||
-      activeBlock === 'atualizar_variaveis' ||
-      activeBlock === 'atualizar_historico'
+      effectiveBlock === 'atualizar_lotes' ||
+      effectiveBlock === 'atualizar_mapa' ||
+      effectiveBlock === 'atualizar_variaveis' ||
+      effectiveBlock === 'atualizar_historico'
     ) {
-      if (activeBlock === 'atualizar_lotes') setPlannerLotId(undefined);
+      if (effectiveBlock === 'atualizar_lotes') setPlannerLotId(undefined);
       setActiveBlock('atualizar_hub');
-    } else if (activeBlock === 'planejar_rotacao' && plannerLotId) {
+    } else if (effectiveBlock === 'planejar_rotacao' && plannerLotId) {
       setActiveBlock('atualizar_lotes');
     } else {
       setActiveBlock(null);
     }
-  }, [activeBlock, plannerLotId]);
+  }, [effectiveBlock, plannerLotId, clearOpenQualityRequest]);
 
   useEffect(() => {
-    if (!activeBlock) return undefined;
+    if (!effectiveBlock) return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       goBack();
       return true;
     });
     return () => sub.remove();
-  }, [activeBlock, goBack]);
+  }, [effectiveBlock, goBack]);
 
   if (!activeFarm || !activeFarmer || !farmArchitecture) return null;
 
@@ -105,7 +111,7 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
         style={{ flex: 1, backgroundColor: theme.bg }}
         contentContainerStyle={styles.container}
       >
-        {activeBlock === 'atualizar_lotes' ? (
+        {effectiveBlock === 'atualizar_lotes' ? (
           <RotacaoAtualSubscreen
             onBack={goBack}
             initialLotId={plannerLotId}
@@ -115,14 +121,14 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
             }}
             title="Lotes e Cultura Atual"
           />
-        ) : activeBlock === 'atualizar_historico' ? (
+        ) : effectiveBlock === 'atualizar_historico' ? (
           <HistoricoPlantioSubscreen
             onBack={() => setActiveBlock('atualizar_hub')}
             title="Histórico da Terra e Cultivo"
           />
-        ) : activeBlock === 'atualizar_variaveis' ? (
+        ) : effectiveBlock === 'atualizar_variaveis' ? (
           <FarmVariablesEditorSubscreen onBack={() => setActiveBlock('atualizar_hub')} />
-        ) : activeBlock === 'atualizar_mapa' ? (
+        ) : effectiveBlock === 'atualizar_mapa' ? (
           <View style={{ gap: 10 }}>
             <View style={styles.topRow}>
               <Pressable
@@ -151,7 +157,7 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
             />
             <MapScreen />
           </View>
-        ) : activeBlock === 'atualizar_hub' ? (
+        ) : effectiveBlock === 'atualizar_hub' ? (
           <View style={{ gap: 10 }}>
             <View style={styles.topRow}>
               <Pressable
@@ -246,15 +252,27 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
               </Pressable>
             </View>
           </View>
-        ) : activeBlock === 'talhao_dssat' ? (
+        ) : effectiveBlock === 'talhao_dssat' ? (
           <DssatAreaSimulation onBack={() => setActiveBlock(null)} />
-        ) : activeBlock === 'planejar_rotacao' ? (
+        ) : effectiveBlock === 'planejar_rotacao' ? (
           <DssatRotationSearch initialLotId={plannerLotId} onBack={goBack} />
-        ) : activeBlock === 'qualidade_atual' ? (
+        ) : effectiveBlock === 'satelite_previsoes' ? (
+          <SatellitePlantationForecastSubscreen
+            onBack={() => setActiveBlock(null)}
+            onOpenFullNasaDiagnostics={() => setActiveBlock('qualidade_atual')}
+          />
+        ) : effectiveBlock === 'qualidade_atual' ? (
           <PlantationQualityPlaceholder
             farmArchitecture={farmArchitecture}
             selectedPlantation={plantacoes[0]}
-            onBack={() => setActiveBlock(null)}
+            onBack={() => {
+              clearOpenQualityRequest();
+              setActiveBlock(null);
+            }}
+            onOpenSatelliteForecast={() => {
+              clearOpenQualityRequest();
+              setActiveBlock('satelite_previsoes');
+            }}
             theme={theme}
           />
         ) : (
@@ -337,10 +355,10 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
                 </Pressable>
               ))}
 
-              {/* 4. ROXO [PLACEHOLDER]: Ver qualidade */}
+              {/* 4. ROXO (Implementado): Ver qualidade da plantação atual */}
               <Pressable
                 onPress={() => setActiveBlock('qualidade_atual')}
-                style={[styles.choiceRow, { borderLeftColor: roxo.border, backgroundColor: roxo.bg }]}
+                style={[styles.choiceRow, { borderBottomWidth: 1, borderBottomColor: theme.border, borderLeftColor: roxo.border, backgroundColor: roxo.bg }]}
               >
                 <Ionicons name="pulse-outline" size={22} color={roxo.text} />
                 <View style={styles.choiceBody}>
@@ -348,13 +366,33 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
                     <Text style={[styles.choiceTitle, { color: roxo.text }]}>
                       Ver qualidade da plantação atual
                     </Text>
-                    <FeatureBadge color="roxo" customText="ROXO • Placeholder Qualidade" />
+                    <FeatureBadge color="roxo" customText="ROXO • Implementado" />
                   </View>
                   <Text style={{ fontSize: 11.5, color: roxo.text }} numberOfLines={1}>
-                    Visualizador de qualidade da plantação aguardando merge futuro
+                    NASA POWER + Sentinel-2 L2A + Landsat TIRS + manchas no mapa + áudio
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={roxo.text} />
+              </Pressable>
+
+              {/* 5. SATÉLITE + PREVISÕES POR GRÃO */}
+              <Pressable
+                onPress={() => setActiveBlock('satelite_previsoes')}
+                style={[styles.choiceRow, { borderLeftColor: '#0284C7', backgroundColor: '#F0F9FF' }]}
+              >
+                <Ionicons name="planet-outline" size={22} color="#0369A1" />
+                <View style={styles.choiceBody}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <Text style={[styles.choiceTitle, { color: '#0C4A6E' }]}>
+                      Satélite da Plantação + Previsões por Grão
+                    </Text>
+                    <FeatureBadge color="roxo" customText="SATÉLITE REAL • FAO/NASA" />
+                  </View>
+                  <Text style={{ fontSize: 11.5, color: '#0369A1' }} numberOfLines={1}>
+                    Terreno em imagem real, produtividade estimada (sc/ha), risco climático e clima 7 dias
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#0369A1" />
               </Pressable>
             </View>
           </View>

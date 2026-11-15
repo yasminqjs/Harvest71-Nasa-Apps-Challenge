@@ -9,11 +9,13 @@ import { AppTutorialModal } from './src/components/AppTutorialModal';
 import { BottomTabBar, MainTabKey } from './src/components/BottomTabBar';
 import { MobileViewport } from './src/components/MobileViewport';
 import { LanguageMenu } from './src/components/LanguageMenu';
+import { SatelliteLoadingBanner } from './src/components/SatelliteLoadingBanner';
 import { LanguageProvider } from './src/i18n/Language';
 import {
   AccessibilityProvider,
   useAccessibility,
 } from './src/context/AccessibilityContext';
+import { CropQualityProvider } from './src/context/CropQualityContext';
 import { CommunityScreen } from './src/screens/CommunityScreen';
 import { DecisionScreen } from './src/screens/DecisionScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -123,6 +125,7 @@ const Harvest71Root: React.FC = () => {
             onOpenTutorial={openTutorial}
           />
           <AlertTopBanner onOpenAllAlerts={() => openSettingsAt('alertas')} />
+          <SatelliteLoadingBanner onNavigateTab={navigateTab} />
           <View style={styles.body}>
             {activeTab === 'resumo' && (
               <HomeScreen
@@ -163,9 +166,11 @@ export default function App() {
     <SafeAreaProvider>
       <LanguageProvider>
         <AccessibilityProvider>
-          <MobileViewport>
-            <Harvest71Root />
-          </MobileViewport>
+          <CropQualityProvider>
+            <MobileViewport>
+              <Harvest71Root />
+            </MobileViewport>
+          </CropQualityProvider>
         </AccessibilityProvider>
       </LanguageProvider>
     </SafeAreaProvider>

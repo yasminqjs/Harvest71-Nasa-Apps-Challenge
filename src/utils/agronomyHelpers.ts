@@ -1,4 +1,9 @@
 import {
+  DEFAULT_IRECE_FARM_CENTROID,
+  DEFAULT_IRECE_LOT1_POLYGON,
+  DEFAULT_IRECE_LOT2_POLYGON,
+} from '../data/seedData';
+import {
   FarmProperty,
   GeoPoint,
   NasaDiagnosticsPackage,
@@ -39,25 +44,60 @@ export const PLANT_CATALOG_CHIPS = [
   ...dssatCatalog.crops.filter(({ code }) => !localCropCodes.has(code)).map(({ name }) => name),
 ];
 
+function subdividePolygonIntoTwoLots(
+  centroid: GeoPoint,
+  areaHectares: number,
+  farmPolygon?: GeoPoint[]
+): { poly1: GeoPoint[]; poly2: GeoPoint[] } {
+  const isDefaultIrece =
+    Math.abs(centroid.latitude - DEFAULT_IRECE_FARM_CENTROID.latitude) < 0.008 &&
+    Math.abs(centroid.longitude - DEFAULT_IRECE_FARM_CENTROID.longitude) < 0.008;
+
+  if (isDefaultIrece && (!farmPolygon || farmPolygon.length === 4)) {
+    return {
+      poly1: DEFAULT_IRECE_LOT1_POLYGON.map((pt) => ({ ...pt })),
+      poly2: DEFAULT_IRECE_LOT2_POLYGON.map((pt) => ({ ...pt })),
+    };
+  }
+
+  const basePoly =
+    farmPolygon && farmPolygon.length >= 3
+      ? farmPolygon
+      : createMicroPlotAroundPoint(centroid, Math.max(0.8, areaHectares || 4.2));
+
+  const lats = basePoly.map((p) => p.latitude);
+  const lons = basePoly.map((p) => p.longitude);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLon = Math.min(...lons);
+  const maxLon = Math.max(...lons);
+  const latPad = (maxLat - minLat) * 0.08;
+  const lonPad = (maxLon - minLon) * 0.08;
+  const midLon = (minLon + maxLon) / 2;
+  const gapLon = (maxLon - minLon) * 0.03;
+
+  const poly1: GeoPoint[] = [
+    { latitude: Number((maxLat - latPad).toFixed(6)), longitude: Number((minLon + lonPad).toFixed(6)) },
+    { latitude: Number((maxLat - latPad).toFixed(6)), longitude: Number((midLon - gapLon).toFixed(6)) },
+    { latitude: Number((minLat + latPad).toFixed(6)), longitude: Number((midLon - gapLon).toFixed(6)) },
+    { latitude: Number((minLat + latPad).toFixed(6)), longitude: Number((minLon + lonPad).toFixed(6)) },
+  ];
+  const poly2: GeoPoint[] = [
+    { latitude: Number((maxLat - latPad).toFixed(6)), longitude: Number((midLon + gapLon).toFixed(6)) },
+    { latitude: Number((maxLat - latPad).toFixed(6)), longitude: Number((maxLon - lonPad).toFixed(6)) },
+    { latitude: Number((minLat + latPad).toFixed(6)), longitude: Number((maxLon - lonPad).toFixed(6)) },
+    { latitude: Number((minLat + latPad).toFixed(6)), longitude: Number((midLon + gapLon).toFixed(6)) },
+  ];
+  return { poly1, poly2 };
+}
+
 export function createDefaultLotsForFarm(
   centroid: GeoPoint,
   areaHectares: number,
-  culturaPrincipal: string
+  culturaPrincipal: string,
+  farmPolygon?: GeoPoint[]
 ): PlantingLot[] {
-  const safeArea = Math.max(0.8, areaHectares || 3.8);
-  const lot1Area = Number((safeArea * 0.52).toFixed(2));
-  const lot2Area = Number((safeArea * 0.42).toFixed(2));
-  const latOffset = 0.00045;
-  const lonOffset = 0.00055;
-
-  const poly1 = createMicroPlotAroundPoint(
-    { latitude: centroid.latitude + latOffset, longitude: centroid.longitude - lonOffset },
-    lot1Area
-  );
-  const poly2 = createMicroPlotAroundPoint(
-    { latitude: centroid.latitude - latOffset, longitude: centroid.longitude + lonOffset },
-    lot2Area
-  );
+  const { poly1, poly2 } = subdividePolygonIntoTwoLots(centroid, areaHectares, farmPolygon);
 
   const plants = culturaPrincipal
     .split('+')
