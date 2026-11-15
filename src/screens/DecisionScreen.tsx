@@ -11,6 +11,8 @@ import {
   Text,
   View,
 } from 'react-native';
+import { DssatAreaSimulation } from '../components/dssat/DssatAreaSimulation';
+import { DssatRotationSearch } from '../components/dssat/DssatRotationSearch';
 import { HistoricoPlantioSubscreen } from '../components/subscreens/HistoricoPlantioSubscreen';
 import { RotacaoAtualSubscreen } from '../components/subscreens/RotacaoAtualSubscreen';
 import { useAccessibility } from '../context/AccessibilityContext';
@@ -21,7 +23,14 @@ import {
 import { getAppTheme } from '../theme/tokens';
 import { formatArea, formatCurrencyBRL, regionalizarTexto } from '../utils/regionalize';
 
-type SafraBlock = 'rotacao' | 'historico' | 'examinacao' | 'diagnostico' | null;
+type SafraBlock =
+  | 'rotacao'
+  | 'historico'
+  | 'examinacao'
+  | 'diagnostico'
+  | 'dssat_talhao'
+  | 'dssat_rotacoes'
+  | null;
 
 export const DecisionScreen: React.FC = () => {
   const {
@@ -162,7 +171,11 @@ export const DecisionScreen: React.FC = () => {
         style={{ flex: 1, backgroundColor: theme.bg }}
         contentContainerStyle={styles.container}
       >
-        {activeBlock === 'rotacao' ? (
+        {activeBlock === 'dssat_talhao' ? (
+          <DssatAreaSimulation onBack={() => setActiveBlock(null)} />
+        ) : activeBlock === 'dssat_rotacoes' ? (
+          <DssatRotationSearch onBack={() => setActiveBlock(null)} />
+        ) : activeBlock === 'rotacao' ? (
           <RotacaoAtualSubscreen
             onBack={() => setActiveBlock(null)}
             title="Rotação Atual e Lotes"
@@ -484,6 +497,50 @@ export const DecisionScreen: React.FC = () => {
                 {formatArea(ha, activeFarm.areaTarefasBa)}
               </Text>
             </View>
+
+            <Pressable
+              onPress={() => setActiveBlock('dssat_talhao')}
+              accessibilityRole="button"
+              style={[
+                styles.choiceBlock,
+                { backgroundColor: theme.surface, borderColor: theme.accent },
+              ]}
+            >
+              <View style={[styles.choiceIcon, { backgroundColor: theme.successBg }]}>
+                <Ionicons name="earth-outline" size={28} color={theme.accent} />
+              </View>
+              <View style={styles.choiceBody}>
+                <Text style={[styles.choiceTitle, { color: theme.text }]}>
+                  Meu Talhão no DSSAT
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.textMuted }}>
+                  Solo do local, melhores datas de plantio e clima futuro (NASA) — simulação na nuvem
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={22} color={theme.accent} />
+            </Pressable>
+
+            <Pressable
+              onPress={() => setActiveBlock('dssat_rotacoes')}
+              accessibilityRole="button"
+              style={[
+                styles.choiceBlock,
+                { backgroundColor: theme.surface, borderColor: theme.accent },
+              ]}
+            >
+              <View style={[styles.choiceIcon, { backgroundColor: theme.successBg }]}>
+                <Ionicons name="repeat-outline" size={28} color={theme.accent} />
+              </View>
+              <View style={styles.choiceBody}>
+                <Text style={[styles.choiceTitle, { color: theme.text }]}>
+                  Rotações para meu Talhão
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.textMuted }}>
+                  Buscar a melhor sequência de culturas com metas por cultura (DSSAT)
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={22} color={theme.accent} />
+            </Pressable>
 
             <Pressable
               onPress={() => setActiveBlock('rotacao')}
