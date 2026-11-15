@@ -17,6 +17,12 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+def ascii_text(s: str) -> str:
+    """O DSSAT lê colunas de largura fixa em bytes: acentos (UTF-8) deslocam os campos. Remove-os."""
+    import unicodedata
+    return unicodedata.normalize("NFKD", str(s)).encode("ascii", "ignore").decode("ascii")
+
+
 # ----------------------------------------------------------------------------- clima
 
 POWER_TO_DSSAT = {  # variável DSSAT: (parâmetro POWER, conversão)
@@ -108,7 +114,7 @@ def write_wth_files(w: Weather, insi: str, outdir: Path, title: str) -> list[str
     for year, ds in sorted(by_year.items()):
         name = f"{insi}{year % 100:02d}01.WTH"
         lines = [
-            f"*WEATHER DATA : {title}",
+            f"*WEATHER DATA : {ascii_text(title)}",
             "",
             "@ INSI      LAT     LONG  ELEV   TAV   AMP REFHT WNDHT",
             f"  {insi:4s} {w.lat:8.3f} {w.lon:8.3f} {w.elev:5.0f} {tav:5.1f} {amp:5.1f}   2.0   2.0",
@@ -159,6 +165,83 @@ def read_pronasolos_csv_text(text: str) -> dict[str, dict[str, float]]:
             continue
         out[depth][prop] = x
     return dict(out)
+
+
+PS_GROUPS = {1: "estoque_c_mg_ha", 8: "carbono_organico_g_kg", 15: "areia_g_kg", 22: "argila_g_kg",
+             29: "silte_g_kg", 36: "ctc_cmolc_kg", 43: "ph_agua", 50: "ce_ds_m"}
+PS_LAYER = {g + 1 + i: (p, d) for g, p in PS_GROUPS.items() for i, (d, _) in enumerate(PS_DEPTHS)}
+
+
+def pronasolos_identify_to_csv(doc: dict) -> str:
+    """Resposta do 'identify' do serviço atributos_solo_90m -> CSV propriedade,profundidade,valor."""
+    if "error" in doc:
+        raise ValueError(f"PronaSolos: {doc['error']}")
+    rows = []
+    for r in doc.get("results", []):
+        key = PS_LAYER.get(r.get("layerId"))
+        if not key:
+            continue
+        val = next((v for k, v in r.get("attributes", {}).items() if k.endswith("Pixel Value")), None)
+        try:
+            x = float(val)
+        except (TypeError, ValueError):
+            continue
+        rows.append(f"{key[0]},{key[1]},{x:g}")
+    if not rows:
+        raise ValueError("PronaSolos sem valores para o ponto (fora da cobertura?)")
+    return "propriedade,profundidade,valor\n" + "\n".join(sorted(rows)) + "\n"
+
+
+# Campos aceitos na análise de solo do agricultor (unidades de laboratório usuais no Brasil)
+ANALYSIS_FIELDS = {
+    "areia_g_kg": "areia_g_kg", "argila_g_kg": "argila_g_kg", "silte_g_kg": "silte_g_kg",
+    "carbono_organico_g_kg": "carbono_organico_g_kg", "ph_agua": "ph_agua", "ctc_cmolc_kg": "ctc_cmolc_kg",
+    "densidade_g_cm3": "densidade_g_cm3",
+}
+RECORD_ONLY_FIELDS = ("p_mg_dm3", "k_mg_dm3", "k_cmolc_dm3", "materia_organica_g_kg", "v_pct", "m_pct")
+
+
+def merge_soil_analysis(ps: dict[str, dict[str, float]], analysis: dict | None) -> tuple[dict, dict[str, str], list[str]]:
+    """Sobrepõe a análise do agricultor ao PronaSolos, camada a camada.
+
+    Cada camada da análise (top_cm, bottom_cm) substitui os atributos das camadas do PronaSolos
+    cujo ponto médio cai dentro dela. Devolve (perfil, origem por camada, avisos).
+    """
+    origin = {d: "estimado (PronaSolos 90 m)" for d in ps}
+    notes: list[str] = []
+    if not analysis:
+        return ps, origin, notes
+    merged = {d: dict(v) for d, v in ps.items()}
+    for lay in analysis.get("layers", []):
+        top, bottom = float(lay["top_cm"]), float(lay["bottom_cm"])
+        vals = {ANALYSIS_FIELDS[k]: float(v) for k, v in lay.items() if k in ANALYSIS_FIELDS and v is not None}
+        if "materia_organica_g_kg" in lay and "carbono_organico_g_kg" not in lay and lay["materia_organica_g_kg"] is not None:
+            vals["carbono_organico_g_kg"] = float(lay["materia_organica_g_kg"]) / 1.724
+            notes.append(f"{top:g}-{bottom:g} cm: C orgânico calculado da MO (÷ 1,724)")
+        hit = False
+        depth_top = 0
+        for d, depth_bottom in PS_DEPTHS:
+            mid, depth_top = (depth_top + depth_bottom) / 2, depth_bottom
+            if top <= mid < bottom:
+                merged.setdefault(d, {}).update(vals)
+                origin[d] = "medido (análise do agricultor)" + (f", {analysis['lab']}" if analysis.get("lab") else "")
+                hit = True
+        if not hit:
+            notes.append(f"camada {top:g}-{bottom:g} cm não coincide com nenhuma profundidade do modelo")
+    return merged, origin, notes
+
+
+def auto_windows(w: "Weather", n: int = 3) -> list[tuple[int, int]]:
+    """Janelas de plantio pelo clima do ponto: dia 1 do mês que abre o quadrimestre mais chuvoso
+    (média histórica NASA POWER) e dos dois meses seguintes. É uma SUPOSIÇÃO de cenário, não recomendação agronômica (validar com o ZARC)."""
+    rain = defaultdict(float)
+    years = {d.year for d in w.days}
+    for d, v in w.days.items():
+        rain[d.month] += v["RAIN"]
+    monthly = [rain[m] / max(1, len(years)) for m in range(1, 13)]
+    best = max(range(12), key=lambda m: sum(monthly[(m + k) % 12] for k in range(4)))
+    # dia 1 de três meses seguidos: nunca cai em 29/02 nem no dia 366
+    return [(((best + i) % 12) + 1, 1) for i in range(n)]
 
 
 def saxton_rawls(sand: float, clay: float, om: float) -> tuple[float, float, float]:
@@ -219,7 +302,7 @@ class SoilProfile:
 SURFACE_DEFAULTS = {"SALB": 0.13, "SLU1": 6.0, "SLDR": 0.50, "SLRO": 75.0, "SLNF": 1.0, "SLPF": 1.0}
 
 
-def build_soil(ps: dict[str, dict[str, float]], soil_id: str) -> SoilProfile:
+def build_soil(ps: dict[str, dict[str, float]], soil_id: str, origin: dict[str, str] | None = None) -> SoilProfile:
     prov = {
         "SLB": "DADO: profundidades do PronaSolos (5,15,30,60,100,200 cm)",
         "SLCL/SLSI": "DADO: PronaSolos argila/silte (g/kg ÷ 10 = %)",
@@ -251,6 +334,9 @@ def build_soil(ps: dict[str, dict[str, float]], soil_id: str) -> SoilProfile:
             warnings.append(f"camada {dname}: retenção inconsistente ({ll:.3f}/{dul:.3f}/{sat:.3f}); ajustada")
             ll = max(ll, 0.01); dul = max(dul, ll + 0.02); sat = max(sat, dul + 0.03)
         bd = (1 - sat) * 2.65
+        if v.get("densidade_g_cm3"):
+            bd = v["densidade_g_cm3"]                       # medida substitui a estimativa
+            sat = max(dul + 0.03, 0.95 * (1 - bd / 2.65))
         if v.get("ce_ds_m", 0) > 4:
             warnings.append(f"camada {dname}: salinidade alta (CE {v['ce_ds_m']} dS/m) não representada pelo DSSAT")
         top = 0 if not layers else layers[-1]["SLB"]
@@ -262,6 +348,7 @@ def build_soil(ps: dict[str, dict[str, float]], soil_id: str) -> SoilProfile:
             "SLCL": clay, "SLSI": silt, "SLCF": -99, "SLNI": -99,
             "SLHW": v.get("ph_agua", -99), "SCEC": v.get("ctc_cmolc_kg", -99),
             "_sand": sand, "_ec": v.get("ce_ds_m"),
+            "_origin": (origin or {}).get(dname, "estimado (PronaSolos 90 m)"),
         })
     if not layers:
         raise ValueError("PronaSolos sem camadas utilizáveis")
@@ -278,7 +365,7 @@ def write_sol(p: SoilProfile, path: Path, site: str, lat: float, lon: float) -> 
         "",
         f"*{p.soil_id:<10}  PronaSolos  {p.text:<5}{depth:5d} ESTIMATIVA REGIONAL 90M - NAO E ANALISE LOCAL",
         "@SITE        COUNTRY          LAT     LONG SCS FAMILY",
-        f" {site[:11]:<11} {'BRAZIL':<11} {lat:8.3f} {lon:8.3f} -99",
+        f" {ascii_text(site)[:11]:<11} {'BRAZIL':<11} {lat:8.3f} {lon:8.3f} -99",
         "@ SCOM  SALB  SLU1  SLDR  SLRO  SLNF  SLPF  SMHB  SMPX  SMKE",
         f"{'-99':>6}{s['SALB']:6.2f}{s['SLU1']:6.1f}{s['SLDR']:6.2f}{s['SLRO']:6.1f}{s['SLNF']:6.2f}{s['SLPF']:6.2f}"
         f"{'IB001':>6}{'IB001':>6}{'IB001':>6}",
@@ -321,8 +408,8 @@ class Scenario:
     irrigated: bool
 
 
-def scenarios_for(site: str, first_year: int) -> list[Scenario]:
-    wins = WINDOWS.get(site, DEFAULT_WINDOWS)
+def scenarios_for(site: str, first_year: int, windows: list[tuple[int, int]] | None = None) -> list[Scenario]:
+    wins = windows or WINDOWS.get(site, DEFAULT_WINDOWS)
     out = []
     for i, (m, d) in enumerate(wins, start=1):
         out.append(Scenario(i, f"Janela {i} {d:02d}/{m:02d} sequeiro", date(first_year, m, d), False))
@@ -332,13 +419,15 @@ def scenarios_for(site: str, first_year: int) -> list[Scenario]:
 
 
 def _yyddd(d: date) -> str:
-    return f"{d.year % 100:02d}{d.timetuple().tm_yday:03d}"
+    # O DSSAT repete o mesmo dia do ano nas safras seguintes: o dia 366 não existe em anos comuns.
+    return f"{d.year % 100:02d}{min(d.timetuple().tm_yday, 365):03d}"
 
 
 def write_filex(path: Path, site: str, title: str, soil: SoilProfile, scen: list[Scenario],
                 n_years: int, init_frac: float = 0.25) -> None:
     """FileX de milho (CERES-Maize), análise sazonal: NYERS anos, reinício a cada ano."""
     L = []
+    title = ascii_text(title)
     L.append(f"*EXP.DETAILS: {path.stem[:8]}MZ FIELD SHIFT {title.upper()[:40]}")
     L += ["", "*GENERAL", "@PEOPLE", "Field Shift (NASA Space Apps 2026) - gerado automaticamente",
           "@SITE", title, "@NOTES",
@@ -416,7 +505,9 @@ ASSUMPTIONS = {
 
 # ----------------------------------------------------------------------------- orquestração
 
-def build_site(site: str, title: str, power_json: Path, soil_csv: Path, outdir: Path) -> dict:
+def build_site(site: str, title: str, power_json: Path, soil_csv: Path, outdir: Path,
+               soil_analysis: dict | None = None, windows: list[tuple[int, int]] | None = None,
+               auto_window: bool = False) -> dict:
     """Gera .WTH, .SOL e .MZX de um local. Devolve metadados de proveniência."""
     outdir.mkdir(parents=True, exist_ok=True)
     w = read_power_json(power_json)
@@ -426,9 +517,15 @@ def build_site(site: str, title: str, power_json: Path, soil_csv: Path, outdir: 
     n_years = last_planting_year - first + 1
     if n_years < 1:
         raise ValueError("série de clima curta demais para uma safra completa")
-    soil = build_soil(read_pronasolos_csv(soil_csv), soil_id=f"FS{site}0001")
+    ps, origin, soil_notes = merge_soil_analysis(read_pronasolos_csv(soil_csv), soil_analysis)
+    soil = build_soil(ps, soil_id=f"FS{site}0001", origin=origin)
+    soil.warnings.extend(soil_notes)
+    window_source = "informada pelo usuário" if windows else None
+    if not windows and auto_window:
+        windows = auto_windows(w)
+        window_source = "automática: início do quadrimestre mais chuvoso (NASA POWER) — suposição"
     write_sol(soil, outdir / "FS.SOL", title, w.lat, w.lon)
-    scen = scenarios_for(site, first)
+    scen = scenarios_for(site, first, windows)
     filex = outdir / f"{site}0001.MZX"
     write_filex(filex, site, title, soil, scen, n_years)
     tav, amp = tav_amp(w)
@@ -440,13 +537,16 @@ def build_site(site: str, title: str, power_json: Path, soil_csv: Path, outdir: 
         "seasons": {"first_planting_year": first, "n_years": n_years},
         "scenarios": [{"trno": s.trno, "name": s.name, "planting_mm_dd": s.planting.strftime("%m-%d"),
                        "irrigated": s.irrigated} for s in scen],
+        "planting_windows_source": window_source or "tabela fixa por local (suposição)",
+        "soil_source": "medido + estimado" if soil_analysis else "estimado (PronaSolos 90 m)",
         "soil": {"id": soil.soil_id, "texture_top": soil.text, "depth_cm": soil.layers[-1]["SLB"],
                  "layers": [{k: (round(v, 4) if isinstance(v, float) else v) for k, v in L.items()
-                             if not k.startswith("_")} | {"CE_dS_m": L.get("_ec")} for L in soil.layers],
+                             if not k.startswith("_")} | {"CE_dS_m": L.get("_ec"), "origem": L.get("_origin")} for L in soil.layers],
                  "warnings": soil.warnings},
         "provenance": {
             "weather": "DADO: NASA POWER (SRAD, TMAX, TMIN, RAIN, DEWP, WIND, RHUM); WIND m/s×86,4 = km/dia",
             "soil": soil.provenance,
         },
         "assumptions": ASSUMPTIONS,
+        "soil_analysis_record": soil_analysis,   # P, K etc. ficam registrados (não entram no milho sem N/P)
     }

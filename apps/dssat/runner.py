@@ -6,6 +6,9 @@ Modos:
                        teste de fumaça do contêiner e do acesso ao bucket.
   run                  Baixa as entradas de gs://<INPUT_PREFIX>, roda o arquivo FILEX
                        e grava saídas, log e metadados em gs://<OUTPUT_PREFIX>.
+  point                Simulação sob demanda: lê o pedido gs://<DATA_BUCKET>/requests/<REQUEST_ID>.json
+                       (lat, lon, janelas, análise de solo), busca NASA POWER e PronaSolos na hora
+                       (com cache no bucket) e grava gs://<DATA_BUCKET>/results/<REQUEST_ID>.json.
   scenarios            Para cada local: lê NASA POWER e PronaSolos de gs://<DATA_BUCKET>/raw/,
                        gera .WTH/.SOL/.MZX, roda as safras históricas e grava um resumo
                        comparável por cenário em gs://<DATA_BUCKET>/runs/scenarios/.
@@ -18,6 +21,7 @@ Variáveis de ambiente:
   DATA_BUCKET     bucket com raw/ (scenarios)
   SITES           ids separados por vírgula (scenarios; padrão: todos com clima e solo)
   POWER_PERIOD    pasta do período do POWER (padrão 19910101_20251231)
+  REQUEST_ID      id do pedido (point)
   DSSAT_HOME      instalação do DSSAT (padrão /opt/dssat)
   RUN_TIMEOUT     segundos (padrão 600)
 
@@ -118,19 +122,24 @@ def run_dssat(workdir: Path, filex: str) -> subprocess.CompletedProcess:
 
 
 def parse_summary(path: Path) -> list[dict]:
-    """Lê Summary.OUT (largura fixa alinhada ao cabeçalho '@')."""
-    rows, header = [], None
+    """Lê Summary.OUT pela POSIÇÃO das colunas do cabeçalho '@' (valores alinhados à direita).
+
+    Ler por posição evita desalinhar quando um campo está vazio ou a linha termina antes
+    (safra que falhou), o que quebraria uma leitura por espaços.
+    """
+    import re
+    rows, spans = [], None
     for line in path.read_text(errors="replace").splitlines():
         if line.startswith("@"):
-            header = [h.rstrip(".") for h in line[1:].split()]
+            spans, prev = [], 0
+            for m in re.finditer(r"\S+", line):
+                name = m.group().lstrip("@").rstrip(".")
+                if name:
+                    spans.append((name, prev, m.end()))
+                prev = m.end()
             continue
-        if header and line.strip() and line[0] == " ":
-            vals = line.split()
-            # TNAM (nome do tratamento) contém espaços; alinhar pelas colunas do fim
-            n_tail = len(header) - header.index("FNAM")
-            tail = dict(zip(header[-n_tail:], vals[-n_tail:]))
-            head = dict(zip(header[:8], vals[:8]))  # até EXNAME
-            rows.append({**head, **tail})
+        if spans and line.strip() and line[0] == " ":
+            rows.append({name: line[a:b].strip() for name, a, b in spans})
     return rows
 
 
@@ -332,11 +341,132 @@ def run_scenarios() -> int:
     log(f"resumo: gs://{bucket}/runs/scenarios/{stamp}/summary.json")
     return 0 if results and not failures else 1
 
+# ---------- Simulação sob demanda (um ponto) ----------
+POWER_PARAMS = "ALLSKY_SFC_SW_DWN,T2M_MAX,T2M_MIN,PRECTOTCORR,T2M,T2MDEW,RH2M,WS2M"
+POWER_START, POWER_END = "19910101", "20251231"
+PS_URL = "https://geoportal.sgb.gov.br/server/rest/services/pronasolos/atributos_solo_90m/MapServer/identify"
+
+
+def http_get_json(url: str, timeout: int = 120, tries: int = 3) -> dict:
+    import urllib.request
+    last = None
+    for i in range(tries):
+        try:
+            with urllib.request.urlopen(url, timeout=timeout) as r:
+                return json.loads(r.read())
+        except Exception as e:  # rede instável: tenta de novo
+            last = e
+            time.sleep(3 * (i + 1))
+    raise RuntimeError(f"falha ao baixar {url.split('?')[0]}: {last}")
+
+
+def power_cell(lat: float, lon: float) -> str:
+    """Célula da grade do POWER (0,5° × 0,625°): pontos na mesma célula têm o mesmo clima."""
+    import math
+    return f"{math.floor((lat + 90) / 0.5)}_{math.floor((lon + 180) / 0.625)}"
+
+
+def fetch_power(lat: float, lon: float) -> dict:
+    url = ("https://power.larc.nasa.gov/api/temporal/daily/point?"
+           f"parameters={POWER_PARAMS}&community=AG&latitude={lat:.4f}&longitude={lon:.4f}"
+           f"&start={POWER_START}&end={POWER_END}&time-standard=LST&format=JSON")
+    return http_get_json(url, timeout=180)
+
+
+def fetch_pronasolos(lat: float, lon: float) -> dict:
+    from urllib.parse import urlencode
+    q = urlencode({"geometry": f"{lon},{lat}", "geometryType": "esriGeometryPoint", "sr": 4326, "layers": "all",
+                   "tolerance": 0, "mapExtent": f"{lon - .5},{lat - .5},{lon + .5},{lat + .5}",
+                   "imageDisplay": "400,400,96", "returnGeometry": "false", "f": "json"})
+    return http_get_json(f"{PS_URL}?{q}", timeout=60)
+
+
+def gcs_read_json(bucket_name: str, name: str):
+    from google.cloud import storage
+    blob = storage.Client().bucket(bucket_name).blob(name)
+    return json.loads(blob.download_as_bytes()) if blob.exists() else None
+
+
+def cached(bucket: str, name: str, producer):
+    doc = gcs_read_json(bucket, name)
+    if doc is not None:
+        return doc, True
+    doc = producer()
+    gcs_put_json(bucket, name, doc)
+    return doc, False
+
+
+def run_point() -> int:
+    import fieldshift_inputs as fi
+
+    bucket = os.environ["DATA_BUCKET"]
+    rid = os.environ["REQUEST_ID"]
+    result_name = f"results/{rid}.json"
+    started = datetime.now(timezone.utc)
+    try:
+        req = gcs_read_json(bucket, f"requests/{rid}.json")
+        if req is None:
+            raise ValueError("pedido não encontrado")
+        lat, lon = float(req["lat"]), float(req["lon"])
+        gcs_put_json(bucket, result_name, {"id": rid, "status": "running", "started_utc": started.isoformat(timespec="seconds")})
+        power, power_hit = cached(bucket, f"cache/nasa-power/{POWER_START}_{POWER_END}/{power_cell(lat, lon)}.json",
+                                  lambda: fetch_power(lat, lon))
+        ps_doc, ps_hit = cached(bucket, f"cache/pronasolos/v1/{lat:.4f}_{lon:.4f}.json", lambda: fetch_pronasolos(lat, lon))
+        with tempfile.TemporaryDirectory(prefix=f"fs-{rid}-") as tmp:
+            work = Path(tmp)
+            (work / "power.json").write_text(json.dumps(power))
+            (work / "soil.csv").write_text(fi.pronasolos_identify_to_csv(ps_doc))
+            windows = [tuple(int(x) for x in w.split("-")) for w in req.get("planting_windows") or []] or None
+            indir = work / "run"
+            meta = fi.build_site("FSPT", req.get("label") or f"{lat:.4f},{lon:.4f}", work / "power.json",
+                                 work / "soil.csv", indir, soil_analysis=req.get("soil_analysis"),
+                                 windows=windows, auto_window=True)
+            proc = run_dssat(indir, meta["filex"])
+            seasons = summarize(parse_summary(indir / "Summary.OUT")) if (indir / "Summary.OUT").exists() else []
+            expected = meta["seasons"]["n_years"] * len(meta["scenarios"])
+            if proc.returncode != 0 or len(seasons) != expected:
+                raise RuntimeError(f"DSSAT incompleto ({len(seasons)}/{expected} safras, código {proc.returncode})")
+            gcs_upload(indir, f"gs://{bucket}/runs/point/{rid}/")
+        build = json.loads((DSSAT_HOME / "BUILD_INFO.json").read_text()) if (DSSAT_HOME / "BUILD_INFO.json").exists() else {}
+        result = {
+            "id": rid, "status": "done",
+            "started_utc": started.isoformat(timespec="seconds"),
+            "finished_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "request": {k: req.get(k) for k in ("lat", "lon", "label", "crop", "planting_windows")},
+            "location": {"lat": lat, "lon": lon, "elev_m": meta["elev_m"], "power_cell": power_cell(lat, lon)},
+            "crop": "milho (CERES-Maize)",
+            "seasons": meta["seasons"],
+            "scenario_summary": aggregate(meta, seasons),
+            "climate": {"source": "NASA POWER diário (AG)", "period": meta["weather_period"],
+                        "tav_c": meta["tav_c"], "amp_c": meta["amp_c"], "cache_hit": power_hit},
+            "soil": {"source": meta["soil_source"], "texture_top": meta["soil"]["texture_top"],
+                     "layers": meta["soil"]["layers"], "warnings": meta["soil"]["warnings"], "cache_hit": ps_hit},
+            "planting_windows_source": meta["planting_windows_source"],
+            "provenance": meta["provenance"],
+            "assumptions": meta["assumptions"],
+            "dssat_build": build,
+            "evidence": {"quality_level": "exploratorio",
+                         "local_soil_analysis": bool(req.get("soil_analysis")),
+                         "local_calibration_available": False, "is_actual_forecast": False,
+                         "note": "Comparação relativa entre janelas e manejo hídrico; não é previsão de produtividade."},
+        }
+        gcs_put_json(bucket, result_name, result)
+        log(f"{rid}: ok ({len(seasons)} safras)")
+        return 0
+    except Exception as e:
+        gcs_put_json(bucket, result_name, {"id": rid, "status": "failed", "error": f"{type(e).__name__}: {e}",
+                                           "finished_utc": datetime.now(timezone.utc).isoformat(timespec="seconds")})
+        log(f"{rid}: ERRO {e}")
+        return 1
+
+
 
 def main() -> int:
     mode = os.environ.get("MODE", "reference")
     if mode == "scenarios":
         return run_scenarios()
+    if mode == "point":
+        return run_point()
 
     output_prefix = os.environ.get("OUTPUT_PREFIX", "").strip()
     with tempfile.TemporaryDirectory(prefix="dssat-") as tmp:

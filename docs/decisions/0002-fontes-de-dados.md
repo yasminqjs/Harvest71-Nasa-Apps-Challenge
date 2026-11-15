@@ -27,3 +27,23 @@ instituição ou dado de origem chinesa, inclusive vínculos indiretos. A regra 
 - O código-fonte do DSSAT tem muitos colaboradores internacionais; não foi auditado autor por autor.
   Nenhuma menção à China foi encontrada no código ou no NOTICE do commit fixado.
 - Objetos antigos no bucket (`raw/dssat/`, `raw/soilgrids/`) vieram das fontes descartadas e não são usados.
+
+## Revisão da planilha `DSSAT_Tabelas_Simplificadas_Por_Status` (168 itens)
+
+As escolhas de origem da planilha se sustentam. Situação de cada grupo:
+
+| Item da planilha | Origem escolhida | Situação |
+|---|---|---|
+| SRAD, TMAX, TMIN, RAIN, LAT/LONG, TAV, AMP, DEWP, WIND, RHUM | NASA POWER | **Em uso** |
+| RAIN refinada | GPM IMERG | Viável depois (exige conta Earthdata). Não usar POWER × IMERG como validação independente |
+| ELEV / declividade | NASADEM / SRTM | Elevação já vem do POWER (grade). Declividade só ajusta escoamento (SLRO); baixa prioridade |
+| Textura, C orgânico, pH, CTC por camada; ID e camadas do perfil | PronaSolos / Embrapa | **Em uso** (90 m, 6 profundidades) |
+| SLLL, SDUL, SSAT ("curva de retenção / pedotransferência") | Estimativa | **Em uso:** Saxton & Rawls 2006. Alternativa melhor a avaliar: função de pedotransferência ajustada a solos brasileiros (ex.: base hidrofísica HYBRAS, do SGB) |
+| Densidade | Perfil / análise | Estimada por Saxton & Rawls; **análise do agricultor substitui** |
+| P extraível, K | Laboratório / agricultor | **Recebidos pela API e registrados**; não entram no milho como configurado |
+| Cultivar / genética | Biblioteca DSSAT | Só MZCER048 (milho). Outras culturas: checar origem antes, como feito aqui |
+| Data de semeadura | Usuário / gerador Python | **Em uso:** informada pelo usuário ou automática pelo clima. Fonte oficial a integrar: ZARC (MAPA) |
+| Validação clima | NASA × estação independente | Planejado: INMET |
+| Proveniência por variável | Metadados do pipeline | **Em uso:** `provenance`, manifestos com sha256 |
+
+Única mudança em relação à planilha: o SoilGrids, que não estava nela, chegou a ser usado e foi removido.

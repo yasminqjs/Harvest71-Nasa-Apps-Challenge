@@ -56,7 +56,35 @@ GitHub Actions entra por Workload Identity Federation (pool `github`, provedor `
 - **Cenários (suposições explícitas):** milho AG9010 (IB0171), 3 janelas de plantio por local + irrigação automática na
   janela 2, 5 pl/m², N não simulado, 33 safras (1992–2024). Resultado por cenário: p10/p50/p90 de produtividade,
   fração de safras < 1000 kg/ha, ciclo, chuva, irrigação e ET. Nível de evidência: **exploratório**.
-- API: `GET /scenarios` e `GET /scenarios/{site}` (somente leitura, cache de 5 min). Nenhum endpoint dispara job.
+- API: `GET /scenarios` e `GET /scenarios/{site}` (somente leitura, cache de 5 min).
+
+## Simulação sob demanda (qualquer coordenada do Brasil)
+- `POST /simulations` (chave `X-API-Key`, 6/min e 200/dia por chave) grava o pedido e dispara o Job em modo `point`;
+  `GET /simulations/{id}` devolve o resultado. Contrato: `docs/API.md`.
+- O Job busca NASA POWER (1991–2025) e PronaSolos na hora, com cache no bucket (`cache/`); clima é reaproveitado
+  por célula da grade do POWER (0,5° × 0,625°).
+- Análise de solo do agricultor (opcional) substitui a estimativa nas camadas informadas; origem marcada por camada.
+  P e K são registrados, não usados pelo milho.
+- Janelas de plantio: informadas ou automáticas (quadrimestre mais chuvoso do ponto) — suposição.
+- **Ativação:** `infra/gcp/scripts/setup-api-access.sh` (Secret Manager com a chave; papel
+  `run.jobsExecutorWithOverrides` só no Job para `fieldshift-api-sa`). Sem isso, `/simulations` responde 503.
+- Correções desta etapa: acentos quebravam os arquivos do DSSAT (agora removidos só dentro deles); data de plantio
+  no dia 366 de ano bissexto invalidava as safras seguintes; leitor do `Summary.OUT` passou a ler por posição.
+
+## Primeira execução real (2026-11-15, `runs/scenarios/20261115T112045Z/`)
+Job `fieldshift-dssat` criado pelo CI; referência e cenários executados na nuvem com sucesso; API `/scenarios` no ar.
+Milho, 33 safras (1992–2024), produtividade mediana (p50) em kg/ha e fração de safras < 1000 kg/ha:
+
+| Local | Melhor janela sequeiro (p50 / safras ruins) | Irrigado janela 2 (p50) | Irrigação p50 |
+|---|---|---|---|
+| Campina Grande-PB | 01/04: 4319 / 9 % | 4521 | 69 mm |
+| Cruz das Almas-BA | 01/05: 2481 / 18 % | 4135 | 143 mm |
+| Irecê-BA | 15/12: 2027 / 15 % | 5665 | 310 mm |
+| Juazeiro-BA | 15/01: 1263 / 49 % | 4367 | 339 mm |
+| Quixadá-CE | 01/02: 4171 / 9 % | 4178 | 68 mm |
+
+Nível de evidência: exploratório (sem calibração local; cultivar de SP; N não simulado). Usar só para comparação relativa.
+Bucket limpo: `raw/dssat/` e `raw/soilgrids/` apagados (fontes descartadas pela política da equipe).
 
 ## Pendências e riscos
 - Validar janelas de plantio com o ZARC (MAPA) e trocar a cultivar por uma adequada ao Nordeste quando houver.
@@ -65,5 +93,4 @@ GitHub Actions entra por Workload Identity Federation (pool `github`, provedor `
 - P e K disponíveis não vêm de nenhuma fonte coletada.
 - Auditoria de procedência do DSSAT (política editorial da equipe) pendente.
 - Coleta regional (grade do Nordeste via Zarr do POWER, PronaSolos em grade, NASADEM, INMET) não iniciada.
-- Objetos antigos `raw/dssat/` e `raw/soilgrids/` no bucket vieram de fontes descartadas: apagar.
 - Repositório é público por decisão da equipe (protótipo).
