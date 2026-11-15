@@ -17,8 +17,10 @@ import {
   BahiaRegionPreset,
   DEFAULT_IRECE_FARM_CENTROID,
   DEFAULT_IRECE_FARM_POLYGON,
+  localizeBiome,
   NORDESTE_REGIONS,
 } from '../data/seedData';
+import { isEn, LanguageTogglePill, pickLang } from '../i18n/locale';
 import { getAppTheme } from '../theme/tokens';
 import { createDefaultLotsForFarm } from '../utils/agronomyHelpers';
 import {
@@ -27,6 +29,7 @@ import {
   findNearestRegion,
 } from '../utils/geoprocessing';
 import {
+  AppLanguage,
   FarmObjective,
   FarmingTenureOption,
   FinancialTier,
@@ -56,56 +59,65 @@ interface ParamTabMeta {
   voice: string;
 }
 
-const PARAM_TABS: ParamTabMeta[] = [
-  {
-    key: 'identidade',
-    shortLabel: 'Nome e Gênero',
-    icon: 'person-outline',
-    title: 'Nome e Gênero',
-    voice:
-      'Aba 1: Nome e Gênero. Diga como prefere ser chamado, escolha seu gênero e sua faixa de idade.',
-  },
-  {
-    key: 'terra_tempo',
-    shortLabel: 'Tempo na Roça',
-    icon: 'time-outline',
-    title: 'Experiência na Agricultura',
-    voice:
-      'Aba 2: Informe há quanto tempo você trabalha na agricultura familiar.',
-  },
-  {
-    key: 'agua',
-    shortLabel: 'Água',
-    icon: 'water-outline',
-    title: 'Acesso à Água',
-    voice:
-      'Aba 3: Acesso à água. Informe de onde vem a água da roça e se há reservatório.',
-  },
-  {
-    key: 'trabalho',
-    shortLabel: 'Trabalho',
-    icon: 'people-outline',
-    title: 'Força de Trabalho',
-    voice:
-      'Aba 4: Força de trabalho. Diga quem faz o serviço na propriedade.',
-  },
-  {
-    key: 'financeiro',
-    shortLabel: 'Situação Financeira',
-    icon: 'wallet-outline',
-    title: 'Situação Financeira',
-    voice:
-      'Aba 5: Situação financeira. Selecione qual recurso ou apoio financeiro utiliza hoje.',
-  },
-  {
-    key: 'objetivo',
-    shortLabel: 'Objetivo',
-    icon: 'flag-outline',
-    title: 'Objetivo da Roça',
-    voice:
-      'Aba 6: Objetivo da produção. Escolha para que você planta e os principais desafios.',
-  },
-];
+function getParamTabs(lang: AppLanguage): ParamTabMeta[] {
+  const en = isEn(lang);
+  return [
+    {
+      key: 'identidade',
+      shortLabel: en ? 'Name & Gender' : 'Nome e Gênero',
+      icon: 'person-outline',
+      title: en ? 'Name & Gender' : 'Nome e Gênero',
+      voice: en
+        ? 'Tab 1: Name and Gender. Enter how you prefer to be called, your gender, and age group.'
+        : 'Aba 1: Nome e Gênero. Diga como prefere ser chamado, escolha seu gênero e sua faixa de idade.',
+    },
+    {
+      key: 'terra_tempo',
+      shortLabel: en ? 'Years Farming' : 'Tempo na Roça',
+      icon: 'time-outline',
+      title: en ? 'Farming Experience' : 'Experiência na Agricultura',
+      voice: en
+        ? 'Tab 2: Tell us how long you have worked in family farming.'
+        : 'Aba 2: Informe há quanto tempo você trabalha na agricultura familiar.',
+    },
+    {
+      key: 'agua',
+      shortLabel: en ? 'Water' : 'Água',
+      icon: 'water-outline',
+      title: en ? 'Water Access' : 'Acesso à Água',
+      voice: en
+        ? 'Tab 3: Water Access. Select where your farm water comes from and whether you have storage.'
+        : 'Aba 3: Acesso à água. Informe de onde vem a água da roça e se há reservatório.',
+    },
+    {
+      key: 'trabalho',
+      shortLabel: en ? 'Labor' : 'Trabalho',
+      icon: 'people-outline',
+      title: en ? 'Workforce' : 'Força de Trabalho',
+      voice: en
+        ? 'Tab 4: Workforce. Tell us who does the farm work on your property.'
+        : 'Aba 4: Força de trabalho. Diga quem faz o serviço na propriedade.',
+    },
+    {
+      key: 'financeiro',
+      shortLabel: en ? 'Finance' : 'Situação Financeira',
+      icon: 'wallet-outline',
+      title: en ? 'Financial Situation' : 'Situação Financeira',
+      voice: en
+        ? 'Tab 5: Financial situation. Select what funding or support program you currently use.'
+        : 'Aba 5: Situação financeira. Selecione qual recurso ou apoio financeiro utiliza hoje.',
+    },
+    {
+      key: 'objetivo',
+      shortLabel: en ? 'Goal' : 'Objetivo',
+      icon: 'flag-outline',
+      title: en ? 'Farm Goal' : 'Objetivo da Roça',
+      voice: en
+        ? 'Tab 6: Farm goal. Choose why you farm and your main challenges.'
+        : 'Aba 6: Objetivo da produção. Escolha para que você planta e os principais desafios.',
+    },
+  ];
+}
 
 interface OptionCardProps {
   selected: boolean;
@@ -181,6 +193,8 @@ const BigOptionCard: React.FC<OptionCardProps> = ({
 
 export const NordesteOnboardingScreen: React.FC = () => {
   const {
+    language,
+    setAppLanguage,
     accessibility,
     activeFarmer,
     activeFarm,
@@ -190,6 +204,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
     speak,
   } = useAccessibility();
   const theme = getAppTheme(accessibility);
+  const paramTabs = getParamTabs(language);
 
   const [stage, setStage] = useState<OnboardingStage>('mapa');
   const [activeParamIdx, setActiveParamIdx] = useState(0);
@@ -258,9 +273,9 @@ export const NordesteOnboardingScreen: React.FC = () => {
     activeFarmer?.desafiosPrincipais ?? ['seca']
   );
 
-  const currentTab = PARAM_TABS[activeParamIdx];
+  const currentTab = paramTabs[activeParamIdx];
 
-  const detectRegionViaGps = useCallback(async () => {
+  const detectRegionViaGps = async () => {
     setGpsStatus('locating');
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -310,17 +325,22 @@ export const NordesteOnboardingScreen: React.FC = () => {
           freshMetrics.centroid,
           freshMetrics.areaHectares,
           'Feijão-Caupi + Milho',
-          freshPoly
+          freshPoly,
+          language
         )
       );
       setLotStepError(null);
       speak(
-        `Local detectado pelo GPS: ${match.region.nome}, em ${match.region.municipio}. Toque em confirmar se estiver correto ou escolha outra região no mapa.`
+        pickLang(
+          language,
+          `Location detected via GPS: ${match.region.nome}, in ${match.region.municipio}. Tap confirm if correct or choose another region on the map.`,
+          `Local detectado pelo GPS: ${match.region.nome}, em ${match.region.municipio}. Toque em confirmar se estiver correto ou escolha outra região no mapa.`
+        )
       );
     } catch {
       setGpsStatus('error');
     }
-  }, [selectBahiaRegion, speak]);
+  };
 
   useEffect(() => {
     if (stage !== 'mapa' || gpsStatus !== 'idle') return undefined;
@@ -328,15 +348,28 @@ export const NordesteOnboardingScreen: React.FC = () => {
       void detectRegionViaGps();
     }, 0);
     return () => clearTimeout(timer);
-  }, [stage, gpsStatus, detectRegionViaGps]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, gpsStatus]);
 
   const stageVoicePrompt =
     stage === 'mapa'
-      ? 'Primeiro, confirme sua região detectada pelo GPS ou toque em outro ponto no mapa do Nordeste.'
+      ? pickLang(
+          language,
+          'First, confirm your GPS-detected region or tap another point on the Northeast map.',
+          'Primeiro, confirme sua região detectada pelo GPS ou toque em outro ponto no mapa do Nordeste.'
+        )
       : stage === 'demarcacao_fazenda'
-      ? 'Toque nos cantos do terreno da sua fazenda no mapa com zoom para calcular a área.'
+      ? pickLang(
+          language,
+          'Tap the corners of your farm boundary on the zoomed-in map to calculate your land area.',
+          'Toque nos cantos do terreno da sua fazenda no mapa com zoom para calcular a área.'
+        )
       : stage === 'lotes'
-      ? 'Informe quantos lotes de plantio existem na fazenda, demarque cada lote e diga o que está plantado, se é monocultura ou rotação, há quantos dias foi plantado e se já tem data de colheita.'
+      ? pickLang(
+          language,
+          'Enter how many planting plots are on your farm, outline each plot, and enter what is planted, whether it is monocropping or rotation, days planted, and harvest date.',
+          'Informe quantos lotes de plantio existem na fazenda, demarque cada lote e diga o que está plantado, se é monocultura ou rotação, há quantos dias foi plantado e se já tem data de colheita.'
+        )
       : currentTab.voice;
 
   useEffect(() => {
@@ -362,7 +395,13 @@ export const NordesteOnboardingScreen: React.FC = () => {
       )
     );
     setLotStepError(null);
-    speak(`Região selecionada: ${reg.nome}, ${reg.municipio} - ${reg.estado}.`);
+    speak(
+      pickLang(
+        language,
+        `Selected region: ${reg.nome}, ${reg.municipio} - ${reg.estado}.`,
+        `Região selecionada: ${reg.nome}, ${reg.municipio} - ${reg.estado}.`
+      )
+    );
   };
 
   const handleGoToFarmDemarcation = () => {
@@ -401,12 +440,15 @@ export const NordesteOnboardingScreen: React.FC = () => {
 
   const handleFinish = async () => {
     const farmMetrics = calculatePolygonMetrics(farmPolygonDraft);
-    const primaryCulture = lotesDraft[0]?.culturaAtual || 'Feijão-Caupi + Mandioca';
+    const primaryCulture =
+      lotesDraft[0]?.culturaAtual ||
+      pickLang(language, 'Cowpea + Cassava', 'Feijão-Caupi + Mandioca');
     if (activeFarmer) {
       await applyRegistrationSetup(
         {
           ...activeFarmer,
-          tratamento: tratamento.trim() || 'Agricultor(a)',
+          tratamento:
+            tratamento.trim() || pickLang(language, 'Farmer', 'Agricultor(a)'),
           nome: tratamento.trim() || activeFarmer.nome,
           genero,
           faixaEtaria,
@@ -428,9 +470,15 @@ export const NordesteOnboardingScreen: React.FC = () => {
       );
     }
     speak(
-      `Cadastro concluído! Abrindo o tutorial rápido da sua roça em ${
-        activeFarm?.regiaoNome ?? 'Bahia'
-      }.`
+      pickLang(
+        language,
+        `Registration completed! Opening the quick tutorial for your farm in ${
+          activeFarm?.regiaoNome ?? 'Bahia'
+        }.`,
+        `Cadastro concluído! Abrindo o tutorial rápido da sua roça em ${
+          activeFarm?.regiaoNome ?? 'Bahia'
+        }.`
+      )
     );
   };
 
@@ -441,7 +489,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
       ? 26
       : stage === 'lotes'
       ? 42
-      : Math.round(((activeParamIdx + 4) / (PARAM_TABS.length + 3)) * 100);
+      : Math.round(((activeParamIdx + 4) / (paramTabs.length + 3)) * 100);
 
   return (
     <View style={[styles.root, { backgroundColor: theme.bg }]}>
@@ -451,12 +499,20 @@ export const NordesteOnboardingScreen: React.FC = () => {
           <View style={styles.titleStack}>
             <Text style={[styles.stepBadge, { color: theme.primary }]}>
               {stage === 'mapa'
-                ? 'Etapa 1 • Região no Nordeste'
+                ? pickLang(language, 'Step 1 • Northeast Region', 'Etapa 1 • Região no Nordeste')
                 : stage === 'demarcacao_fazenda'
-                ? 'Etapa 2 • Demarcar Fazenda'
+                ? pickLang(language, 'Step 2 • Mark Farm Area', 'Etapa 2 • Demarcar Fazenda')
                 : stage === 'lotes'
-                ? 'Etapa 3 • Lotes e Culturas Atuais'
-                : `Etapa 4 • Perfil (${activeParamIdx + 1}/${PARAM_TABS.length})`}
+                ? pickLang(
+                    language,
+                    'Step 3 • Plots & Current Crops',
+                    'Etapa 3 • Lotes e Culturas Atuais'
+                  )
+                : pickLang(
+                    language,
+                    `Step 4 • Profile (${activeParamIdx + 1}/${paramTabs.length})`,
+                    `Etapa 4 • Perfil (${activeParamIdx + 1}/${paramTabs.length})`
+                  )}
             </Text>
             <Text
               style={[
@@ -465,16 +521,27 @@ export const NordesteOnboardingScreen: React.FC = () => {
               ]}
             >
               {stage === 'mapa'
-                ? 'Onde fica a sua roça?'
+                ? pickLang(language, 'Where is your farm?', 'Onde fica a sua roça?')
                 : stage === 'demarcacao_fazenda'
-                ? 'Demarque a área da fazenda'
+                ? pickLang(language, 'Mark your farm boundary', 'Demarque a área da fazenda')
                 : stage === 'lotes'
-                ? 'Demarcar e cadastrar plantios'
-                : 'Cadastro do Produtor'}
+                ? pickLang(
+                    language,
+                    'Outline & register plantings',
+                    'Demarcar e cadastrar plantios'
+                  )
+                : pickLang(language, 'Farmer Registration', 'Cadastro do Produtor')}
             </Text>
           </View>
 
           <View style={styles.headerActions}>
+            <LanguageTogglePill
+              language={language}
+              onSelect={setAppLanguage}
+              theme={theme}
+              compact
+            />
+
             <Pressable
               onPress={() => speak(stageVoicePrompt, true)}
               style={[
@@ -484,13 +551,17 @@ export const NordesteOnboardingScreen: React.FC = () => {
             >
               <Ionicons name="volume-medium" size={18} color={theme.primary} />
               <Text style={{ fontSize: 12, fontWeight: '800', color: theme.text }}>
-                Ouvir
+                {pickLang(language, 'Listen', 'Ouvir')}
               </Text>
             </Pressable>
 
             <Pressable
               onPress={toggleVoiceGuidance}
-              accessibilityLabel="Alternar guia por voz"
+              accessibilityLabel={pickLang(
+                language,
+                'Toggle voice guidance',
+                'Alternar guia por voz'
+              )}
               style={[
                 styles.soundPill,
                 {
@@ -548,7 +619,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
               >
                 <Ionicons name="map-outline" size={14} color={theme.primary} />
                 <Text style={{ fontSize: 11, fontWeight: '800', color: theme.primary }}>
-                  Trocar local
+                  {pickLang(language, 'Change location', 'Trocar local')}
                 </Text>
               </Pressable>
             </View>
@@ -558,7 +629,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.tabsScroll}
             >
-              {PARAM_TABS.map((tabItem, idx) => {
+              {paramTabs.map((tabItem, idx) => {
                 const isActive = idx === activeParamIdx;
                 return (
                   <Pressable
@@ -678,12 +749,28 @@ export const NordesteOnboardingScreen: React.FC = () => {
                     }}
                   >
                     {gpsStatus === 'locating'
-                      ? 'Detectando sua região pelo GPS...'
+                      ? pickLang(
+                          language,
+                          'Detecting your region via GPS...',
+                          'Detectando sua região pelo GPS...'
+                        )
                       : gpsStatus === 'found' && gpsMatch
-                      ? `GPS detectou: ${gpsMatch.region.nome} (${gpsMatch.region.estado})`
+                      ? pickLang(
+                          language,
+                          `GPS detected: ${gpsMatch.region.nome} (${gpsMatch.region.estado})`,
+                          `GPS detectou: ${gpsMatch.region.nome} (${gpsMatch.region.estado})`
+                        )
                       : gpsStatus === 'denied'
-                      ? 'GPS sem permissão — selecione no mapa abaixo'
-                      : 'Usar GPS para localizar sua região'}
+                      ? pickLang(
+                          language,
+                          'GPS permission denied — select on the map below',
+                          'GPS sem permissão — selecione no mapa abaixo'
+                        )
+                      : pickLang(
+                          language,
+                          'Use GPS to locate your region',
+                          'Usar GPS para localizar sua região'
+                        )}
                   </Text>
                   {gpsStatus === 'found' && gpsMatch && (
                     <Text
@@ -693,9 +780,15 @@ export const NordesteOnboardingScreen: React.FC = () => {
                         color: theme.textMuted,
                       }}
                     >
-                      Polo próximo: {gpsMatch.region.municipio} (~
-                      {Math.round(gpsMatch.distanceKm)} km). Confirme ou toque em outra
-                      região.
+                      {pickLang(
+                        language,
+                        `Nearby hub: ${gpsMatch.region.municipio} (~${Math.round(
+                          gpsMatch.distanceKm
+                        )} km). Confirm or tap another region.`,
+                        `Polo próximo: ${gpsMatch.region.municipio} (~${Math.round(
+                          gpsMatch.distanceKm
+                        )} km). Confirme ou toque em outra região.`
+                      )}
                     </Text>
                   )}
                 </View>
@@ -734,7 +827,11 @@ export const NordesteOnboardingScreen: React.FC = () => {
                         color: theme.primaryText,
                       }}
                     >
-                      Confirmar região detectada e continuar
+                      {pickLang(
+                        language,
+                        'Confirm detected region and continue',
+                        'Confirmar região detectada e continuar'
+                      )}
                     </Text>
                   </Pressable>
                 )}
@@ -759,8 +856,10 @@ export const NordesteOnboardingScreen: React.FC = () => {
             >
               <Ionicons name="location" size={22} color={theme.successText} />
               <Text style={[styles.selectedHint, { color: theme.successText }]}>
-                Selecionado: {activeFarm?.regiaoNome} ({activeFarm?.municipio} -{' '}
-                {activeFarm?.estado}) • Bioma {activeFarm?.bioma}
+                {pickLang(language, 'Selected:', 'Selecionado:')} {activeFarm?.regiaoNome} (
+                {activeFarm?.municipio} - {activeFarm?.estado}) •{' '}
+                {pickLang(language, 'Biome', 'Bioma')}{' '}
+                {localizeBiome(activeFarm?.bioma ?? 'Caatinga', language)}
               </Text>
             </View>
           </View>
@@ -778,7 +877,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
               </Text>
             </View>
 
-            {/* ABA 1: NOME E GÊNERO */}
+            {/* TAB 1: NAME & GENDER */}
             {currentTab.key === 'identidade' && (
               <>
                 <View
@@ -795,13 +894,21 @@ export const NordesteOnboardingScreen: React.FC = () => {
                         { color: theme.text, fontSize: 16 * theme.scale },
                       ]}
                     >
-                      Nome (como prefere ser chamado/a)
+                      {pickLang(
+                        language,
+                        'Name (how you prefer to be addressed)',
+                        'Nome (como prefere ser chamado/a)'
+                      )}
                     </Text>
                   </View>
                   <TextInput
                     value={tratamento}
                     onChangeText={setTratamento}
-                    placeholder="Ex.: Dona Maria, Seu João..."
+                    placeholder={pickLang(
+                      language,
+                      'e.g., Dona Maria, Seu João...',
+                      'Ex.: Dona Maria, Seu João...'
+                    )}
                     placeholderTextColor={theme.textMuted}
                     style={[
                       styles.input,
@@ -815,32 +922,42 @@ export const NordesteOnboardingScreen: React.FC = () => {
                   />
                 </View>
 
-                <Text style={[styles.groupTitle, { color: theme.text }]}>Gênero:</Text>
+                <Text style={[styles.groupTitle, { color: theme.text }]}>
+                  {pickLang(language, 'Gender:', 'Gênero:')}
+                </Text>
                 {(
                   [
                     {
                       id: 'feminino',
                       icon: 'female-outline',
-                      title: 'Feminino',
-                      sub: 'Agricultora / Trabalhadora rural',
+                      titleEn: 'Female',
+                      titlePt: 'Feminino',
+                      subEn: 'Female farmer / Rural worker',
+                      subPt: 'Agricultora / Trabalhadora rural',
                     },
                     {
                       id: 'masculino',
                       icon: 'male-outline',
-                      title: 'Masculino',
-                      sub: 'Agricultor / Trabalhador rural',
+                      titleEn: 'Male',
+                      titlePt: 'Masculino',
+                      subEn: 'Male farmer / Rural worker',
+                      subPt: 'Agricultor / Trabalhador rural',
                     },
                     {
                       id: 'nao_binario',
                       icon: 'person-outline',
-                      title: 'Outro / Não-binário',
-                      sub: 'Identificação livre',
+                      titleEn: 'Other / Non-binary',
+                      titlePt: 'Outro / Não-binário',
+                      subEn: 'Self-identification',
+                      subPt: 'Identificação livre',
                     },
                     {
                       id: 'prefiro_nao_informar',
                       icon: 'shield-outline',
-                      title: 'Prefiro não informar',
-                      sub: 'Opcional no cadastro local',
+                      titleEn: 'Prefer not to say',
+                      titlePt: 'Prefiro não informar',
+                      subEn: 'Optional in local profile',
+                      subPt: 'Opcional no cadastro local',
                     },
                   ] as const
                 ).map((opt) => (
@@ -848,35 +965,41 @@ export const NordesteOnboardingScreen: React.FC = () => {
                     key={opt.id}
                     selected={genero === opt.id}
                     icon={opt.icon}
-                    title={opt.title}
-                    subtitle={opt.sub}
+                    title={pickLang(language, opt.titleEn, opt.titlePt)}
+                    subtitle={pickLang(language, opt.subEn, opt.subPt)}
                     onPress={() => setGenero(opt.id)}
                     theme={theme}
                   />
                 ))}
 
                 <Text style={[styles.groupTitle, { color: theme.text, marginTop: 6 }]}>
-                  Faixa de idade:
+                  {pickLang(language, 'Age group:', 'Faixa de idade:')}
                 </Text>
                 {(
                   [
                     {
                       id: '18-35',
                       icon: 'leaf-outline',
-                      title: '18 a 35 anos',
-                      sub: 'Agricultura jovem',
+                      titleEn: '18 to 35 years',
+                      titlePt: '18 a 35 anos',
+                      subEn: 'Young farmer',
+                      subPt: 'Agricultura jovem',
                     },
                     {
                       id: '36-55',
                       icon: 'sunny-outline',
-                      title: '36 a 55 anos',
-                      sub: 'Experiência ativa no campo',
+                      titleEn: '36 to 55 years',
+                      titlePt: '36 a 55 anos',
+                      subEn: 'Active field experience',
+                      subPt: 'Experiência ativa no campo',
                     },
                     {
                       id: '56+',
                       icon: 'heart-outline',
-                      title: '56 anos ou mais',
-                      sub: 'Letras claras e guia com voz calma',
+                      titleEn: '56 years or older',
+                      titlePt: '56 anos ou mais',
+                      subEn: 'Clear text and calm voice guidance',
+                      subPt: 'Letras claras e guia com voz calma',
                     },
                   ] as const
                 ).map((opt) => (
@@ -884,8 +1007,8 @@ export const NordesteOnboardingScreen: React.FC = () => {
                     key={opt.id}
                     selected={faixaEtaria === opt.id}
                     icon={opt.icon}
-                    title={opt.title}
-                    subtitle={opt.sub}
+                    title={pickLang(language, opt.titleEn, opt.titlePt)}
+                    subtitle={pickLang(language, opt.subEn, opt.subPt)}
                     onPress={() => setFaixaEtaria(opt.id)}
                     theme={theme}
                   />
@@ -893,37 +1016,49 @@ export const NordesteOnboardingScreen: React.FC = () => {
               </>
             )}
 
-            {/* ABA 2: TEMPO NA AGRICULTURA FAMILIAR E TAMANHO DA TERRA */}
+            {/* TAB 2: TIME IN FAMILY FARMING */}
             {currentTab.key === 'terra_tempo' && (
               <>
                 <Text style={[styles.groupTitle, { color: theme.text }]}>
-                  Tempo na agricultura familiar:
+                  {pickLang(
+                    language,
+                    'Time in family farming:',
+                    'Tempo na agricultura familiar:'
+                  )}
                 </Text>
                 {(
                   [
                     {
                       id: 'menos_2',
                       icon: 'sparkles-outline',
-                      title: 'Menos de 2 anos',
-                      sub: 'Iniciando ou retornando para a roça',
+                      titleEn: 'Less than 2 years',
+                      titlePt: 'Menos de 2 anos',
+                      subEn: 'Starting or returning to farming',
+                      subPt: 'Iniciando ou retornando para a roça',
                     },
                     {
                       id: '2_a_5',
                       icon: 'leaf-outline',
-                      title: '2 a 5 anos',
-                      sub: 'Construindo experiência nas últimas safras',
+                      titleEn: '2 to 5 years',
+                      titlePt: '2 a 5 anos',
+                      subEn: 'Building experience over recent harvests',
+                      subPt: 'Construindo experiência nas últimas safras',
                     },
                     {
                       id: '5_a_15',
                       icon: 'calendar-outline',
-                      title: '5 a 15 anos',
-                      sub: 'Conhece bem os ciclos de chuva e seca',
+                      titleEn: '5 to 15 years',
+                      titlePt: '5 a 15 anos',
+                      subEn: 'Knows local rain and drought cycles well',
+                      subPt: 'Conhece bem os ciclos de chuva e seca',
                     },
                     {
                       id: 'mais_15',
                       icon: 'ribbon-outline',
-                      title: 'Mais de 15 anos',
-                      sub: 'Tradição e sabedoria na terra da família',
+                      titleEn: 'More than 15 years',
+                      titlePt: 'Mais de 15 anos',
+                      subEn: 'Tradition and wisdom on family land',
+                      subPt: 'Tradição e sabedoria na terra da família',
                     },
                   ] as const
                 ).map((opt) => (
@@ -931,8 +1066,8 @@ export const NordesteOnboardingScreen: React.FC = () => {
                     key={opt.id}
                     selected={tempoAgricultura === opt.id}
                     icon={opt.icon}
-                    title={opt.title}
-                    subtitle={opt.sub}
+                    title={pickLang(language, opt.titleEn, opt.titlePt)}
+                    subtitle={pickLang(language, opt.subEn, opt.subPt)}
                     onPress={() => setTempoAgricultura(opt.id)}
                     theme={theme}
                   />
@@ -940,43 +1075,57 @@ export const NordesteOnboardingScreen: React.FC = () => {
               </>
             )}
 
-            {/* ABA 3: ACESSO À ÁGUA */}
+            {/* TAB 3: WATER ACCESS */}
             {currentTab.key === 'agua' && (
               <>
                 <Text style={[styles.groupTitle, { color: theme.text }]}>
-                  Principal fonte de água para a plantação:
+                  {pickLang(
+                    language,
+                    'Main water source for crops:',
+                    'Principal fonte de água para a plantação:'
+                  )}
                 </Text>
                 {(
                   [
                     {
                       id: 'sequeiro',
                       icon: 'rainy-outline',
-                      title: 'Sequeiro (só água da chuva)',
-                      sub: 'Depende do inverno e da umidade do solo',
+                      titleEn: 'Rainfed (rainfall only)',
+                      titlePt: 'Sequeiro (só água da chuva)',
+                      subEn: 'Depends on rainy season and soil moisture',
+                      subPt: 'Depende do inverno e da umidade do solo',
                     },
                     {
                       id: 'cisterna',
                       icon: 'water-outline',
-                      title: 'Cisterna / Barreiro',
-                      sub: 'Água guardada da enxurrada ou calha',
+                      titleEn: 'Cistern / Catchment Pond',
+                      titlePt: 'Cisterna / Barreiro',
+                      subEn: 'Stored runoff or roof-harvested water',
+                      subPt: 'Água guardada da enxurrada ou calha',
                     },
                     {
                       id: 'acude',
                       icon: 'boat-outline',
-                      title: 'Açude / Rio / Riacho',
-                      sub: 'Captação próxima ao terreno',
+                      titleEn: 'Dam / River / Stream',
+                      titlePt: 'Açude / Rio / Riacho',
+                      subEn: 'Surface intake near the property',
+                      subPt: 'Captação próxima ao terreno',
                     },
                     {
                       id: 'poco_artesiano',
                       icon: 'disc-outline',
-                      title: 'Poço Artesiano / Cacimba',
-                      sub: 'Água subterrânea (SIAGAS)',
+                      titleEn: 'Artesian Well / Shallow Well',
+                      titlePt: 'Poço Artesiano / Cacimba',
+                      subEn: 'Groundwater (SIAGAS)',
+                      subPt: 'Água subterrânea (SIAGAS)',
                     },
                     {
                       id: 'irrigacao',
                       icon: 'sparkles-outline',
-                      title: 'Irrigação / Gotejamento',
-                      sub: 'Sistema instalado na área',
+                      titleEn: 'Irrigation / Drip System',
+                      titlePt: 'Irrigação / Gotejamento',
+                      subEn: 'Installed irrigation system on plot',
+                      subPt: 'Sistema instalado na área',
                     },
                   ] as const
                 ).map((opt) => (
@@ -984,33 +1133,45 @@ export const NordesteOnboardingScreen: React.FC = () => {
                     key={opt.id}
                     selected={waterAccess === opt.id}
                     icon={opt.icon}
-                    title={opt.title}
-                    subtitle={opt.sub}
+                    title={pickLang(language, opt.titleEn, opt.titlePt)}
+                    subtitle={pickLang(language, opt.subEn, opt.subPt)}
                     onPress={() => setWaterAccess(opt.id)}
                     theme={theme}
                   />
                 ))}
 
                 <Text style={[styles.groupTitle, { color: theme.text, marginTop: 8 }]}>
-                  Reserva de água na propriedade:
+                  {pickLang(
+                    language,
+                    'Water storage on property:',
+                    'Reserva de água na propriedade:'
+                  )}
                 </Text>
                 {(
                   [
-                    { id: 'cisterna_placa', icon: 'cube-outline', title: 'Cisterna de placa' },
+                    {
+                      id: 'cisterna_placa',
+                      icon: 'cube-outline',
+                      titleEn: 'Precast Slab Cistern',
+                      titlePt: 'Cisterna de placa',
+                    },
                     {
                       id: 'barreiro',
                       icon: 'layers-outline',
-                      title: 'Barreiro / Tanque de pedra',
+                      titleEn: 'Earthen Pond / Rock Tank',
+                      titlePt: 'Barreiro / Tanque de pedra',
                     },
                     {
                       id: 'caixa_dagua',
                       icon: 'beaker-outline',
-                      title: "Caixa d'água / Tambor",
+                      titleEn: 'Water Tank / Drum',
+                      titlePt: "Caixa d'água / Tambor",
                     },
                     {
                       id: 'nenhum',
                       icon: 'alert-circle-outline',
-                      title: 'Sem reservatório ainda',
+                      titleEn: 'No reservoir yet',
+                      titlePt: 'Sem reservatório ainda',
                     },
                   ] as const
                 ).map((opt) => (
@@ -1018,7 +1179,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
                     key={opt.id}
                     selected={armazenamento === opt.id}
                     icon={opt.icon}
-                    title={opt.title}
+                    title={pickLang(language, opt.titleEn, opt.titlePt)}
                     onPress={() => setArmazenamento(opt.id)}
                     theme={theme}
                   />
@@ -1026,37 +1187,49 @@ export const NordesteOnboardingScreen: React.FC = () => {
               </>
             )}
 
-            {/* ABA 4: FORÇA DE TRABALHO */}
+            {/* TAB 4: WORKFORCE */}
             {currentTab.key === 'trabalho' && (
               <>
                 <Text style={[styles.groupTitle, { color: theme.text }]}>
-                  Quem faz o trabalho na roça:
+                  {pickLang(
+                    language,
+                    'Who handles farm labor:',
+                    'Quem faz o trabalho na roça:'
+                  )}
                 </Text>
                 {(
                   [
                     {
                       id: 'familiar',
                       icon: 'people-outline',
-                      title: 'Trabalho familiar / enxada',
-                      sub: 'Mão de obra da própria família',
+                      titleEn: 'Family labor / hand tools',
+                      titlePt: 'Trabalho familiar / enxada',
+                      subEn: 'Labor from the household itself',
+                      subPt: 'Mão de obra da própria família',
                     },
                     {
                       id: 'mutirao_diarista',
                       icon: 'hand-left-outline',
-                      title: 'Mutirão ou diarista',
-                      sub: 'Troca de dias com vizinhos ou ajuda paga',
+                      titleEn: 'Community work / day laborer',
+                      titlePt: 'Mutirão ou diarista',
+                      subEn: 'Day swaps with neighbors or hired help',
+                      subPt: 'Troca de dias com vizinhos ou ajuda paga',
                     },
                     {
                       id: 'tracao_animal',
                       icon: 'trail-sign-outline',
-                      title: 'Tração animal',
-                      sub: 'Arado ou transporte com animal',
+                      titleEn: 'Animal traction',
+                      titlePt: 'Tração animal',
+                      subEn: 'Plowing or transport using animals',
+                      subPt: 'Arado ou transporte com animal',
                     },
                     {
                       id: 'maquinario',
                       icon: 'construct-outline',
-                      title: 'Trator / Maquinário',
-                      sub: 'Hora de trator própria ou da associação',
+                      titleEn: 'Tractor / Machinery',
+                      titlePt: 'Trator / Maquinário',
+                      subEn: 'Own or cooperative tractor hours',
+                      subPt: 'Hora de trator própria ou da associação',
                     },
                   ] as const
                 ).map((opt) => (
@@ -1064,8 +1237,8 @@ export const NordesteOnboardingScreen: React.FC = () => {
                     key={opt.id}
                     selected={laborType === opt.id}
                     icon={opt.icon}
-                    title={opt.title}
-                    subtitle={opt.sub}
+                    title={pickLang(language, opt.titleEn, opt.titlePt)}
+                    subtitle={pickLang(language, opt.subEn, opt.subPt)}
                     onPress={() => setLaborType(opt.id)}
                     theme={theme}
                   />
@@ -1073,37 +1246,49 @@ export const NordesteOnboardingScreen: React.FC = () => {
               </>
             )}
 
-            {/* ABA 5: SITUAÇÃO FINANCEIRA */}
+            {/* TAB 5: FINANCIAL SITUATION */}
             {currentTab.key === 'financeiro' && (
               <>
                 <Text style={[styles.groupTitle, { color: theme.text }]}>
-                  Qual é a sua situação financeira para plantar?
+                  {pickLang(
+                    language,
+                    'What is your financial setup for planting?',
+                    'Qual é a sua situação financeira para plantar?'
+                  )}
                 </Text>
                 {(
                   [
                     {
                       id: 'recursos_proprios',
                       icon: 'wallet-outline',
-                      title: 'Recurso próprio (sem dívida)',
-                      sub: 'Prioridade para soluções de baixo ou nenhum custo',
+                      titleEn: 'Own funds (no debt)',
+                      titlePt: 'Recurso próprio (sem dívida)',
+                      subEn: 'Prioritize zero or low-cost practices',
+                      subPt: 'Prioridade para soluções de baixo ou nenhum custo',
                     },
                     {
                       id: 'pronaf',
                       icon: 'business-outline',
-                      title: 'PRONAF (Agricultura Familiar)',
-                      sub: 'Financiamento rural com laudo técnico no app',
+                      titleEn: 'PRONAF (Family Farming Credit)',
+                      titlePt: 'PRONAF (Agricultura Familiar)',
+                      subEn: 'Rural credit supported by technical report in app',
+                      subPt: 'Financiamento rural com laudo técnico no app',
                     },
                     {
                       id: 'programa_social',
                       icon: 'ribbon-outline',
-                      title: 'Garantia-Safra / PAA / Apoio Social',
-                      sub: 'Segurança na estiagem e venda pública',
+                      titleEn: 'Garantia-Safra / PAA / Public Support',
+                      titlePt: 'Garantia-Safra / PAA / Apoio Social',
+                      subEn: 'Drought insurance and institutional sales',
+                      subPt: 'Segurança na estiagem e venda pública',
                     },
                     {
                       id: 'emprestimo_local',
                       icon: 'card-outline',
-                      title: 'Crédito em cooperativa / associação',
-                      sub: 'Apoio de cooperativa ou banco local',
+                      titleEn: 'Co-op / Local Credit Union',
+                      titlePt: 'Crédito em cooperativa / associação',
+                      subEn: 'Local co-op or community bank financing',
+                      subPt: 'Apoio de cooperativa ou banco local',
                     },
                   ] as const
                 ).map((opt) => (
@@ -1111,8 +1296,8 @@ export const NordesteOnboardingScreen: React.FC = () => {
                     key={opt.id}
                     selected={financialTier === opt.id}
                     icon={opt.icon}
-                    title={opt.title}
-                    subtitle={opt.sub}
+                    title={pickLang(language, opt.titleEn, opt.titlePt)}
+                    subtitle={pickLang(language, opt.subEn, opt.subPt)}
                     onPress={() => setFinancialTier(opt.id)}
                     theme={theme}
                   />
@@ -1120,31 +1305,41 @@ export const NordesteOnboardingScreen: React.FC = () => {
               </>
             )}
 
-            {/* ABA 6: OBJETIVO */}
+            {/* TAB 6: GOAL & CHALLENGES */}
             {currentTab.key === 'objetivo' && (
               <>
                 <Text style={[styles.groupTitle, { color: theme.text }]}>
-                  Para que você planta principalmente?
+                  {pickLang(
+                    language,
+                    'Why do you mainly farm?',
+                    'Para que você planta principalmente?'
+                  )}
                 </Text>
                 {(
                   [
                     {
                       id: 'subsistencia',
                       icon: 'restaurant-outline',
-                      title: 'Comida da família (subsistência)',
-                      sub: 'Foco em alimento seguro o ano inteiro',
+                      titleEn: 'Family food (subsistence)',
+                      titlePt: 'Comida da família (subsistência)',
+                      subEn: 'Focus on reliable year-round household food',
+                      subPt: 'Foco em alimento seguro o ano inteiro',
                     },
                     {
                       id: 'misto',
                       icon: 'basket-outline',
-                      title: 'Consumo da casa + Venda na feira',
-                      sub: 'Garante a mesa e vende o excedente',
+                      titleEn: 'Household food + Local market sales',
+                      titlePt: 'Consumo da casa + Venda na feira',
+                      subEn: 'Feeds the family and sells surplus',
+                      subPt: 'Garante a mesa e vende o excedente',
                     },
                     {
                       id: 'comercial',
                       icon: 'trending-up-outline',
-                      title: 'Venda / Cooperativa / Mercado',
-                      sub: 'Rendimento por hectare e margem de safra',
+                      titleEn: 'Commercial / Co-op / Market',
+                      titlePt: 'Venda / Cooperativa / Mercado',
+                      subEn: 'Yield per hectare and harvest margin',
+                      subPt: 'Rendimento por hectare e margem de safra',
                     },
                   ] as const
                 ).map((opt) => (
@@ -1152,44 +1347,57 @@ export const NordesteOnboardingScreen: React.FC = () => {
                     key={opt.id}
                     selected={objective === opt.id}
                     icon={opt.icon}
-                    title={opt.title}
-                    subtitle={opt.sub}
+                    title={pickLang(language, opt.titleEn, opt.titlePt)}
+                    subtitle={pickLang(language, opt.subEn, opt.subPt)}
                     onPress={() => setObjective(opt.id)}
                     theme={theme}
                   />
                 ))}
 
                 <Text style={[styles.groupTitle, { color: theme.text, marginTop: 8 }]}>
-                  Maiores desafios hoje (pode marcar vários):
+                  {pickLang(
+                    language,
+                    'Biggest challenges today (select all that apply):',
+                    'Maiores desafios hoje (pode marcar vários):'
+                  )}
                 </Text>
                 {[
-                  { id: 'seca', icon: 'sunny-outline' as const, title: 'Seca / chuva irregular' },
+                  {
+                    id: 'seca',
+                    icon: 'sunny-outline' as const,
+                    titleEn: 'Drought / irregular rainfall',
+                    titlePt: 'Seca / chuva irregular',
+                  },
                   {
                     id: 'erosao',
                     icon: 'layers-outline' as const,
-                    title: 'Terra fraca ou enxurrada',
+                    titleEn: 'Depleted soil or flash runoff',
+                    titlePt: 'Terra fraca ou enxurrada',
                   },
                   {
                     id: 'pragas',
                     icon: 'bug-outline' as const,
-                    title: 'Pragas e folhas doentes',
+                    titleEn: 'Pests and diseased leaves',
+                    titlePt: 'Pragas e folhas doentes',
                   },
                   {
                     id: 'agua',
                     icon: 'water-outline' as const,
-                    title: 'Falta de água / poço fundo',
+                    titleEn: 'Water scarcity / deep wells',
+                    titlePt: 'Falta de água / poço fundo',
                   },
                   {
                     id: 'venda',
                     icon: 'cash-outline' as const,
-                    title: 'Preço baixo ou escoamento',
+                    titleEn: 'Low prices or market access',
+                    titlePt: 'Preço baixo ou escoamento',
                   },
                 ].map((opt) => (
                   <BigOptionCard
                     key={opt.id}
                     selected={desafios.includes(opt.id)}
                     icon={opt.icon}
-                    title={opt.title}
+                    title={pickLang(language, opt.titleEn, opt.titlePt)}
                     onPress={() => toggleDesafio(opt.id)}
                     theme={theme}
                   />
@@ -1215,7 +1423,11 @@ export const NordesteOnboardingScreen: React.FC = () => {
               style={[styles.nextBtn, { backgroundColor: theme.primary }]}
             >
               <Text style={[styles.nextText, { color: theme.primaryText }]}>
-                Confirmar local e demarcar terreno
+                {pickLang(
+                  language,
+                  'Confirm location & outline land',
+                  'Confirmar local e demarcar terreno'
+                )}
               </Text>
               <Ionicons name="arrow-forward" size={20} color={theme.primaryText} />
             </Pressable>
@@ -1230,7 +1442,9 @@ export const NordesteOnboardingScreen: React.FC = () => {
               ]}
             >
               <Ionicons name="arrow-back" size={20} color={theme.text} />
-              <Text style={[styles.backText, { color: theme.text }]}>Região</Text>
+              <Text style={[styles.backText, { color: theme.text }]}>
+                {pickLang(language, 'Region', 'Região')}
+              </Text>
             </Pressable>
 
             <Pressable
@@ -1256,7 +1470,11 @@ export const NordesteOnboardingScreen: React.FC = () => {
               style={[styles.nextBtn, { backgroundColor: theme.primary }]}
             >
               <Text style={[styles.nextText, { color: theme.primaryText }]}>
-                Avançar para lotes de plantio
+                {pickLang(
+                  language,
+                  'Next: planting plots',
+                  'Avançar para lotes de plantio'
+                )}
               </Text>
               <Ionicons name="arrow-forward" size={20} color={theme.primaryText} />
             </Pressable>
@@ -1274,21 +1492,30 @@ export const NordesteOnboardingScreen: React.FC = () => {
               ]}
             >
               <Ionicons name="arrow-back" size={20} color={theme.text} />
-              <Text style={[styles.backText, { color: theme.text }]}>Fazenda</Text>
+              <Text style={[styles.backText, { color: theme.text }]}>
+                {pickLang(language, 'Farm', 'Fazenda')}
+              </Text>
             </Pressable>
 
             <Pressable
               onPress={() => {
                 if (lotesDraft.length === 0) {
-                  const msg =
-                    'Selecione quantos lotes tem na sua fazenda (ou toque em Adicionar lote) antes de continuar.';
+                  const msg = pickLang(
+                    language,
+                    'Select how many plots are on your farm (or tap Add plot) before continuing.',
+                    'Selecione quantos lotes tem na sua fazenda (ou toque em Adicionar lote) antes de continuar.'
+                  );
                   setLotStepError(msg);
                   speak(msg);
                   return;
                 }
                 const undemarcated = lotesDraft.find((lot) => lot.polygon.length < 3);
                 if (undemarcated) {
-                  const msg = `Demarque a área de "${undemarcated.nome}" no mapa (mínimo 3 pontos dentro do terreno) antes de avançar.`;
+                  const msg = pickLang(
+                    language,
+                    `Outline the area for "${undemarcated.nome}" on the map (at least 3 points inside your farm boundary) before continuing.`,
+                    `Demarque a área de "${undemarcated.nome}" no mapa (mínimo 3 pontos dentro do terreno) antes de avançar.`
+                  );
                   setLotStepError(msg);
                   speak(msg);
                   return;
@@ -1300,7 +1527,11 @@ export const NordesteOnboardingScreen: React.FC = () => {
               style={[styles.nextBtn, { backgroundColor: theme.primary }]}
             >
               <Text style={[styles.nextText, { color: theme.primaryText }]}>
-                Ir para dados do produtor
+                {pickLang(
+                  language,
+                  'Next: farmer profile',
+                  'Ir para dados do produtor'
+                )}
               </Text>
               <Ionicons name="arrow-forward" size={20} color={theme.primaryText} />
             </Pressable>
@@ -1319,19 +1550,21 @@ export const NordesteOnboardingScreen: React.FC = () => {
             >
               <Ionicons name="arrow-back" size={20} color={theme.text} />
               <Text style={[styles.backText, { color: theme.text }]}>
-                {activeParamIdx === 0 ? 'Lotes' : 'Anterior'}
+                {activeParamIdx === 0
+                  ? pickLang(language, 'Plots', 'Lotes')
+                  : pickLang(language, 'Previous', 'Anterior')}
               </Text>
             </Pressable>
 
-            {activeParamIdx < PARAM_TABS.length - 1 ? (
+            {activeParamIdx < paramTabs.length - 1 ? (
               <Pressable
                 onPress={() =>
-                  setActiveParamIdx((i) => Math.min(PARAM_TABS.length - 1, i + 1))
+                  setActiveParamIdx((i) => Math.min(paramTabs.length - 1, i + 1))
                 }
                 style={[styles.nextBtn, { backgroundColor: theme.primary }]}
               >
                 <Text style={[styles.nextText, { color: theme.primaryText }]}>
-                  Próxima aba
+                  {pickLang(language, 'Next tab', 'Próxima aba')}
                 </Text>
                 <Ionicons name="arrow-forward" size={20} color={theme.primaryText} />
               </Pressable>
@@ -1341,7 +1574,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
                 style={[styles.nextBtn, { backgroundColor: theme.primary }]}
               >
                 <Text style={[styles.nextText, { color: theme.primaryText }]}>
-                  Concluir cadastro
+                  {pickLang(language, 'Finish registration', 'Concluir cadastro')}
                 </Text>
                 <Ionicons
                   name="checkmark-circle"

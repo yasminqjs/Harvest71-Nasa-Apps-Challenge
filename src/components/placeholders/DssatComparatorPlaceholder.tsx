@@ -1,21 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useAccessibility } from '../../context/AccessibilityContext';
+import { pickLang } from '../../i18n/locale';
 import { FEATURE_COLOR_STYLES } from '../../models/farmArchitecture';
 import { AppTheme } from '../../theme/tokens';
 import { FarmArchitectureModel, PlantationArchitectureModel } from '../../types/domain';
 import { FeatureBadge } from '../FeatureBadge';
 
 /**
- * @featureColor CINZA
- * @featureModule Previsão / Comparador / Otimizador DSSAT
- * @userAction Comparar rotação atual com outras rotações (Aba Plantação)
- * @status PLACEHOLDER — Substituir em merge futuro pela integração real com DSSAT.
- *
- * Ponto de substituição no merge:
- * Renderize aqui o comparador que lê `farmArchitecture.plantacoes[i].culturaAtual`
- * (usuário + FAO GAEZ EcoCrop), `historicoDaTerra` (NASA POWER + SRTM/Landsat 30 m)
- * e `culturasFuturas` para comparar produtividade, água e risco entre rotações no DSSAT.
+ * @featureColor GRAY (CINZA)
+ * @featureModule DSSAT Forecast / Comparator / Optimizer
+ * @userAction Compare current rotation with other rotations (Crop Tab)
+ * @status PLACEHOLDER — Replace in a future merge with real DSSAT integration.
  */
 export interface DssatComparatorPlaceholderProps {
   farmArchitecture: FarmArchitectureModel;
@@ -30,6 +27,7 @@ export const DssatComparatorPlaceholder: React.FC<DssatComparatorPlaceholderProp
   onBack,
   theme,
 }) => {
+  const { language } = useAccessibility();
   const palette = FEATURE_COLOR_STYLES.cinza;
   const lot = selectedPlantation ?? farmArchitecture.plantacoes[0];
 
@@ -42,10 +40,12 @@ export const DssatComparatorPlaceholder: React.FC<DssatComparatorPlaceholderProp
             style={[styles.backBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
             <Ionicons name="arrow-back" size={18} color={theme.text} />
-            <Text style={[styles.backText, { color: theme.text }]}>Voltar</Text>
+            <Text style={[styles.backText, { color: theme.text }]}>
+              {pickLang(language, 'Back', 'Voltar')}
+            </Text>
           </Pressable>
           <Text style={[styles.title, { color: theme.text, fontSize: 17 * theme.scale }]}>
-            Comparar Rotações (DSSAT)
+            {pickLang(language, 'Compare Rotations (DSSAT)', 'Comparar Rotações (DSSAT)')}
           </Text>
           <View style={{ width: 64 }} />
         </View>
@@ -61,43 +61,70 @@ export const DssatComparatorPlaceholder: React.FC<DssatComparatorPlaceholderProp
         <View style={styles.headerRow}>
           <Ionicons name="git-compare-outline" size={26} color={palette.text} />
           <Text style={[styles.cardTitle, { color: palette.text, fontSize: 16 * theme.scale }]}>
-            Comparar rotação atual com outras rotações
+            {pickLang(
+              language,
+              'Compare current rotation with alternative rotations',
+              'Comparar rotação atual com outras rotações'
+            )}
           </Text>
         </View>
         <Text style={[styles.body, { color: palette.text }]}>
-          Placeholder da feature Cinza (Previsão / Comparador / Otimizador DSSAT). Em merges
-          futuros, este módulo substituirá este bloco para simular e comparar a rotação atual com
-          outras combinações no software DSSAT.
+          {pickLang(
+            language,
+            'Gray feature placeholder (DSSAT Forecast / Comparator / Optimizer). Future merges will replace this block to simulate and compare the current rotation against alternatives inside DSSAT.',
+            'Placeholder da feature Cinza (Previsão / Comparador / Otimizador DSSAT). Em merges futuros, este módulo substituirá este bloco para simular e comparar a rotação atual com outras combinações no software DSSAT.'
+          )}
         </Text>
 
         <View style={[styles.slotBox, { backgroundColor: theme.surface, borderColor: palette.border }]}>
           <Text style={[styles.slotTitle, { color: theme.text }]}>
-            Entradas já conectadas pela Modelagem da Fazenda:
+            {pickLang(
+              language,
+              'Inputs already wired from Farm Data Architecture:',
+              'Entradas já conectadas pela Modelagem da Fazenda:'
+            )}
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Cultura atual (usuário): {lot?.culturaAtual.culturaNome ?? 'Nenhuma plantação cadastrada'}
+            {pickLang(language, '• Current crop (user): ', '• Cultura atual (usuário): ')}
+            {lot?.culturaAtual.culturaNome ??
+              pickLang(language, 'No crop registered', 'Nenhuma plantação cadastrada')}
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Especificações EcoCrop: {lot?.culturaAtual.especificacoesCultura.variedadeRegional ?? '—'} (Kc{' '}
+            {pickLang(language, '• EcoCrop specs: ', '• Especificações EcoCrop: ')}
+            {lot?.culturaAtual.especificacoesCultura.variedadeRegional ?? '—'} (Kc{' '}
             {lot?.culturaAtual.especificacoesCultura.kcMedio ?? '—'})
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Clima (NASA POWER): {lot?.historicoDaTerra.variaveisClimaticas.tempMaxC ?? '—'}°C máx •
-            ET₀ {lot?.historicoDaTerra.variaveisClimaticas.et0PowerMm ?? '—'} mm
+            {pickLang(language, '• Climate (NASA POWER): ', '• Clima (NASA POWER): ')}
+            {lot?.historicoDaTerra.variaveisClimaticas.tempMaxC ?? '—'}°C max • ET₀{' '}
+            {lot?.historicoDaTerra.variaveisClimaticas.et0PowerMm ?? '—'} mm
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Solo (SRTM + Landsat C2 L2 TIRS 30 m): declividade{' '}
+            {pickLang(
+              language,
+              '• Soil (SRTM + Landsat C2 L2 TIRS 30 m): slope ',
+              '• Solo (SRTM + Landsat C2 L2 TIRS 30 m): declividade '
+            )}
             {lot?.historicoDaTerra.variaveisDoSolo.declividadePct ?? '—'}% • pH{' '}
             {lot?.historicoDaTerra.variaveisDoSolo.phSolo ?? '—'}
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Rotações futuras planejadas:{' '}
-            {lot?.culturasFuturas.rotacaoPlanejada.join(', ') || 'A definir / DSSAT'}
+            {pickLang(
+              language,
+              '• Planned future rotations: ',
+              '• Rotações futuras planejadas: '
+            )}
+            {lot?.culturasFuturas.rotacaoPlanejada.join(', ') ||
+              pickLang(language, 'TBD / DSSAT', 'A definir / DSSAT')}
           </Text>
         </View>
 
         <Text style={[styles.mergeNote, { color: palette.text }]}>
-          Arquivo alvo para merge: src/components/placeholders/DssatComparatorPlaceholder.tsx
+          {pickLang(
+            language,
+            'Target merge file: src/components/placeholders/DssatComparatorPlaceholder.tsx',
+            'Arquivo alvo para merge: src/components/placeholders/DssatComparatorPlaceholder.tsx'
+          )}
         </Text>
       </View>
     </View>

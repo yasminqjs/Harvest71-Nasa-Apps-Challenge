@@ -2,7 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { isEn, pickLang } from '../i18n/locale';
 import { getAppTheme } from '../theme/tokens';
+import { AppLanguage } from '../types/domain';
 
 interface TutorialStep {
   icon: keyof typeof Ionicons.glyphMap;
@@ -12,56 +14,103 @@ interface TutorialStep {
   voiceText: string;
 }
 
-const TUTORIAL_STEPS: TutorialStep[] = [
-  {
-    icon: 'sunny',
-    title: '1. Aba Resumo: Informações locais da roça',
-    subtitle: 'Visualizador de temperatura, chuva, umidade e estado básico',
-    bullets: [
-      'Clima do dia e previsão do trimestre com dados climáticos locais (NASA POWER).',
-      'Resumo geral das suas plantações, histórico da terra (SRTM + Landsat 30 m) e acontecimentos da região.',
-      'Botão rápido para gerar relatório da roça pelo WhatsApp.',
-    ],
-    voiceText:
-      'Passo 1 do tutorial. Na aba Resumo, você acompanha informações básicas da roça: clima do dia, previsão do trimestre e resumo das plantações.',
-  },
-  {
-    icon: 'leaf',
-    title: '2. Aba Plantação: Atualizar dados e simulações',
-    subtitle: 'Gerencie sua fazenda e acesse comparador, otimizador e qualidade',
-    bullets: [
-      'Atualizar dados da plantação e da fazenda: edite terreno no mapa, lotes, cultura atual, variáveis da fazenda e histórico.',
-      'Comparador e otimizador de rotações (DSSAT — espaço reservado para próximos merges).',
-      'Qualidade da plantação atual (mapa de manchas por satélite NASA + Sentinel-2 e ações passo-a-passo).',
-    ],
-    voiceText:
-      'Passo 2 do tutorial. Na aba Plantação, você atualiza dados da fazenda, lotes e culturas, e acessa as áreas de comparação DSSAT e qualidade da plantação.',
-  },
-  {
-    icon: 'people',
-    title: '3. Aba Comunidade: Usuários próximos e Relatos',
-    subtitle: 'Receba relatos locais e registre acontecimentos da região',
-    bullets: [
-      'Ver usuários próximos no grafo regional conectado por bioma e tema.',
-      'Receber relatos de outros agricultores na sua região.',
-      'Relatar acontecimentos (pragas, mudanças de preço, desastres naturais) para ajudar a comunidade.',
-    ],
-    voiceText:
-      'Passo 3 do tutorial. Na aba Comunidade, veja agricultores próximos no grafo, leia relatos e registre acontecimentos como pragas, preços ou desastres naturais.',
-  },
-  {
-    icon: 'chatbox-ellipses',
-    title: '4. Sua opinião melhora o RoçaViva',
-    subtitle: 'Sistema de feedback offline + perfil compartilhado',
-    bullets: [
-      'Avalie se a previsão bateu com a chuva ou seca na sua propriedade.',
-      'Envie comentários escritos ou falados pelo microfone — fica salvo no celular até conectar.',
-      'No ícone de usuário no topo, você também troca de agricultor no mesmo aparelho e ajusta letras grandes ou alto contraste.',
-    ],
-    voiceText:
-      'Passo 4 do tutorial. Você pode enviar sua opinião dizendo se a previsão funcionou na roça. Tudo funciona offline e sincroniza quando tiver sinal. Bom trabalho!',
-  },
-];
+function getTutorialSteps(lang: AppLanguage): TutorialStep[] {
+  const en = isEn(lang);
+  return [
+    {
+      icon: 'sunny',
+      title: en
+        ? '1. Overview Tab: Local Farm Information'
+        : '1. Aba Resumo: Informações locais da roça',
+      subtitle: en
+        ? 'Viewer for temperature, rainfall, humidity, and basic status'
+        : 'Visualizador de temperatura, chuva, umidade e estado básico',
+      bullets: en
+        ? [
+            'Daily weather & quarterly forecast with local climate data (NASA POWER).',
+            'General summary of your plantations, land history (SRTM + Landsat 30 m), and regional events.',
+            'Quick button to generate and share a farm report on WhatsApp.',
+          ]
+        : [
+            'Clima do dia e previsão do trimestre com dados climáticos locais (NASA POWER).',
+            'Resumo geral das suas plantações, histórico da terra (SRTM + Landsat 30 m) e acontecimentos da região.',
+            'Botão rápido para gerar relatório da roça pelo WhatsApp.',
+          ],
+      voiceText: en
+        ? 'Tutorial step 1. In the Overview tab, you track basic farm info: daily weather, quarterly forecast, and plantation summary.'
+        : 'Passo 1 do tutorial. Na aba Resumo, você acompanha informações básicas da roça: clima do dia, previsão do trimestre e resumo das plantações.',
+    },
+    {
+      icon: 'leaf',
+      title: en
+        ? '2. Crops Tab: Update Data & Satellite Quality'
+        : '2. Aba Plantação: Atualizar dados e Satélite',
+      subtitle: en
+        ? 'Manage your farm, view live satellite forecasts, and check NASA + Sentinel-2 crop quality'
+        : 'Gerencie sua fazenda, veja previsões no satélite real e a qualidade NASA + Sentinel-2',
+      bullets: en
+        ? [
+            'Update plantation & farm data: edit land boundary on map, plots, current crop, farm variables, and history.',
+            'View plantation on real satellite imagery with per-grain harvest forecasts and 7-day climate.',
+            'Current plantation quality viewer (10 m NASA + Sentinel-2 field zones and voice guidance).',
+          ]
+        : [
+            'Atualizar dados da plantação e da fazenda: edite terreno no mapa, lotes, cultura atual, variáveis da fazenda e histórico.',
+            'Ver plantação com imagem de satélite real, previsão de sacas por grão e clima de 7 dias.',
+            'Qualidade da plantação atual (mapa de manchas 10 m NASA + Sentinel-2 e orientação por voz).',
+          ],
+      voiceText: en
+        ? 'Tutorial step 2. In the Crops tab, you update farm, plot, and crop data, view your plantation on real satellite imagery with forecasts, and check NASA crop quality.'
+        : 'Passo 2 do tutorial. Na aba Plantação, você atualiza dados da fazenda, vê a plantação no satélite real com previsões e acessa a qualidade da plantação pela NASA.',
+    },
+    {
+      icon: 'people',
+      title: en
+        ? '3. Community Tab: Nearby Farmers & Reports'
+        : '3. Aba Comunidade: Usuários próximos e Relatos',
+      subtitle: en
+        ? 'Receive local updates and log regional events'
+        : 'Receba relatos locais e registre acontecimentos da região',
+      bullets: en
+        ? [
+            'See nearby farmers in the regional network graph connected by biome and topic.',
+            'Read reports from other farmers across your region.',
+            'Report events (pests, price shifts, natural disasters) to help the community.',
+          ]
+        : [
+            'Ver usuários próximos no grafo regional conectado por bioma e tema.',
+            'Receber relatos de outros agricultores na sua região.',
+            'Relatar acontecimentos (pragas, mudanças de preço, desastres naturais) para ajudar a comunidade.',
+          ],
+      voiceText: en
+        ? 'Tutorial step 3. In the Community tab, see nearby farmers in the network graph, read reports, and log local events like pests, price shifts, or disasters.'
+        : 'Passo 3 do tutorial. Na aba Comunidade, veja agricultores próximos no grafo, leia relatos e registre acontecimentos como pragas, preços ou desastres naturais.',
+    },
+    {
+      icon: 'chatbox-ellipses',
+      title: en
+        ? '4. Your Feedback Improves RoçaViva'
+        : '4. Sua opinião melhora o RoçaViva',
+      subtitle: en
+        ? 'Offline feedback system + shared farmer profile'
+        : 'Sistema de feedback offline + perfil compartilhado',
+      bullets: en
+        ? [
+            'Rate whether the forecast matched actual rain or drought on your farm.',
+            'Send written or voice comments — saved on your phone until internet returns.',
+            'Tap the user icon at the top to switch farmers on the same device and adjust large text or high contrast.',
+          ]
+        : [
+            'Avalie se a previsão bateu com a chuva ou seca na sua propriedade.',
+            'Envie comentários escritos ou falados pelo microfone — fica salvo no celular até conectar.',
+            'No ícone de usuário no topo, você também troca de agricultor no mesmo aparelho e ajusta letras grandes ou alto contraste.',
+          ],
+      voiceText: en
+        ? 'Tutorial step 4. You can send feedback on whether the forecast matched your field. Everything works offline and syncs when connected.'
+        : 'Passo 4 do tutorial. Você pode enviar sua opinião dizendo se a previsão funcionou na roça. Tudo funciona offline e sincroniza quando tiver sinal. Bom trabalho!',
+    },
+  ];
+}
 
 interface AppTutorialModalProps {
   visible: boolean;
@@ -72,12 +121,13 @@ export const AppTutorialModal: React.FC<AppTutorialModalProps> = ({
   visible,
   onClose,
 }) => {
-  const { accessibility, speak, stopVoice } = useAccessibility();
+  const { language, accessibility, speak, stopVoice } = useAccessibility();
   const theme = getAppTheme(accessibility);
   const [stepIndex, setStepIndex] = useState(0);
 
-  const current = TUTORIAL_STEPS[stepIndex];
-  const isLast = stepIndex === TUTORIAL_STEPS.length - 1;
+  const steps = getTutorialSteps(language);
+  const current = steps[stepIndex];
+  const isLast = stepIndex === steps.length - 1;
 
   useEffect(() => {
     if (!visible) {
@@ -87,7 +137,7 @@ export const AppTutorialModal: React.FC<AppTutorialModalProps> = ({
 
   useEffect(() => {
     if (visible && accessibility.voiceGuidanceEnabled) {
-      speak(TUTORIAL_STEPS[stepIndex].voiceText);
+      speak(steps[stepIndex].voiceText);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, stepIndex]);
@@ -110,11 +160,15 @@ export const AppTutorialModal: React.FC<AppTutorialModalProps> = ({
           ]}
         >
           <Text style={[styles.headerTag, { color: theme.primary }]}>
-            Tutorial ({stepIndex + 1}/{TUTORIAL_STEPS.length})
+            {pickLang(
+              language,
+              `Tutorial (${stepIndex + 1}/${steps.length})`,
+              `Tutorial (${stepIndex + 1}/${steps.length})`
+            )}
           </Text>
           <Pressable onPress={handleClose} style={styles.skipBtn}>
             <Text style={{ fontSize: 13, fontWeight: '900', color: theme.textMuted }}>
-              Pular tutorial ✕
+              {pickLang(language, 'Skip tutorial ✕', 'Pular tutorial ✕')}
             </Text>
           </Pressable>
         </View>
@@ -146,7 +200,11 @@ export const AppTutorialModal: React.FC<AppTutorialModalProps> = ({
             >
               <Ionicons name="volume-high" size={22} color={theme.primary} />
               <Text style={{ fontSize: 14, fontWeight: '800', color: theme.text }}>
-                Ouvir explicação em áudio
+                {pickLang(
+                  language,
+                  'Listen to audio explanation',
+                  'Ouvir explicação em áudio'
+                )}
               </Text>
             </Pressable>
 
@@ -176,7 +234,7 @@ export const AppTutorialModal: React.FC<AppTutorialModalProps> = ({
           </View>
 
           <View style={styles.dotsRow}>
-            {TUTORIAL_STEPS.map((_, idx) => (
+            {steps.map((_, idx) => (
               <Pressable
                 key={idx}
                 onPress={() => setStepIndex(idx)}
@@ -209,7 +267,9 @@ export const AppTutorialModal: React.FC<AppTutorialModalProps> = ({
               ]}
             >
               <Ionicons name="arrow-back" size={20} color={theme.text} />
-              <Text style={{ fontWeight: '800', color: theme.text }}>Anterior</Text>
+              <Text style={{ fontWeight: '800', color: theme.text }}>
+                {pickLang(language, 'Previous', 'Anterior')}
+              </Text>
             </Pressable>
           ) : (
             <View />
@@ -223,7 +283,9 @@ export const AppTutorialModal: React.FC<AppTutorialModalProps> = ({
             style={[styles.navBtnPrimary, { backgroundColor: theme.primary }]}
           >
             <Text style={{ fontWeight: '900', fontSize: 16, color: theme.primaryText }}>
-              {isLast ? 'Começar a usar!' : 'Próximo passo'}
+              {isLast
+                ? pickLang(language, 'Get started!', 'Começar a usar!')
+                : pickLang(language, 'Next step', 'Próximo passo')}
             </Text>
             <Ionicons
               name={isLast ? 'checkmark-circle' : 'arrow-forward'}

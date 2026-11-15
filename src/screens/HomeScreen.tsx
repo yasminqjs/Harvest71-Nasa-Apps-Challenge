@@ -17,7 +17,8 @@ import { HistoricoPlantioSubscreen } from '../components/subscreens/HistoricoPla
 import { PrevisaoTrimestreSubscreen } from '../components/subscreens/PrevisaoTrimestreSubscreen';
 import { RotacaoAtualSubscreen } from '../components/subscreens/RotacaoAtualSubscreen';
 import { useAccessibility } from '../context/AccessibilityContext';
-import { FEATURE_COLOR_STYLES } from '../models/farmArchitecture';
+import { pickLang } from '../i18n/locale';
+import { getFeatureColorStyles } from '../models/farmArchitecture';
 import { getAppTheme } from '../theme/tokens';
 import { formatArea } from '../utils/regionalize';
 
@@ -39,10 +40,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenFeedback,
   onOpenTutorial,
 }) => {
-  const { accessibility, activeFarmer, activeFarm, farmArchitecture, speak } =
+  const { language, accessibility, activeFarmer, activeFarm, farmArchitecture, speak } =
     useAccessibility();
   const theme = getAppTheme(accessibility);
-  const yellow = FEATURE_COLOR_STYLES.amarelo;
+  const yellow = getFeatureColorStyles(language).amarelo;
   const [subscreen, setSubscreen] = useState<HomeSubscreen>(null);
   const [reportStatus, setReportStatus] = useState<string | null>(null);
 
@@ -71,27 +72,52 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const buildWhatsappReportText = (): string => {
     const lotsSummary = lots
-      .map(
-        (l) =>
+      .map((l) =>
+        pickLang(
+          language,
+          `- ${l.nome}: ${l.culturaAtual} (${l.sistema}), progress ${l.progressoRealPct}% vs ${l.progressoEsperadoPct}% expected`,
           `- ${l.nome}: ${l.culturaAtual} (${l.sistema}), progresso ${l.progressoRealPct}% vs ${l.progressoEsperadoPct}% esperado`
+        )
       )
       .join('\n');
-    return (
+    return pickLang(
+      language,
+      `ROÇAVIVA REPORT — ${activeFarm.nome}\n` +
+        `Farmer: ${activeFarmer.tratamento}\n` +
+        `Region: ${activeFarm.regiaoNome} (${activeFarm.municipio} - ${activeFarm.estado})\n` +
+        `Area: ${formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa, language)}\n` +
+        `Today's weather: ${diag.climaDia.tempMaxC}°/${diag.climaDia.tempMinC}°C • Rain ${diag.climaDia.chuvaHojeMm} mm • Humidity ${diag.climaDia.umidadeRelativaPct}%\n` +
+        `Drought Alert (NASA): ${diag.modeloB.sinaisAtivos}/4 signals (${diag.modeloB.nivel})\n` +
+        `Active plots:\n${lotsSummary || `- ${activeFarm.culturaPrincipal}`}\n` +
+        `Recommendation: ${diag.modeloC.titulo} (${diag.modeloC.explicacaoAcessivel})`,
       `RELATÓRIO ROÇAVIVA — ${activeFarm.nome}\n` +
-      `Produtor(a): ${activeFarmer.tratamento}\n` +
-      `Região: ${activeFarm.regiaoNome} (${activeFarm.municipio} - ${activeFarm.estado})\n` +
-      `Área: ${formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)}\n` +
-      `Clima hoje: ${diag.climaDia.tempMaxC}°/${diag.climaDia.tempMinC}°C • Chuva ${diag.climaDia.chuvaHojeMm} mm • Umidade ${diag.climaDia.umidadeRelativaPct}%\n` +
-      `Alerta de Seca (NASA): ${diag.modeloB.sinaisAtivos}/4 sinais (${diag.modeloB.nivel})\n` +
-      `Lotes ativos:\n${lotsSummary || `- ${activeFarm.culturaPrincipal}`}\n` +
-      `Recomendação: ${diag.modeloC.titulo} (${diag.modeloC.explicacaoAcessivel})`
+        `Produtor(a): ${activeFarmer.tratamento}\n` +
+        `Região: ${activeFarm.regiaoNome} (${activeFarm.municipio} - ${activeFarm.estado})\n` +
+        `Área: ${formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa, language)}\n` +
+        `Clima hoje: ${diag.climaDia.tempMaxC}°/${diag.climaDia.tempMinC}°C • Chuva ${diag.climaDia.chuvaHojeMm} mm • Umidade ${diag.climaDia.umidadeRelativaPct}%\n` +
+        `Alerta de Seca (NASA): ${diag.modeloB.sinaisAtivos}/4 sinais (${diag.modeloB.nivel})\n` +
+        `Lotes ativos:\n${lotsSummary || `- ${activeFarm.culturaPrincipal}`}\n` +
+        `Recomendação: ${diag.modeloC.titulo} (${diag.modeloC.explicacaoAcessivel})`
     );
   };
 
   const handleGenerateZapReport = async () => {
     const message = buildWhatsappReportText();
-    setReportStatus('Relatório gerado! Pronto para enviar no WhatsApp.');
-    speak('Relatório da roça gerado para envio pelo WhatsApp.', true);
+    setReportStatus(
+      pickLang(
+        language,
+        'Report generated! Ready to send on WhatsApp.',
+        'Relatório gerado! Pronto para enviar no WhatsApp.'
+      )
+    );
+    speak(
+      pickLang(
+        language,
+        'Farm report generated for WhatsApp sharing.',
+        'Relatório da roça gerado para envio pelo WhatsApp.'
+      ),
+      true
+    );
     try {
       const zapUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
       const supported = await Linking.canOpenURL(zapUrl).catch(() => false);
@@ -100,7 +126,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         return;
       }
       await Share.share({
-        title: `Relatório RoçaViva — ${activeFarm.nome}`,
+        title: pickLang(
+          language,
+          `RoçaViva Report — ${activeFarm.nome}`,
+          `Relatório RoçaViva — ${activeFarm.nome}`
+        ),
         message,
       });
     } catch {
@@ -141,11 +171,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           >
             <FeatureBadge color="amarelo" />
             <Text style={[styles.summaryTitle, { color: theme.text, fontSize: 18 * theme.scale }]}>
-              Resumo Local da Roça
+              {pickLang(language, 'Local Farm Overview', 'Resumo Local da Roça')}
             </Text>
             <Text style={{ fontSize: 12, color: theme.textMuted }}>
               {activeFarm.nome} • {activeFarm.regiaoNome} ({activeFarm.municipio} -{' '}
-              {activeFarm.estado}) • {formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)}
+              {activeFarm.estado}) •{' '}
+              {formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa, language)}
             </Text>
           </View>
 
@@ -158,13 +189,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 { backgroundColor: theme.surface, borderColor: yellow.border },
               ]}
             >
-              <Text style={[styles.boxTitle, { color: theme.text }]}>Clima do dia</Text>
+              <Text style={[styles.boxTitle, { color: theme.text }]}>
+                {pickLang(language, "Today's Weather", 'Clima do dia')}
+              </Text>
               <Ionicons name="sunny" size={34} color="#CA8A04" />
               <Text style={[styles.boxValue, { color: '#92400E' }]}>
                 {diag.climaDia.tempMaxC}° / {diag.climaDia.tempMinC}°C
               </Text>
               <Text style={[styles.boxSub, { color: theme.textMuted }]} numberOfLines={2}>
-                Chuva {diag.climaDia.chuvaHojeMm} mm • Umidade {diag.climaDia.umidadeRelativaPct}%
+                {pickLang(
+                  language,
+                  `Rain ${diag.climaDia.chuvaHojeMm} mm • Humidity ${diag.climaDia.umidadeRelativaPct}%`,
+                  `Chuva ${diag.climaDia.chuvaHojeMm} mm • Umidade ${diag.climaDia.umidadeRelativaPct}%`
+                )}
               </Text>
             </Pressable>
 
@@ -176,7 +213,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               ]}
             >
               <Text style={[styles.boxTitle, { color: theme.text }]}>
-                Previsão do trimestre
+                {pickLang(language, 'Quarterly Forecast', 'Previsão do trimestre')}
               </Text>
               <View style={styles.trimestreIconRow}>
                 <Ionicons name="calendar-outline" size={28} color="#CA8A04" />
@@ -208,7 +245,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 { backgroundColor: theme.surface, borderColor: theme.border },
               ]}
             >
-              <Text style={[styles.boxTitle, { color: theme.text }]}>Rotação atual</Text>
+              <Text style={[styles.boxTitle, { color: theme.text }]}>
+                {pickLang(language, 'Current Rotation', 'Rotação atual')}
+              </Text>
               <Ionicons name="leaf" size={32} color={theme.primary} />
               <View style={styles.miniProgressWrap}>
                 <View style={[styles.miniTrack, { backgroundColor: theme.surfaceMuted }]}>
@@ -220,8 +259,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   />
                 </View>
                 <Text style={{ fontSize: 11, fontWeight: '900', color: theme.primary }}>
-                  {primaryProgress}% progresso ({lots.length} plantação
-                  {lots.length === 1 ? '' : 'ões'})
+                  {pickLang(
+                    language,
+                    `${primaryProgress}% progress (${lots.length} ${
+                      lots.length === 1 ? 'plot' : 'plots'
+                    })`,
+                    `${primaryProgress}% progresso (${lots.length} plantação${
+                      lots.length === 1 ? '' : 'ões'
+                    })`
+                  )}
                 </Text>
               </View>
             </Pressable>
@@ -234,11 +280,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               ]}
             >
               <Text style={[styles.boxTitle, { color: theme.text }]}>
-                Histórico da terra
+                {pickLang(language, 'Land History', 'Histórico da terra')}
               </Text>
               <Ionicons name="layers-outline" size={32} color="#2563EB" />
               <Text style={[styles.boxValue, { color: theme.text }]}>
-                pH {diag.soloSoilGrids.ph} • {historyCount} reg.
+                pH {diag.soloSoilGrids.ph} • {historyCount}{' '}
+                {pickLang(language, 'rec.', 'reg.')}
               </Text>
               <Text style={[styles.boxSub, { color: theme.textMuted }]} numberOfLines={2}>
                 NASA POWER + SRTM/Landsat 30 m
@@ -254,17 +301,32 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             ]}
           >
             <Text style={{ fontSize: 13, fontWeight: '900', color: theme.text }}>
-              Visão Geral da Fazenda (Dados Atuais)
+              {pickLang(
+                language,
+                'Farm Architecture Overview (Current Data)',
+                'Visão Geral da Fazenda (Dados Atuais)'
+              )}
             </Text>
             <Text style={{ fontSize: 11, color: theme.textMuted }}>
-              • Variáveis da fazenda (usuário): água ({activeFarmer.waterAccess}) • objetivo (
-              {activeFarmer.objective})
+              {pickLang(
+                language,
+                `• Farm variables (user): water (${activeFarmer.waterAccess}) • goal (${activeFarmer.objective})`,
+                `• Variáveis da fazenda (usuário): água (${activeFarmer.waterAccess}) • objetivo (${activeFarmer.objective})`
+              )}
             </Text>
             <Text style={{ fontSize: 11, color: theme.textMuted }}>
-              • Plantações ({lots.length}): {activeFarm.culturaPrincipal} • EcoCrop + NASA POWER
+              {pickLang(
+                language,
+                `• Plantations (${lots.length}): ${activeFarm.culturaPrincipal} • EcoCrop + NASA POWER`,
+                `• Plantações (${lots.length}): ${activeFarm.culturaPrincipal} • EcoCrop + NASA POWER`
+              )}
             </Text>
             <Text style={{ fontSize: 11, color: theme.textMuted }}>
-              • Acontecimentos da região (comunidade): {regionalEventsCount} relatos locais
+              {pickLang(
+                language,
+                `• Regional events (community): ${regionalEventsCount} local reports`,
+                `• Acontecimentos da região (comunidade): ${regionalEventsCount} relatos locais`
+              )}
             </Text>
             <View style={styles.quickNavRow}>
               <Pressable
@@ -276,7 +338,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               >
                 <Ionicons name="leaf" size={16} color="#14532D" />
                 <Text style={{ fontSize: 12, fontWeight: '900', color: '#14532D' }}>
-                  Ir para Plantação
+                  {pickLang(language, 'Go to Crops', 'Ir para Plantação')}
                 </Text>
               </Pressable>
               <Pressable
@@ -288,7 +350,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               >
                 <Ionicons name="people" size={16} color="#7F1D1D" />
                 <Text style={{ fontSize: 12, fontWeight: '900', color: '#7F1D1D' }}>
-                  Ir para Comunidade
+                  {pickLang(language, 'Go to Community', 'Ir para Comunidade')}
                 </Text>
               </Pressable>
             </View>
@@ -307,10 +369,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 14, fontWeight: '900', color: '#15803D' }}>
-                GERAR RELATÓRIO: WhatsApp
+                {pickLang(
+                  language,
+                  'GENERATE REPORT: WhatsApp',
+                  'GERAR RELATÓRIO: WhatsApp'
+                )}
               </Text>
               <Text style={{ fontSize: 11, color: theme.textMuted }}>
-                Enviar resumo da roça, lotes e clima pelo Zap
+                {pickLang(
+                  language,
+                  'Share farm, plots, and weather summary via WhatsApp',
+                  'Enviar resumo da roça, lotes e clima pelo Zap'
+                )}
               </Text>
             </View>
             <Ionicons name="share-social-outline" size={20} color="#15803D" />
@@ -340,7 +410,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               >
                 <Ionicons name="chatbox-ellipses-outline" size={18} color={theme.primary} />
                 <Text style={{ fontSize: 12, fontWeight: '800', color: theme.text }}>
-                  Dar Feedback
+                  {pickLang(language, 'Send Feedback', 'Dar Feedback')}
                 </Text>
               </Pressable>
             )}

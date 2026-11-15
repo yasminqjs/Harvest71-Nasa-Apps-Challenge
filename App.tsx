@@ -27,10 +27,12 @@ import { NordesteOnboardingScreen } from './src/screens/NordesteOnboardingScreen
 import { SettingsModal, SettingsTabKey } from './src/screens/SettingsModal';
 import { VoiceOnboardingScreen } from './src/screens/VoiceOnboardingScreen';
 import { getAppTheme } from './src/theme/tokens';
+import { pickLang } from './src/i18n/locale';
 
 const RoçaVivaRoot: React.FC = () => {
   const {
     ready,
+    language,
     accessibility,
     nordesteMapCompleted,
     tutorialVisible,
@@ -93,7 +95,11 @@ const RoçaVivaRoot: React.FC = () => {
       <View style={[styles.loading, { backgroundColor: theme.bg }]}>
         <ActivityIndicator size="large" color={theme.primary} />
         <Text style={{ fontWeight: '800', color: theme.text, marginTop: 10 }}>
-          Carregando dados offline da roça...
+          {pickLang(
+            language,
+            'Loading offline farm data...',
+            'Carregando dados offline da roça...'
+          )}
         </Text>
       </View>
     );

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAccessibility } from '../../context/AccessibilityContext';
+import { pickLang } from '../../i18n/locale';
 import { FEATURE_COLOR_STYLES } from '../../models/farmArchitecture';
 import { getAppTheme } from '../../theme/tokens';
 import {
@@ -19,13 +20,13 @@ interface FarmVariablesEditorSubscreenProps {
 
 /**
  * @featureColor VERDE
- * @featureModule Pegador de informações da fazenda
- * @userAction Atualizar variáveis da fazenda (fonte: usuário) dentro da Aba Plantação
+ * @featureModule Farm Information Collector
+ * @userAction Update farm variables (source: user) inside Crop Tab
  */
 export const FarmVariablesEditorSubscreen: React.FC<FarmVariablesEditorSubscreenProps> = ({
   onBack,
 }) => {
-  const { accessibility, activeFarmer, activeFarm, updateFarmVariables, speak } =
+  const { accessibility, language, activeFarmer, activeFarm, updateFarmVariables, speak } =
     useAccessibility();
   const theme = getAppTheme(accessibility);
   const green = FEATURE_COLOR_STYLES.verde;
@@ -57,8 +58,21 @@ export const FarmVariablesEditorSubscreen: React.FC<FarmVariablesEditorSubscreen
       financialTier,
       objective,
     });
-    setSavedMsg('Variáveis da fazenda atualizadas no modelo da propriedade.');
-    speak('Variáveis da fazenda atualizadas com sucesso.', true);
+    setSavedMsg(
+      pickLang(
+        language,
+        'Farm variables updated in the property data model.',
+        'Variáveis da fazenda atualizadas no modelo da propriedade.'
+      )
+    );
+    speak(
+      pickLang(
+        language,
+        'Farm variables updated successfully.',
+        'Variáveis da fazenda atualizadas com sucesso.'
+      ),
+      true
+    );
   };
 
   return (
@@ -69,10 +83,12 @@ export const FarmVariablesEditorSubscreen: React.FC<FarmVariablesEditorSubscreen
           style={[styles.backBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
         >
           <Ionicons name="arrow-back" size={18} color={theme.text} />
-          <Text style={[styles.backText, { color: theme.text }]}>Voltar</Text>
+          <Text style={[styles.backText, { color: theme.text }]}>
+            {pickLang(language, 'Back', 'Voltar')}
+          </Text>
         </Pressable>
         <Text style={[styles.title, { color: theme.text, fontSize: 17 * theme.scale }]}>
-          Variáveis da Fazenda
+          {pickLang(language, 'Farm Variables', 'Variáveis da Fazenda')}
         </Text>
         <View style={{ width: 64 }} />
       </View>
@@ -80,18 +96,21 @@ export const FarmVariablesEditorSubscreen: React.FC<FarmVariablesEditorSubscreen
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: green.border }]}>
         <FeatureBadge color="verde" />
         <Text style={{ fontSize: 12, color: theme.textMuted }}>
-          Fonte: usuário • {activeFarm.nome} ({activeFarm.municipio} - {activeFarm.estado})
+          {pickLang(language, 'Source: user', 'Fonte: usuário')} • {activeFarm.nome} (
+          {activeFarm.municipio} - {activeFarm.estado})
         </Text>
 
-        <Text style={[styles.label, { color: theme.text }]}>Acesso à água:</Text>
+        <Text style={[styles.label, { color: theme.text }]}>
+          {pickLang(language, 'Water access:', 'Acesso à água:')}
+        </Text>
         <View style={styles.chipWrap}>
           {(
             [
-              { id: 'sequeiro', label: 'Sequeiro (chuva)' },
-              { id: 'cisterna', label: 'Cisterna' },
-              { id: 'acude', label: 'Açude / Barreiro' },
-              { id: 'poco_artesiano', label: 'Poço artesiano' },
-              { id: 'irrigacao', label: 'Irrigação' },
+              { id: 'sequeiro', label: pickLang(language, 'Rainfed', 'Sequeiro (chuva)') },
+              { id: 'cisterna', label: pickLang(language, 'Cistern', 'Cisterna') },
+              { id: 'acude', label: pickLang(language, 'Pond / Reservoir', 'Açude / Barreiro') },
+              { id: 'poco_artesiano', label: pickLang(language, 'Deep well', 'Poço artesiano') },
+              { id: 'irrigacao', label: pickLang(language, 'Irrigation', 'Irrigação') },
             ] as const
           ).map((opt) => (
             <Pressable
@@ -118,14 +137,19 @@ export const FarmVariablesEditorSubscreen: React.FC<FarmVariablesEditorSubscreen
           ))}
         </View>
 
-        <Text style={[styles.label, { color: theme.text }]}>Reserva de água:</Text>
+        <Text style={[styles.label, { color: theme.text }]}>
+          {pickLang(language, 'Water storage:', 'Reserva de água:')}
+        </Text>
         <View style={styles.chipWrap}>
           {(
             [
-              { id: 'cisterna_placa', label: 'Cisterna de placa' },
-              { id: 'barreiro', label: 'Barreiro / Tanque' },
-              { id: 'caixa_dagua', label: "Caixa d'água" },
-              { id: 'nenhum', label: 'Sem reservatório' },
+              {
+                id: 'cisterna_placa',
+                label: pickLang(language, 'Plate cistern', 'Cisterna de placa'),
+              },
+              { id: 'barreiro', label: pickLang(language, 'Catchment pond / Tank', 'Barreiro / Tanque') },
+              { id: 'caixa_dagua', label: pickLang(language, 'Water tank', "Caixa d'água") },
+              { id: 'nenhum', label: pickLang(language, 'No storage', 'Sem reservatório') },
             ] as const
           ).map((opt) => (
             <Pressable
@@ -152,14 +176,19 @@ export const FarmVariablesEditorSubscreen: React.FC<FarmVariablesEditorSubscreen
           ))}
         </View>
 
-        <Text style={[styles.label, { color: theme.text }]}>Força de trabalho:</Text>
+        <Text style={[styles.label, { color: theme.text }]}>
+          {pickLang(language, 'Labor force:', 'Força de trabalho:')}
+        </Text>
         <View style={styles.chipWrap}>
           {(
             [
-              { id: 'familiar', label: 'Familiar / enxada' },
-              { id: 'mutirao_diarista', label: 'Mutirão / diarista' },
-              { id: 'tracao_animal', label: 'Tração animal' },
-              { id: 'maquinario', label: 'Trator / Maquinário' },
+              { id: 'familiar', label: pickLang(language, 'Family / hand tools', 'Familiar / enxada') },
+              {
+                id: 'mutirao_diarista',
+                label: pickLang(language, 'Day labor / Co-op', 'Mutirão / diarista'),
+              },
+              { id: 'tracao_animal', label: pickLang(language, 'Animal traction', 'Tração animal') },
+              { id: 'maquinario', label: pickLang(language, 'Tractor / Machinery', 'Trator / Maquinário') },
             ] as const
           ).map((opt) => (
             <Pressable
@@ -186,14 +215,19 @@ export const FarmVariablesEditorSubscreen: React.FC<FarmVariablesEditorSubscreen
           ))}
         </View>
 
-        <Text style={[styles.label, { color: theme.text }]}>Perfil financeiro:</Text>
+        <Text style={[styles.label, { color: theme.text }]}>
+          {pickLang(language, 'Financial profile:', 'Perfil financeiro:')}
+        </Text>
         <View style={styles.chipWrap}>
           {(
             [
-              { id: 'recursos_proprios', label: 'Recurso próprio' },
+              { id: 'recursos_proprios', label: pickLang(language, 'Own funds', 'Recurso próprio') },
               { id: 'pronaf', label: 'PRONAF' },
-              { id: 'programa_social', label: 'Garantia-Safra / PAA' },
-              { id: 'emprestimo_local', label: 'Cooperativa' },
+              {
+                id: 'programa_social',
+                label: pickLang(language, 'Social / Crop support', 'Garantia-Safra / PAA'),
+              },
+              { id: 'emprestimo_local', label: pickLang(language, 'Cooperative', 'Cooperativa') },
             ] as const
           ).map((opt) => (
             <Pressable
@@ -220,13 +254,15 @@ export const FarmVariablesEditorSubscreen: React.FC<FarmVariablesEditorSubscreen
           ))}
         </View>
 
-        <Text style={[styles.label, { color: theme.text }]}>Objetivo da plantação:</Text>
+        <Text style={[styles.label, { color: theme.text }]}>
+          {pickLang(language, 'Planting objective:', 'Objetivo da plantação:')}
+        </Text>
         <View style={styles.chipWrap}>
           {(
             [
-              { id: 'subsistencia', label: 'Comida da família' },
-              { id: 'misto', label: 'Consumo + Feira' },
-              { id: 'comercial', label: 'Venda comercial' },
+              { id: 'subsistencia', label: pickLang(language, 'Family food', 'Comida da família') },
+              { id: 'misto', label: pickLang(language, 'Family + Local market', 'Consumo + Feira') },
+              { id: 'comercial', label: pickLang(language, 'Commercial sale', 'Venda comercial') },
             ] as const
           ).map((opt) => (
             <Pressable
@@ -259,7 +295,7 @@ export const FarmVariablesEditorSubscreen: React.FC<FarmVariablesEditorSubscreen
         >
           <Ionicons name="checkmark-circle-outline" size={20} color={theme.primaryText} />
           <Text style={{ fontSize: 14, fontWeight: '900', color: theme.primaryText }}>
-            Salvar variáveis da fazenda
+            {pickLang(language, 'Save farm variables', 'Salvar variáveis da fazenda')}
           </Text>
         </Pressable>
 

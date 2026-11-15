@@ -11,11 +11,14 @@ import {
 } from 'react-native';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useCropQuality } from '../context/CropQualityContext';
+import { LanguageTogglePill, pickLang } from '../i18n/locale';
 import { PILOT_AREAS_AUDITED } from '../services/cropQualityService';
 
 export const MobileViewport: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { width, height } = useWindowDimensions();
   const {
+    language,
+    setAppLanguage,
     simulatedOffline,
     setSimulatedOffline,
     dryStressBoost,
@@ -60,12 +63,25 @@ export const MobileViewport: React.FC<{ children: React.ReactNode }> = ({ childr
         style={[styles.testPanel, { maxHeight: frameHeight }]}
         contentContainerStyle={styles.testPanelContent}
       >
-        <Text style={styles.testTitle}>Modo Teste (Notebook)</Text>
+        <Text style={styles.testTitle}>
+          {pickLang(language, 'Test Mode (Laptop)', 'Modo Teste (Notebook)')}
+        </Text>
         <Text style={styles.testSubtitle}>
-          Simulador de tela móvel para validar voz, offline SQLite, mapa, câmera foliar e alertas.
+          {pickLang(
+            language,
+            'Mobile screen simulator to validate voice, offline SQLite, map, leaf camera, and alerts.',
+            'Simulador de tela móvel para validar voz, offline SQLite, mapa, câmera foliar e alertas.'
+          )}
         </Text>
 
-        <Text style={styles.sectionLabel}>Satélite Real (NASA &amp; Copernicus)</Text>
+        <Text style={styles.sectionLabel}>
+          {pickLang(language, 'Language / Idioma', 'Idioma / Language')}
+        </Text>
+        <LanguageTogglePill language={language} onSelect={setAppLanguage} />
+
+        <Text style={styles.sectionLabel}>
+          {pickLang(language, 'Live Satellite (NASA & Copernicus)', 'Satélite Real (NASA & Copernicus)')}
+        </Text>
         <Pressable
           onPress={() => refreshAnalysis({ liveSatellite: true })}
           disabled={isAnalyzing}
@@ -75,12 +91,20 @@ export const MobileViewport: React.FC<{ children: React.ReactNode }> = ({ childr
             <View style={styles.liveRow}>
               <ActivityIndicator size="small" color="#FACC15" />
               <Text style={styles.liveSatBtnText}>
-                Baixando NASA ({Math.round(loadingProgressPct)}%)...
+                {pickLang(
+                  language,
+                  `Downloading NASA (${Math.round(loadingProgressPct)}%)...`,
+                  `Baixando NASA (${Math.round(loadingProgressPct)}%)...`
+                )}
               </Text>
             </View>
           ) : (
             <Text style={styles.liveSatBtnText}>
-              🛰️ Pegar Dados Reais (NASA Ao Vivo)
+              {pickLang(
+                language,
+                '🛰️ Fetch Live Data (NASA Live)',
+                '🛰️ Pegar Dados Reais (NASA Ao Vivo)'
+              )}
             </Text>
           )}
         </Pressable>
@@ -106,29 +130,33 @@ export const MobileViewport: React.FC<{ children: React.ReactNode }> = ({ childr
         {bio && view && (
           <View style={styles.telemetryBox}>
             <Text style={styles.telemetrySource}>
-              {isFallback ? '⚡ Fonte: Cache Auditado NASA' : '🟢 Fonte: NASA Ao Vivo'}
+              {isFallback
+                ? pickLang(language, '⚡ Source: Audited NASA Cache', '⚡ Fonte: Cache Auditado NASA')
+                : pickLang(language, '🟢 Source: NASA Live', '🟢 Fonte: NASA Ao Vivo')}
             </Text>
             <Text style={styles.telemetryLine}>
               NDVI: {bio.ndvi_mean.toFixed(2)} • GWETROOT:{' '}
               {Math.round(bio.nasa_gwetroot_0_to_1 * 100)}%
             </Text>
             <Text style={styles.telemetryLine}>
-              Chuva 30d: {bio.precip_gpm_power_30d_mm.toFixed(1)}mm • ET₀:{' '}
+              {pickLang(language, 'Rain 30d', 'Chuva 30d')}: {bio.precip_gpm_power_30d_mm.toFixed(1)}mm • ET₀:{' '}
               {bio.et0_fao56_30d_mm.toFixed(0)}mm
             </Text>
             <Text style={styles.telemetryLine}>
-              Saúde: {view.health_score_0_to_100}/100 ({view.overall_traffic_light})
+              {pickLang(language, 'Health', 'Saúde')}: {view.health_score_0_to_100}/100 ({view.overall_traffic_light})
             </Text>
             <Text style={styles.telemetryLine}>
               📅 POWER: {powerWin}
             </Text>
             <Text style={styles.telemetryLine}>
-              🛰️ Cena S2: {s2AcqDate}
+              🛰️ S2: {s2AcqDate}
             </Text>
           </View>
         )}
 
-        <Text style={styles.sectionLabel}>Conectividade (NetInfo)</Text>
+        <Text style={styles.sectionLabel}>
+          {pickLang(language, 'Connectivity (NetInfo)', 'Conectividade (NetInfo)')}
+        </Text>
         <Pressable
           onPress={() => setSimulatedOffline(!simulatedOffline)}
           style={[
@@ -138,17 +166,35 @@ export const MobileViewport: React.FC<{ children: React.ReactNode }> = ({ childr
         >
           <Text style={styles.testBtnText}>
             {simulatedOffline
-              ? '✈️ Modo Roça Offline ATIVO'
-              : '📶 Sincronizado (Simular Offline)'}
+              ? pickLang(
+                  language,
+                  '✈️ Offline Farm Mode ACTIVE',
+                  '✈️ Modo Roça Offline ATIVO'
+                )
+              : pickLang(
+                  language,
+                  '📶 Synced (Simulate Offline)',
+                  '📶 Sincronizado (Simular Offline)'
+                )}
           </Text>
         </Pressable>
         {pendingSyncCount > 0 && (
           <Text style={styles.queueNote}>
-            {pendingSyncCount} item(ns) na fila `sync_queue` aguardando sinal.
+            {pickLang(
+              language,
+              `${pendingSyncCount} item(s) in \`sync_queue\` waiting for signal.`,
+              `${pendingSyncCount} item(ns) na fila \`sync_queue\` aguardando sinal.`
+            )}
           </Text>
         )}
 
-        <Text style={styles.sectionLabel}>Simular Alerta de Seca (Muda o Emoji)</Text>
+        <Text style={styles.sectionLabel}>
+          {pickLang(
+            language,
+            'Simulate Drought Alert (Changes Emoji)',
+            'Simular Alerta de Seca (Muda o Emoji)'
+          )}
+        </Text>
         <View style={styles.emojiRow}>
           {[
             { boost: 0, label: '😊 Normal' },
@@ -176,9 +222,17 @@ export const MobileViewport: React.FC<{ children: React.ReactNode }> = ({ childr
           ))}
         </View>
 
-        <Text style={styles.sectionLabel}>Fluxo Inicial</Text>
+        <Text style={styles.sectionLabel}>
+          {pickLang(language, 'Initial Flow', 'Fluxo Inicial')}
+        </Text>
         <Pressable onPress={resetDemoData} style={styles.resetBtn}>
-          <Text style={styles.resetBtnText}>↺ Reiniciar Onboarding & Mapa</Text>
+          <Text style={styles.resetBtnText}>
+            {pickLang(
+              language,
+              '↺ Restart Onboarding & Map',
+              '↺ Reiniciar Onboarding & Mapa'
+            )}
+          </Text>
         </Pressable>
       </ScrollView>
 

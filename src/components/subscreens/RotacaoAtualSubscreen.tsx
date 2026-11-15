@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAccessibility } from '../../context/AccessibilityContext';
+import { pickLang } from '../../i18n/locale';
 import { analyzeLeafImageOffline } from '../../services/leafAnalyzer';
 import { getAppTheme } from '../../theme/tokens';
 import {
@@ -19,11 +20,12 @@ interface RotacaoAtualSubscreenProps {
 
 export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
   onBack,
-  title = 'Rotação atual',
+  title,
   showProgressInput = true,
 }) => {
   const {
     accessibility,
+    language,
     activeFarm,
     updateLotDetails,
     simulateRotation,
@@ -31,6 +33,7 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
     speak,
   } = useAccessibility();
   const theme = getAppTheme(accessibility);
+  const resolvedTitle = title ?? pickLang(language, 'Current Rotation', 'Rotação atual');
 
   const lots =
     activeFarm?.lotes && activeFarm.lotes.length > 0
@@ -39,7 +42,9 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
       ? createDefaultLotsForFarm(
           activeFarm.centroid,
           activeFarm.areaHectares,
-          activeFarm.culturaPrincipal
+          activeFarm.culturaPrincipal,
+          activeFarm.polygon,
+          language
         )
       : [];
 
@@ -50,7 +55,7 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
   if (!activeFarm) return null;
 
   const activeLot = lots.find((l) => l.id === selectedLotId) ?? lots[0];
-  const strategies = buildRotationComparisonOptions(activeFarm, activeLot);
+  const strategies = buildRotationComparisonOptions(activeFarm, activeLot, language);
 
   const handleAddValidationPhoto = async () => {
     if (!activeLot) return;
@@ -71,7 +76,12 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
 
       if (!res.canceled && res.assets?.[0]?.uri) {
         const asset = res.assets[0];
-        const leafRes = await analyzeLeafImageOffline(asset.uri, undefined, asset.base64);
+        const leafRes = await analyzeLeafImageOffline(
+          asset.uri,
+          undefined,
+          asset.base64,
+          language
+        );
         await saveLeafAnalysis(leafRes);
         const existingPhotos = activeLot.fotosValidacao ?? [];
         await updateLotDetails(activeLot.id, {
@@ -85,12 +95,29 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
             ...existingPhotos,
           ],
         });
-        speak(`Foto da plantação validada no ${activeLot.nome}: ${leafRes.titulo}`);
+        speak(
+          pickLang(
+            language,
+            `Crop photo validated on ${activeLot.nome}: ${leafRes.titulo}`,
+            `Foto da plantação validada no ${activeLot.nome}: ${leafRes.titulo}`
+          )
+        );
       }
     } catch {
-      const fallback = await analyzeLeafImageOffline('local-sample://lot', 'saudavel');
+      const fallback = await analyzeLeafImageOffline(
+        'local-sample://lot',
+        'saudavel',
+        undefined,
+        language
+      );
       await saveLeafAnalysis(fallback);
-      speak('Foto simulada validada no lote.');
+      speak(
+        pickLang(
+          language,
+          'Simulated photo validated on the plot.',
+          'Foto simulada validada no lote.'
+        )
+      );
     } finally {
       setPhotoBusy(false);
     }
@@ -100,21 +127,39 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
     if (!activeLot) return;
     const clamped = Math.max(0, Math.min(100, nextPct));
     await updateLotDetails(activeLot.id, { progressoRealPct: clamped });
-    speak(`Progresso do ${activeLot.nome} atualizado para ${clamped}%.`);
+    speak(
+      pickLang(
+        language,
+        `Progress on ${activeLot.nome} updated to ${clamped}%.`,
+        `Progresso do ${activeLot.nome} atualizado para ${clamped}%.`
+      )
+    );
   };
 
   const handleAdoptStrategy = async (strategyName: string, plants: string[]) => {
     if (!activeLot) return;
-    const cleanName = strategyName.replace(' (Atual)', '');
+    const cleanName = strategyName
+      .replace(' (Atual)', '')
+      .replace(' (Current)', '');
     await updateLotDetails(activeLot.id, {
       sistema: plants.length > 1 ? 'rotacao' : 'monocultura',
       culturaAtual: cleanName,
       plantasRotacao: plants,
       culturasFuturas: plants,
-      cronogramaPlantacao: `Plano adotado: ${cleanName}`,
+      cronogramaPlantacao: pickLang(
+        language,
+        `Adopted plan: ${cleanName}`,
+        `Plano adotado: ${cleanName}`
+      ),
     });
     await simulateRotation(cleanName);
-    speak(`Rotação ${cleanName} aplicada ao ${activeLot.nome}.`);
+    speak(
+      pickLang(
+        language,
+        `Rotation ${cleanName} applied to ${activeLot.nome}.`,
+        `Rotação ${cleanName} aplicada ao ${activeLot.nome}.`
+      )
+    );
   };
 
   const progressDiff = activeLot
@@ -130,16 +175,22 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
             style={[styles.backBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
             <Ionicons name="arrow-back" size={18} color={theme.text} />
-            <Text style={[styles.backText, { color: theme.text }]}>Voltar</Text>
+            <Text style={[styles.backText, { color: theme.text }]}>
+              {pickLang(language, 'Back', 'Voltar')}
+            </Text>
           </Pressable>
           <Text style={[styles.screenTitle, { color: theme.text, fontSize: 18 * theme.scale }]}>
-            {title}
+            {resolvedTitle}
           </Text>
           <Pressable
             onPress={() =>
               activeLot &&
               speak(
-                `${activeLot.nome}, plantio de ${activeLot.culturaAtual}. Progresso informado de ${activeLot.progressoRealPct}%, expectativa de ${activeLot.progressoEsperadoPct}%.`
+                pickLang(
+                  language,
+                  `${activeLot.nome}, growing ${activeLot.culturaAtual}. Reported progress ${activeLot.progressoRealPct}%, expected ${activeLot.progressoEsperadoPct}%.`,
+                  `${activeLot.nome}, plantio de ${activeLot.culturaAtual}. Progresso informado de ${activeLot.progressoRealPct}%, expectativa de ${activeLot.progressoEsperadoPct}%.`
+                )
               )
             }
             style={[styles.voiceBtn, { backgroundColor: theme.surfaceMuted }]}
@@ -149,7 +200,7 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
         </View>
       )}
 
-      {/* Seletor de Lote */}
+      {/* Plot Selector */}
       <View style={styles.lotsRow}>
         {lots.map((lot) => {
           const active = lot.id === activeLot?.id;
@@ -181,7 +232,7 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
 
       {activeLot && (
         <>
-          {/* Validar plantação (fotos) */}
+          {/* Validate plantation (photos) */}
           <View
             style={[
               styles.card,
@@ -189,7 +240,7 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
             ]}
           >
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              Validar plantação (fotos)
+              {pickLang(language, 'Validate crops (photos)', 'Validar plantação (fotos)')}
             </Text>
             <Pressable
               onPress={handleAddValidationPhoto}
@@ -198,7 +249,13 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
             >
               <Ionicons name="camera" size={20} color="#FFFFFF" />
               <Text style={{ fontWeight: '900', color: '#FFFFFF' }}>
-                {photoBusy ? 'Analisando foto...' : 'Tirar ou enviar foto do lote'}
+                {photoBusy
+                  ? pickLang(language, 'Analyzing photo...', 'Analisando foto...')
+                  : pickLang(
+                      language,
+                      'Take or upload plot photo',
+                      'Tirar ou enviar foto do lote'
+                    )}
               </Text>
             </Pressable>
 
@@ -219,12 +276,12 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
             )}
           </View>
 
-          {/* Infos da plantação (4 caixas conforme diagrama) */}
+          {/* Plantation Info */}
           <Text style={[styles.sectionTitle, { color: theme.text, paddingHorizontal: 2 }]}>
-            Infos da plantação
+            {pickLang(language, 'Plantation info', 'Infos da plantação')}
           </Text>
 
-          {/* 1. Tipo de planta */}
+          {/* 1. Crop type */}
           <View
             style={[
               styles.infoBox,
@@ -233,24 +290,35 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
           >
             <View style={styles.infoHeader}>
               <Ionicons name="leaf-outline" size={18} color="#2563EB" />
-              <Text style={[styles.infoBoxTitle, { color: '#2563EB' }]}>Tipo de planta</Text>
+              <Text style={[styles.infoBoxTitle, { color: '#2563EB' }]}>
+                {pickLang(language, 'Crop type', 'Tipo de planta')}
+              </Text>
             </View>
             <Text style={{ fontSize: 14, fontWeight: '900', color: theme.text }}>
-              {activeLot.culturaAtual} ({activeLot.sistema === 'monocultura' ? 'Monocultura' : 'Rotação'})
+              {activeLot.culturaAtual} (
+              {activeLot.sistema === 'monocultura'
+                ? pickLang(language, 'Monoculture', 'Monocultura')
+                : pickLang(language, 'Rotation', 'Rotação')}
+              )
             </Text>
             <Text style={{ fontSize: 12, color: theme.textMuted }}>
-              Área: {formatArea(activeLot.areaHectares, activeLot.areaTarefasBa)} • Plantada há{' '}
-              {activeLot.tempoPlantadaDias} dias
+              {pickLang(language, 'Area:', 'Área:')}{' '}
+              {formatArea(activeLot.areaHectares, activeLot.areaTarefasBa, language)} •{' '}
+              {pickLang(
+                language,
+                `Planted ${activeLot.tempoPlantadaDias} days ago`,
+                `Plantada há ${activeLot.tempoPlantadaDias} dias`
+              )}
               {activeLot.temDataColheita && activeLot.dataColheitaPrevista
-                ? ` • Colheita: ${activeLot.dataColheitaPrevista}`
+                ? ` • ${pickLang(language, 'Harvest:', 'Colheita:')} ${activeLot.dataColheitaPrevista}`
                 : ''}
             </Text>
             <Text style={{ fontSize: 12, color: theme.text }}>
-              Cronograma: {activeLot.cronogramaPlantacao}
+              {pickLang(language, 'Schedule:', 'Cronograma:')} {activeLot.cronogramaPlantacao}
             </Text>
           </View>
 
-          {/* 2. Informar progresso */}
+          {/* 2. Update progress */}
           {showProgressInput && (
             <View
               style={[
@@ -261,7 +329,11 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
               <View style={styles.infoHeader}>
                 <Ionicons name="analytics-outline" size={18} color="#2563EB" />
                 <Text style={[styles.infoBoxTitle, { color: '#2563EB' }]}>
-                  Informar progresso ({activeLot.progressoRealPct}%)
+                  {pickLang(
+                    language,
+                    `Update progress (${activeLot.progressoRealPct}%)`,
+                    `Informar progresso (${activeLot.progressoRealPct}%)`
+                  )}
                 </Text>
               </View>
               <View style={styles.progressBtnsRow}>
@@ -318,7 +390,7 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
             </View>
           )}
 
-          {/* 3. Progressão x expectativa */}
+          {/* 3. Actual vs Expected Progression */}
           <View
             style={[
               styles.infoBox,
@@ -328,12 +400,15 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
             <View style={styles.infoHeader}>
               <Ionicons name="stats-chart-outline" size={18} color="#2563EB" />
               <Text style={[styles.infoBoxTitle, { color: '#2563EB' }]}>
-                Progressão x expectativa
+                {pickLang(language, 'Actual vs Expected Growth', 'Progressão x expectativa')}
               </Text>
             </View>
             <Text style={{ fontSize: 12, fontWeight: '700', color: theme.text }}>
-              Real informado: {activeLot.progressoRealPct}% • Expectativa NASA/ciclo:{' '}
-              {activeLot.progressoEsperadoPct}%
+              {pickLang(
+                language,
+                `Reported: ${activeLot.progressoRealPct}% • NASA/cycle expectation: ${activeLot.progressoEsperadoPct}%`,
+                `Real informado: ${activeLot.progressoRealPct}% • Expectativa NASA/ciclo: ${activeLot.progressoEsperadoPct}%`
+              )}
             </Text>
             <View style={styles.barGroup}>
               <View style={[styles.barTrack, { backgroundColor: theme.surfaceMuted }]}>
@@ -364,14 +439,26 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
               }}
             >
               {progressDiff >= 5
-                ? '✓ Desenvolvimento acima do esperado para a época.'
+                ? pickLang(
+                    language,
+                    '✓ Development ahead of seasonal expectation.',
+                    '✓ Desenvolvimento acima do esperado para a época.'
+                  )
                 : progressDiff >= -5
-                ? '✓ Desenvolvimento dentro da expectativa climática.'
-                : '⚠️ Desenvolvimento um pouco atrasado. Cheque umidade e cobertura morta.'}
+                ? pickLang(
+                    language,
+                    '✓ Development aligned with climate expectations.',
+                    '✓ Desenvolvimento dentro da expectativa climática.'
+                  )
+                : pickLang(
+                    language,
+                    '⚠️ Development slightly behind. Check soil moisture & straw mulch.',
+                    '⚠️ Desenvolvimento um pouco atrasado. Cheque umidade e cobertura morta.'
+                  )}
             </Text>
           </View>
 
-          {/* 4. Retorno financeiro */}
+          {/* 4. Financial Return */}
           <View
             style={[
               styles.infoBox,
@@ -381,24 +468,30 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
             <View style={styles.infoHeader}>
               <Ionicons name="cash-outline" size={18} color="#2563EB" />
               <Text style={[styles.infoBoxTitle, { color: '#2563EB' }]}>
-                Retorno financeiro estimado
+                {pickLang(
+                  language,
+                  'Estimated financial return',
+                  'Retorno financeiro estimado'
+                )}
               </Text>
             </View>
             <Text style={{ fontSize: 18, fontWeight: '900', color: theme.primary }}>
-              {formatCurrencyBRL(activeLot.retornoFinanceiroEstR$)} neste lote
+              {formatCurrencyBRL(activeLot.retornoFinanceiroEstR$, language)}{' '}
+              {pickLang(language, 'on this plot', 'neste lote')}
             </Text>
             <Text style={{ fontSize: 11, color: theme.textMuted }}>
-              Equivalente médio de{' '}
+              {pickLang(language, 'Average equivalent of ', 'Equivalente médio de ')}
               {formatCurrencyBRL(
                 Math.round(
                   activeLot.retornoFinanceiroEstR$ / Math.max(0.25, activeLot.areaHectares)
-                )
+                ),
+                language
               )}{' '}
-              por hectare.
+              {pickLang(language, 'per hectare.', 'por hectare.')}
             </Text>
           </View>
 
-          {/* Sticky note: Comparar a atual rotação com outras opções */}
+          {/* Compare current rotation vs alternatives */}
           <View
             style={[
               styles.compareCard,
@@ -406,15 +499,32 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
             ]}
           >
             <Text style={[styles.sectionTitle, { color: theme.warningText }]}>
-              Comparar rotação atual vs outras opções
+              {pickLang(
+                language,
+                'Compare current rotation vs alternatives',
+                'Comparar rotação atual vs outras opções'
+              )}
             </Text>
             <Text style={{ fontSize: 12, color: theme.warningText }}>
-              Compare pelo menos 3 estratégias de rotação com base em água, nitrogênio, pragas e
-              retorno no seu terreno (apoio à decisão local).
+              {pickLang(
+                language,
+                'Compare at least 3 rotation strategies across water use, nitrogen, pest interruption, and farm return (decision-support tool).',
+                'Compare pelo menos 3 estratégias de rotação com base em água, nitrogênio, pragas e retorno no seu terreno (apoio à decisão local).'
+              )}
             </Text>
 
             {strategies.map((strat) => {
               const isOpen = expandedStrategyId === strat.id;
+              const waterLabel =
+                strat.demandaAgua === 'alta'
+                  ? pickLang(language, 'high', 'alta')
+                  : strat.demandaAgua === 'baixa'
+                  ? pickLang(language, 'low', 'baixa')
+                  : pickLang(language, 'medium', 'média');
+              const forageLabel =
+                strat.valorForragem === 'alto'
+                  ? pickLang(language, 'high', 'alto')
+                  : pickLang(language, 'medium', 'médio');
               return (
                 <View
                   key={strat.id}
@@ -432,8 +542,10 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
                         {strat.nome}
                       </Text>
                       <Text style={{ fontSize: 11, color: theme.textMuted }}>
-                        Resiliência: {strat.scoreResiliencia}/100 • Água: {strat.demandaAgua} •
-                        Erosão -{strat.reducaoErosaoPct}%
+                        {pickLang(language, 'Resilience:', 'Resiliência:')}{' '}
+                        {strat.scoreResiliencia}/100 • {pickLang(language, 'Water:', 'Água:')}{' '}
+                        {waterLabel} • {pickLang(language, 'Erosion', 'Erosão')} -
+                        {strat.reducaoErosaoPct}%
                       </Text>
                     </View>
                     <View
@@ -451,8 +563,13 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
                   </View>
 
                   <Text style={{ fontSize: 12, color: theme.text }}>
-                    Fixa Nitrogênio: {strat.fixacaoNitrogenio ? 'Sim' : 'Não'} • Forragem:{' '}
-                    {strat.valorForragem} • Retorno: {formatCurrencyBRL(strat.retornoLiquidoEstHaR$)}/ha
+                    {pickLang(language, 'Fixes Nitrogen:', 'Fixa Nitrogênio:')}{' '}
+                    {strat.fixacaoNitrogenio
+                      ? pickLang(language, 'Yes', 'Sim')
+                      : pickLang(language, 'No', 'Não')}{' '}
+                    • {pickLang(language, 'Forage:', 'Forragem:')} {forageLabel} •{' '}
+                    {pickLang(language, 'Return:', 'Retorno:')}{' '}
+                    {formatCurrencyBRL(strat.retornoLiquidoEstHaR$, language)}/ha
                   </Text>
 
                   <Pressable
@@ -460,29 +577,55 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
                     style={{ alignSelf: 'flex-start' }}
                   >
                     <Text style={{ fontSize: 12, fontWeight: '900', color: '#2563EB' }}>
-                      {isOpen ? '▲ Ocultar justificativa e riscos' : '▼ Ver evidências, lacunas e riscos'}
+                      {isOpen
+                        ? pickLang(
+                            language,
+                            '▲ Hide rationale & risks',
+                            '▲ Ocultar justificativa e riscos'
+                          )
+                        : pickLang(
+                            language,
+                            '▼ View evidence, gaps & risks',
+                            '▼ Ver evidências, lacunas e riscos'
+                          )}
                     </Text>
                   </Pressable>
 
                   {isOpen && (
                     <View style={{ gap: 4, paddingTop: 4 }}>
                       <Text style={styles.detailLine}>
-                        • <Text style={{ fontWeight: '900' }}>Por que sugerida:</Text>{' '}
+                        •{' '}
+                        <Text style={{ fontWeight: '900' }}>
+                          {pickLang(language, 'Why suggested:', 'Por que sugerida:')}
+                        </Text>{' '}
                         {strat.porqueSugerida}
                       </Text>
                       <Text style={styles.detailLine}>
-                        • <Text style={{ fontWeight: '900' }}>Evidências NASA/Solo:</Text>{' '}
+                        •{' '}
+                        <Text style={{ fontWeight: '900' }}>
+                          {pickLang(language, 'NASA/Soil evidence:', 'Evidências NASA/Solo:')}
+                        </Text>{' '}
                         {strat.evidencias}
                       </Text>
                       <Text style={styles.detailLine}>
-                        • <Text style={{ fontWeight: '900' }}>Benefícios:</Text> {strat.beneficios}
+                        •{' '}
+                        <Text style={{ fontWeight: '900' }}>
+                          {pickLang(language, 'Benefits:', 'Benefícios:')}
+                        </Text>{' '}
+                        {strat.beneficios}
                       </Text>
                       <Text style={styles.detailLine}>
-                        • <Text style={{ fontWeight: '900' }}>Lacuna de informação:</Text>{' '}
+                        •{' '}
+                        <Text style={{ fontWeight: '900' }}>
+                          {pickLang(language, 'Information gaps:', 'Lacuna de informação:')}
+                        </Text>{' '}
                         {strat.lacunasInformacao}
                       </Text>
                       <Text style={styles.detailLine}>
-                        • <Text style={{ fontWeight: '900' }}>Risco / revisão local:</Text>{' '}
+                        •{' '}
+                        <Text style={{ fontWeight: '900' }}>
+                          {pickLang(language, 'Risk / local check:', 'Risco / revisão local:')}
+                        </Text>{' '}
                         {strat.riscosRevisaoLocal}
                       </Text>
                     </View>
@@ -494,7 +637,11 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
                       style={[styles.adoptBtn, { backgroundColor: theme.primary }]}
                     >
                       <Text style={{ fontSize: 12, fontWeight: '900', color: theme.primaryText }}>
-                        Adotar esta opção no {activeLot.nome}
+                        {pickLang(
+                          language,
+                          `Adopt this plan on ${activeLot.nome}`,
+                          `Adotar esta opção no ${activeLot.nome}`
+                        )}
                       </Text>
                     </Pressable>
                   )}

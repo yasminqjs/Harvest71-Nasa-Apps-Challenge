@@ -2,7 +2,14 @@ import { requireOptionalNativeModule } from 'expo';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Speech from 'expo-speech';
 import { AppState, AppStateStatus, Platform } from 'react-native';
-import { EdiblePlantPANC, FarmProperty, FarmerProfile, LanguageLevel } from '../types/domain';
+import {
+  AppLanguage,
+  EdiblePlantPANC,
+  FarmProperty,
+  FarmerProfile,
+  LanguageLevel,
+} from '../types/domain';
+import { pickLang } from '../i18n/locale';
 import { regionalizarTexto } from '../utils/regionalize';
 
 export interface VoiceReply {
@@ -24,6 +31,7 @@ interface ActiveSpeechSession {
   baseOffset: number;
   lastCharIndex: number;
   rate: number;
+  lang: AppLanguage;
   onDone?: () => void;
   startedAtMs: number;
   isSpeakingNow: boolean;
@@ -35,6 +43,11 @@ let activeSpeechSession: ActiveSpeechSession | null = null;
 let speechResumeTimer: ReturnType<typeof setTimeout> | null = null;
 let speechStartTimer: ReturnType<typeof setTimeout> | null = null;
 let globalUtteranceCounter = 0;
+let currentVoiceLanguage: AppLanguage = 'en';
+
+export function setVoiceLanguage(lang: AppLanguage): void {
+  currentVoiceLanguage = lang;
+}
 
 function snapToWordStart(text: string, idx: number): number {
   const clamped = Math.max(0, Math.min(idx, text.length));
@@ -86,7 +99,7 @@ function startUtteranceFromSession(session: ActiveSpeechSession): void {
 
   try {
     Speech.speak(remaining, {
-      language: 'pt-BR',
+      language: session.lang === 'pt' ? 'pt-BR' : 'en-US',
       rate: session.rate,
       pitch: 1.0,
       onBoundary: (ev: { charIndex?: number }) => {
@@ -237,6 +250,7 @@ export function speakText(
     rate?: number;
     languageLevel?: LanguageLevel;
     tratamento?: string;
+    lang?: AppLanguage;
     force?: boolean;
     onDone?: () => void;
   } = {}
@@ -246,13 +260,14 @@ export function speakText(
     rate = 0.85,
     languageLevel = 'acessivel',
     tratamento,
+    lang = currentVoiceLanguage,
     force = false,
     onDone,
   } = options;
 
   if (!enabled && !force) return;
 
-  const textoFinal = regionalizarTexto(rawText, languageLevel, tratamento).trim();
+  const textoFinal = regionalizarTexto(rawText, languageLevel, tratamento, lang).trim();
   if (!textoFinal) {
     onDone?.();
     return;
@@ -271,6 +286,7 @@ export function speakText(
     baseOffset: 0,
     lastCharIndex: 0,
     rate,
+    lang,
     onDone,
     startedAtMs: Date.now(),
     isSpeakingNow: false,
@@ -311,13 +327,20 @@ export function interpretYesNoVoiceReply(transcript: string): YesNoVoiceIntent {
     norm.includes('repet') ||
     norm.includes('de novo') ||
     norm.includes('outra vez') ||
-    norm.includes('ouvir')
+    norm.includes('ouvir') ||
+    norm.includes('repeat') ||
+    norm.includes('again') ||
+    norm.includes('say that') ||
+    norm.includes('did not understand') ||
+    norm.includes('didn t understand')
   ) {
     return 'repetir';
   }
 
   if (
     /\bnao\b/.test(norm) ||
+    /\bno\b/.test(norm) ||
+    /\bnope\b/.test(norm) ||
     norm.includes('sem voz') ||
     norm.includes('silencioso') ||
     norm.includes('so ler') ||
@@ -327,13 +350,26 @@ export function interpretYesNoVoiceReply(transcript: string): YesNoVoiceIntent {
     norm.includes('mudo') ||
     norm.includes('dispenso') ||
     norm.includes('desativar') ||
-    norm.includes('negativo')
+    norm.includes('negativo') ||
+    norm.includes('read only') ||
+    norm.includes('just read') ||
+    norm.includes('keep muted') ||
+    norm.includes('mute') ||
+    norm.includes('silent') ||
+    norm.includes('disable') ||
+    norm.includes('no voice')
   ) {
     return 'nao';
   }
 
   if (
     /\bsim\b/.test(norm) ||
+    /\byes\b/.test(norm) ||
+    /\byeah\b/.test(norm) ||
+    /\byep\b/.test(norm) ||
+    /\bsure\b/.test(norm) ||
+    /\bokay\b/.test(norm) ||
+    /\bok\b/.test(norm) ||
     /\bquero\b/.test(norm) ||
     /\bpode\b/.test(norm) ||
     norm.includes('ativar') ||
@@ -347,6 +383,10 @@ export function interpretYesNoVoiceReply(transcript: string): YesNoVoiceIntent {
     norm.includes('beleza') ||
     norm.includes('ajuda') ||
     norm.includes('leitura') ||
+    norm.includes('enable') ||
+    norm.includes('turn on') ||
+    norm.includes('read aloud') ||
+    norm.includes('voice') ||
     /\bvoz\b/.test(norm)
   ) {
     return 'sim';
@@ -360,7 +400,8 @@ export function answerFarmerVoiceQuery(
   farm: FarmProperty,
   farmer: FarmerProfile,
   pancs: EdiblePlantPANC[],
-  level: LanguageLevel
+  level: LanguageLevel,
+  lang: AppLanguage = currentVoiceLanguage
 ): VoiceReply {
   const q = query
     .toLowerCase()
@@ -368,13 +409,20 @@ export function answerFarmerVoiceQuery(
     .replace(/[\u0300-\u036f]/g, '');
   const d = farm.diagnostico;
 
-  if (q.includes('agua') || q.includes('falta') || q.includes('molh') || q.includes('irriga')) {
+  if (
+    q.includes('agua') ||
+    q.includes('falta') ||
+    q.includes('molh') ||
+    q.includes('irriga') ||
+    q.includes('water') ||
+    q.includes('moisture')
+  ) {
     const raw =
       level === 'acessivel' ? d.modeloA.resumoAcessivel : d.modeloA.resumoTecnico;
     return {
       intent: 'agua',
-      titulo: 'Água para a roça',
-      texto: regionalizarTexto(raw, level, farmer.tratamento),
+      titulo: pickLang(lang, 'Farm water balance', 'Água para a roça'),
+      texto: regionalizarTexto(raw, level, farmer.tratamento, lang),
     };
   }
 
@@ -384,7 +432,11 @@ export function answerFarmerVoiceQuery(
     q.includes('quando') ||
     q.includes('veranico') ||
     q.includes('rotacao') ||
-    q.includes('colh')
+    q.includes('colh') ||
+    q.includes('sow') ||
+    q.includes('when') ||
+    q.includes('rotation') ||
+    q.includes('harvest')
   ) {
     const raw = `${d.modeloC.titulo}. ${
       level === 'acessivel'
@@ -393,8 +445,8 @@ export function answerFarmerVoiceQuery(
     }`;
     return {
       intent: 'plantar',
-      titulo: 'Janela de plantio',
-      texto: regionalizarTexto(raw, level, farmer.tratamento),
+      titulo: pickLang(lang, 'Planting window', 'Janela de plantio'),
+      texto: regionalizarTexto(raw, level, farmer.tratamento, lang),
     };
   }
 
@@ -404,46 +456,84 @@ export function answerFarmerVoiceQuery(
     q.includes('alerta') ||
     q.includes('chuv') ||
     q.includes('tempo') ||
-    q.includes('previs')
+    q.includes('previs') ||
+    q.includes('drought') ||
+    q.includes('dry') ||
+    q.includes('rain') ||
+    q.includes('weather') ||
+    q.includes('forecast')
   ) {
     const raw =
       level === 'acessivel' ? d.modeloB.resumoAcessivel : d.modeloB.resumoTecnico;
     return {
       intent: 'seca',
-      titulo: 'Risco de seca e chuva',
-      texto: regionalizarTexto(raw, level, farmer.tratamento),
+      titulo: pickLang(lang, 'Drought & rain risk', 'Risco de seca e chuva'),
+      texto: regionalizarTexto(raw, level, farmer.tratamento, lang),
     };
   }
 
-  if (q.includes('poco') || q.includes('furar') || q.includes('subterr') || q.includes('cacimba')) {
+  if (
+    q.includes('poco') ||
+    q.includes('furar') ||
+    q.includes('subterr') ||
+    q.includes('cacimba') ||
+    q.includes('well') ||
+    q.includes('drill') ||
+    q.includes('groundwater')
+  ) {
     const w = d.wellSummary;
-    const raw = `Nos poços da região em até ${farm.raioBuscaKm} quilômetros, a profundidade varia de ${w.faixaProfundidadeMinM} a ${w.faixaProfundidadeMaxM} metros, com ${w.taxaSucessoPct}% de chance de dar água e risco ${w.riscoSalinidade} de água salobra. ${w.orientacaoBaixaRenda}`;
+    const raw = pickLang(
+      lang,
+      `In wells within ${farm.raioBuscaKm} km, depth ranges from ${w.faixaProfundidadeMinM} to ${w.faixaProfundidadeMaxM} meters, with ${w.taxaSucessoPct}% freshwater success and ${w.riscoSalinidade} salinity risk. ${w.orientacaoBaixaRenda}`,
+      `Nos poços da região em até ${farm.raioBuscaKm} quilômetros, a profundidade varia de ${w.faixaProfundidadeMinM} a ${w.faixaProfundidadeMaxM} metros, com ${w.taxaSucessoPct}% de chance de dar água e risco ${w.riscoSalinidade} de água salobra. ${w.orientacaoBaixaRenda}`
+    );
     return {
       intent: 'poco',
-      titulo: 'Onde furar poço (SIAGAS + NASA)',
-      texto: regionalizarTexto(raw, level, farmer.tratamento),
+      titulo: pickLang(lang, 'Groundwater outlook', 'Poços e água subterrânea'),
+      texto: regionalizarTexto(raw, level, farmer.tratamento, lang),
     };
   }
 
-  if (q.includes('eros') || q.includes('lavar') || q.includes('enxurrada') || q.includes('solo') || q.includes('terra')) {
+  if (
+    q.includes('eros') ||
+    q.includes('lavar') ||
+    q.includes('enxurrada') ||
+    q.includes('solo') ||
+    q.includes('terra') ||
+    q.includes('soil') ||
+    q.includes('runoff')
+  ) {
     const solo = d.soloSoilGrids;
-    const raw = `${
-      level === 'acessivel' ? d.modeloD.resumoAcessivel : d.modeloD.resumoTecnico
-    } O solo da sua área tem textura ${solo.textura}, pH ${solo.ph} e carbono orgânico ${solo.carbonoOrganicoGKg} g/kg.`;
+    const raw = pickLang(
+      lang,
+      `${
+        level === 'acessivel' ? d.modeloD.resumoAcessivel : d.modeloD.resumoTecnico
+      } Your farm soil has texture ${solo.textura}, pH ${solo.ph}, and organic carbon ${solo.carbonoOrganicoGKg} g/kg.`,
+      `${
+        level === 'acessivel' ? d.modeloD.resumoAcessivel : d.modeloD.resumoTecnico
+      } O solo da sua área tem textura ${solo.textura}, pH ${solo.ph} e carbono orgânico ${solo.carbonoOrganicoGKg} g/kg.`
+    );
     return {
       intent: 'erosao',
-      titulo: 'Solo e risco de erosão',
-      texto: regionalizarTexto(raw, level, farmer.tratamento),
+      titulo: pickLang(lang, 'Soil & erosion risk', 'Solo e risco de erosão'),
+      texto: regionalizarTexto(raw, level, farmer.tratamento, lang),
     };
   }
 
-  if (q.includes('futuro') || q.includes('2030') || q.includes('2050') || q.includes('clima')) {
+  if (
+    q.includes('futuro') ||
+    q.includes('2030') ||
+    q.includes('2050') ||
+    q.includes('clima') ||
+    q.includes('future') ||
+    q.includes('climate')
+  ) {
     const raw =
       level === 'acessivel' ? d.modeloE.resumoAcessivel : d.modeloE.resumoTecnico;
     return {
       intent: 'futuro',
-      titulo: 'Projeção 2030–2050',
-      texto: regionalizarTexto(raw, level, farmer.tratamento),
+      titulo: pickLang(lang, '2030–2050 projection', 'Projeção 2030–2050'),
+      texto: regionalizarTexto(raw, level, farmer.tratamento, lang),
     };
   }
 
@@ -456,25 +546,35 @@ export function answerFarmerVoiceQuery(
     q.includes('umbu') ||
     q.includes('mandacaru') ||
     q.includes('sorgo') ||
-    q.includes('resistent')
+    q.includes('resistent') ||
+    q.includes('food') ||
+    q.includes('forage')
   ) {
     const topNames = pancs
       .slice(0, 3)
       .map((p) => p.nomePopular)
       .join(', ');
-    const raw = `Para garantir comida forte mesmo na seca, o catálogo offline indica para o solo da sua terra: ${topNames}.`;
+    const raw = pickLang(
+      lang,
+      `To keep strong food and forage production even in drought, our offline catalog suggests for your soil: ${topNames}.`,
+      `Para garantir comida forte mesmo na seca, o catálogo offline indica para o solo da sua terra: ${topNames}.`
+    );
     return {
       intent: 'pancs',
-      titulo: 'Plantas comestíveis resistentes',
-      texto: regionalizarTexto(raw, level, farmer.tratamento),
+      titulo: pickLang(lang, 'Drought-hardy plants', 'Plantas resistentes à seca'),
+      texto: regionalizarTexto(raw, level, farmer.tratamento, lang),
     };
   }
 
-  const fallback = `Hoje em ${farm.regiaoNome} faz até ${d.climaDia.tempMaxC} graus. ${d.modeloB.resumoAcessivel} Faltam ${d.rotacaoAtual.diasRestantes} dias para colher ${d.rotacaoAtual.culturas}.`;
+  const fallback = pickLang(
+    lang,
+    `Today in ${farm.regiaoNome} highs reach ${d.climaDia.tempMaxC} degrees. ${d.modeloB.resumoAcessivel} ${d.rotacaoAtual.diasRestantes} days remain until harvesting ${d.rotacaoAtual.culturas}.`,
+    `Hoje em ${farm.regiaoNome} faz até ${d.climaDia.tempMaxC} graus. ${d.modeloB.resumoAcessivel} Faltam ${d.rotacaoAtual.diasRestantes} dias para colher ${d.rotacaoAtual.culturas}.`
+  );
   return {
     intent: 'resumo',
-    titulo: 'Resumo geral da roça',
-    texto: regionalizarTexto(fallback, level, farmer.tratamento),
+    titulo: pickLang(lang, 'Farm overview', 'Resumo geral da roça'),
+    texto: regionalizarTexto(fallback, level, farmer.tratamento, lang),
   };
 }
 
@@ -514,23 +614,51 @@ interface WebSpeechRecognitionInstance {
   abort?: () => void;
 }
 
-function mapWebSpeechError(errCode: string): string {
+function mapWebSpeechError(errCode: string, lang: AppLanguage): string {
   switch (errCode) {
     case 'not-allowed':
     case 'service-not-allowed':
-      return 'Permissão do microfone negada. Libere o microfone no navegador ou toque em um dos botões abaixo.';
+      return pickLang(
+        lang,
+        'Microphone permission denied. Allow mic access in browser settings or tap a button below.',
+        'Permissão do microfone negada. Libere o microfone no navegador ou toque em um dos botões abaixo.'
+      );
     case 'no-speech':
-      return 'Não ouvi nenhuma fala. Toque no microfone e fale "Sim" ou "Não" mais perto.';
+      return pickLang(
+        lang,
+        'No speech detected. Tap the mic and speak "Yes" or "No" closer.',
+        'Não ouvi nenhuma fala. Toque no microfone e fale "Sim" ou "Não" mais perto.'
+      );
     case 'audio-capture':
-      return 'Nenhum microfone ativo foi detectado ou outro aplicativo está usando o microfone.';
+      return pickLang(
+        lang,
+        'No active microphone detected or another app is using it.',
+        'Nenhum microfone ativo foi detectado ou outro aplicativo está usando o microfone.'
+      );
     case 'network':
-      return 'O navegador não conseguiu acessar o reconhecimento de voz online (rede ou bloqueio de privacidade). Tente no Chrome/Edge com internet ou toque nos botões abaixo.';
+      return pickLang(
+        lang,
+        'Browser could not reach online speech recognition (network or privacy block). Try Chrome/Edge online or tap a button below.',
+        'O navegador não conseguiu acessar o reconhecimento de voz online (rede ou bloqueio de privacidade). Tente no Chrome/Edge com internet ou toque nos botões abaixo.'
+      );
     case 'aborted':
-      return 'A escuta foi interrompida antes de capturar a fala. Toque no microfone para tentar novamente.';
+      return pickLang(
+        lang,
+        'Listening was interrupted before capturing speech. Tap the mic to retry.',
+        'A escuta foi interrompida antes de capturar a fala. Toque no microfone para tentar novamente.'
+      );
     case 'language-not-supported':
-      return 'Idioma pt-BR não suportado pelo reconhecimento de voz deste navegador. Toque em um dos botões.';
+      return pickLang(
+        lang,
+        'This browser does not support voice recognition for the selected language. Tap one of the buttons below.',
+        'Idioma não suportado pelo reconhecimento de voz deste navegador. Toque em um dos botões.'
+      );
     default:
-      return `Não foi possível ouvir o microfone (${errCode || 'erro desconhecido'}). Tente novamente ou toque em um dos botões.`;
+      return pickLang(
+        lang,
+        `Could not hear microphone (${errCode || 'unknown error'}). Try again or tap one of the buttons.`,
+        `Não foi possível ouvir o microfone (${errCode || 'erro desconhecido'}). Tente novamente ou toque em um dos botões.`
+      );
   }
 }
 
@@ -538,16 +666,21 @@ export function startVoiceCapture(
   onResult: (transcript: string) => void,
   onError: (message: string) => void,
   options: {
+    lang?: AppLanguage;
     onEnd?: () => void;
     onExpoGoFallback?: () => void;
     unsupportedMessage?: string;
   } = {}
 ): () => void {
+  const captureLang = options.lang ?? currentVoiceLanguage;
   const {
     onEnd,
     onExpoGoFallback,
-    unsupportedMessage =
-      'O Expo Go não inclui o motor de reconhecimento de voz nativo. Use o microfone (🎤) do teclado do celular abaixo, ou gere um Development Build (eas build).',
+    unsupportedMessage = pickLang(
+      captureLang,
+      'Expo Go does not include the native speech recognition module. Use your phone keyboard mic (🎤) below, or build a Development Build (eas build).',
+      'O Expo Go não inclui o motor de reconhecimento de voz nativo. Use o microfone (🎤) do teclado do celular abaixo, ou gere um Development Build (eas build).'
+    ),
   } = options;
 
   stopSpeaking();
@@ -555,7 +688,13 @@ export function startVoiceCapture(
   // 1) Web (Chrome / Edge / Safari via Web Speech API)
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     if (window.isSecureContext === false) {
-      onError('Para usar o microfone na Web, acesse por http://localhost ou HTTPS.');
+      onError(
+        pickLang(
+          captureLang,
+          'To use the microphone on Web, open the app via http://localhost or HTTPS.',
+          'Para usar o microfone na Web, acesse por http://localhost ou HTTPS.'
+        )
+      );
       onEnd?.();
       return () => {};
     }
@@ -631,7 +770,9 @@ export function startVoiceCapture(
 
             if (errCode === 'language-not-supported' && !retriedLang) {
               retriedLang = true;
-              startAttempt(langToUse === 'pt-BR' ? 'pt' : '');
+              const fallback =
+                langToUse === 'pt-BR' ? 'pt' : langToUse === 'en-US' ? 'en' : '';
+              startAttempt(fallback);
               return;
             }
 
@@ -650,11 +791,11 @@ export function startVoiceCapture(
                     .catch((permErr: unknown) => {
                       const errName = (permErr as { name?: string })?.name ?? '';
                       if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
-                        onError(mapWebSpeechError('not-allowed'));
+                        onError(mapWebSpeechError('not-allowed', captureLang));
                       } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
-                        onError(mapWebSpeechError('audio-capture'));
+                        onError(mapWebSpeechError('audio-capture', captureLang));
                       } else {
-                        onError(mapWebSpeechError(errCode));
+                        onError(mapWebSpeechError(errCode, captureLang));
                       }
                       finish();
                     });
@@ -665,7 +806,7 @@ export function startVoiceCapture(
               return;
             }
 
-            onError(mapWebSpeechError(errCode));
+            onError(mapWebSpeechError(errCode, captureLang));
             finish();
           };
 
@@ -680,13 +821,20 @@ export function startVoiceCapture(
 
           rec.start();
         } catch {
-          onError('Microfone indisponível neste navegador. Toque em uma das opções abaixo.');
+          onError(
+            pickLang(
+              captureLang,
+              'Microphone unavailable in this browser. Tap an option below.',
+              'Microfone indisponível neste navegador. Toque em uma das opções abaixo.'
+            )
+          );
           finish();
         }
       };
 
-      // Aguarda breve liberação de áudio do speechSynthesis antes de abrir o microfone
-      startTimer = setTimeout(() => startAttempt('pt-BR'), 150);
+      const initialLang = captureLang === 'pt' ? 'pt-BR' : 'en-US';
+      // Wait briefly for speechSynthesis to release audio before opening mic
+      startTimer = setTimeout(() => startAttempt(initialLang), 150);
 
       return () => {
         cancelled = true;
@@ -744,13 +892,25 @@ export function startVoiceCapture(
           const perm = await mod.requestPermissionsAsync();
           if (cancelled) return;
           if (!perm.granted) {
-            onError('Permissão de microfone negada no aparelho. Libere nas configurações ou toque nos botões.');
+            onError(
+              pickLang(
+                captureLang,
+                'Device microphone permission denied. Enable it in settings or tap the buttons.',
+                'Permissão de microfone negada no aparelho. Libere nas configurações ou toque nos botões.'
+              )
+            );
             cleanup();
             return;
           }
 
           if (typeof mod.isRecognitionAvailable === 'function' && !mod.isRecognitionAvailable()) {
-            onError('Serviço de voz do Android indisponível neste aparelho. Ative o Google/Digitação por voz ou toque nos botões.');
+            onError(
+              pickLang(
+                captureLang,
+                'Android speech service unavailable on this device. Enable Google Voice Typing or tap the buttons.',
+                'Serviço de voz do Android indisponível neste aparelho. Ative o Google/Digitação por voz ou toque nos botões.'
+              )
+            );
             cleanup();
             return;
           }
@@ -776,15 +936,45 @@ export function startVoiceCapture(
               }
               const err = String(event.error ?? '');
               if (err === 'no-speech') {
-                onError('Não ouvi nenhuma fala. Tente novamente mais perto do microfone.');
+                onError(
+                  pickLang(
+                    captureLang,
+                    'No speech detected. Try again closer to the microphone.',
+                    'Não ouvi nenhuma fala. Tente novamente mais perto do microfone.'
+                  )
+                );
               } else if (err === 'not-allowed' || err === 'permissions') {
-                onError('Permissão do microfone negada. Libere nas configurações do aparelho.');
+                onError(
+                  pickLang(
+                    captureLang,
+                    'Microphone permission denied. Allow access in device settings.',
+                    'Permissão do microfone negada. Libere nas configurações do aparelho.'
+                  )
+                );
               } else if (err === 'audio' || err === 'audio-capture') {
-                onError('Não foi possível acessar o microfone do aparelho agora. Verifique se outro app não está gravando.');
+                onError(
+                  pickLang(
+                    captureLang,
+                    'Could not access the device microphone right now. Check if another app is recording.',
+                    'Não foi possível acessar o microfone do aparelho agora. Verifique se outro app não está gravando.'
+                  )
+                );
               } else if (err === 'network') {
-                onError('Reconhecimento de voz sem conexão com o serviço de voz. Verifique a internet ou use os botões.');
+                onError(
+                  pickLang(
+                    captureLang,
+                    'Speech recognition offline from voice service. Check your connection or use buttons.',
+                    'Reconhecimento de voz sem conexão com o serviço de voz. Verifique a internet ou use os botões.'
+                  )
+                );
               } else {
-                onError('Não foi possível capturar a fala agora. Tente de novo ou use os botões.');
+                onError(
+                  pickLang(
+                    captureLang,
+                    'Could not capture speech right now. Try again or use the buttons.',
+                    'Não foi possível capturar a fala agora. Tente de novo ou use os botões.'
+                  )
+                );
               }
               cleanup();
             }),
@@ -802,18 +992,30 @@ export function startVoiceCapture(
             if (cancelled || finished) return;
             try {
               mod.start({
-                lang: 'pt-BR',
+                lang: captureLang === 'pt' ? 'pt-BR' : 'en-US',
                 interimResults: true,
                 maxAlternatives: 3,
                 continuous: false,
               });
             } catch {
-              onError('Falha ao iniciar o microfone nativo.');
+              onError(
+                pickLang(
+                  captureLang,
+                  'Failed to start native microphone.',
+                  'Falha ao iniciar o microfone nativo.'
+                )
+              );
               cleanup();
             }
           }, 180);
         } catch {
-          onError('Falha ao iniciar o microfone nativo.');
+          onError(
+            pickLang(
+              captureLang,
+              'Failed to start native microphone.',
+              'Falha ao iniciar o microfone nativo.'
+            )
+          );
           cleanup();
         }
       })();

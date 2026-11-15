@@ -2,8 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAccessibility } from '../../context/AccessibilityContext';
+import { pickLang } from '../../i18n/locale';
 import { getAppTheme } from '../../theme/tokens';
-import { PLANT_CATALOG_CHIPS } from '../../utils/agronomyHelpers';
+import { getPlantCatalogChips } from '../../utils/agronomyHelpers';
 
 interface HistoricoPlantioSubscreenProps {
   onBack?: () => void;
@@ -12,18 +13,25 @@ interface HistoricoPlantioSubscreenProps {
 
 export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps> = ({
   onBack,
-  title = 'Histórico de plantio',
+  title,
 }) => {
-  const { accessibility, activeFarmer, activeFarm, recordCropHistory, speak } = useAccessibility();
+  const { accessibility, language, activeFarmer, activeFarm, recordCropHistory, speak } =
+    useAccessibility();
   const theme = getAppTheme(accessibility);
+  const catalogChips = getPlantCatalogChips(language);
+  const resolvedTitle =
+    title ?? pickLang(language, 'Planting History', 'Histórico de plantio');
 
   const [tipoSistema, setTipoSistema] = useState<'rotacao' | 'monocultura'>('rotacao');
-  const [selectedPlants, setSelectedPlants] = useState<string[]>(['Feijão-Caupi', 'Mandioca']);
+  const [selectedPlants, setSelectedPlants] = useState<string[]>([
+    catalogChips[0],
+    catalogChips[1],
+  ]);
   const [customPlant, setCustomPlant] = useState('');
   const [duracaoTexto, setDuracaoTexto] = useState('');
   const [maisInfos, setMaisInfos] = useState('');
   const [selectedLoteNome, setSelectedLoteNome] = useState(
-    activeFarm?.lotes?.[0]?.nome ?? 'Lote 1'
+    activeFarm?.lotes?.[0]?.nome ?? pickLang(language, 'Plot 1', 'Lote 1')
   );
   const [saving, setSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -44,7 +52,13 @@ export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps>
       ...(customPlant.trim() ? [customPlant.trim()] : []),
     ];
     if (allPlants.length === 0) {
-      setStatusMsg('Escolha ou digite ao menos um tipo de planta.');
+      setStatusMsg(
+        pickLang(
+          language,
+          'Select or enter at least one crop type.',
+          'Escolha ou digite ao menos um tipo de planta.'
+        )
+      );
       return;
     }
 
@@ -57,15 +71,23 @@ export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps>
         nomeCultura,
         tipoSistema,
         plantas: tipoSistema === 'monocultura' ? [allPlants[0]] : allPlants,
-        duracaoTexto: duracaoTexto.trim() || 'Safra anterior',
+        duracaoTexto:
+          duracaoTexto.trim() ||
+          pickLang(language, 'Previous season', 'Safra anterior'),
         loteNome: selectedLoteNome,
         observacao: maisInfos.trim() || undefined,
       });
       setCustomPlant('');
       setDuracaoTexto('');
       setMaisInfos('');
-      setStatusMsg('Rotação adicionada ao histórico cadastrado!');
-      speak(`Histórico salvo: ${nomeCultura}.`);
+      setStatusMsg(
+        pickLang(
+          language,
+          'Rotation added to saved history!',
+          'Rotação adicionada ao histórico cadastrado!'
+        )
+      );
+      speak(pickLang(language, `History saved: ${nomeCultura}.`, `Histórico salvo: ${nomeCultura}.`));
     } finally {
       setSaving(false);
     }
@@ -80,22 +102,28 @@ export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps>
             style={[styles.backBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
             <Ionicons name="arrow-back" size={18} color={theme.text} />
-            <Text style={[styles.backText, { color: theme.text }]}>Voltar</Text>
+            <Text style={[styles.backText, { color: theme.text }]}>
+              {pickLang(language, 'Back', 'Voltar')}
+            </Text>
           </Pressable>
           <Text style={[styles.screenTitle, { color: theme.text, fontSize: 18 * theme.scale }]}>
-            {title}
+            {resolvedTitle}
           </Text>
           <View style={{ width: 64 }} />
         </View>
       )}
 
-      {/* Bloco 1: Cadastro de rotação */}
+      {/* Block 1: Rotation Registration */}
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: '#2563EB' }]}>
-        <Text style={[styles.cardTitle, { color: theme.text }]}>Cadastro de rotação</Text>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>
+          {pickLang(language, 'Rotation Entry', 'Cadastro de rotação')}
+        </Text>
 
         {lots.length > 0 && (
           <>
-            <Text style={[styles.label, { color: theme.textMuted }]}>Lote / Área:</Text>
+            <Text style={[styles.label, { color: theme.textMuted }]}>
+              {pickLang(language, 'Plot / Area:', 'Lote / Área:')}
+            </Text>
             <View style={styles.chipWrap}>
               {lots.map((l) => (
                 <Pressable
@@ -125,12 +153,17 @@ export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps>
           </>
         )}
 
-        <Text style={[styles.label, { color: theme.textMuted }]}>Rotação:</Text>
+        <Text style={[styles.label, { color: theme.textMuted }]}>
+          {pickLang(language, 'Rotation system:', 'Rotação:')}
+        </Text>
         <View style={styles.rowBtns}>
           {(
             [
-              { id: 'rotacao', label: 'Rotação / Consórcio' },
-              { id: 'monocultura', label: 'Monocultura' },
+              {
+                id: 'rotacao',
+                label: pickLang(language, 'Rotation / Intercrop', 'Rotação / Consórcio'),
+              },
+              { id: 'monocultura', label: pickLang(language, 'Monoculture', 'Monocultura') },
             ] as const
           ).map((sys) => (
             <Pressable
@@ -157,9 +190,11 @@ export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps>
           ))}
         </View>
 
-        <Text style={[styles.label, { color: theme.textMuted }]}>Tipos de planta:</Text>
+        <Text style={[styles.label, { color: theme.textMuted }]}>
+          {pickLang(language, 'Plant types:', 'Tipos de planta:')}
+        </Text>
         <View style={styles.chipWrap}>
-          {PLANT_CATALOG_CHIPS.map((plant) => {
+          {catalogChips.map((plant) => {
             const active = selectedPlants.includes(plant);
             return (
               <Pressable
@@ -190,7 +225,11 @@ export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps>
         <TextInput
           value={customPlant}
           onChangeText={setCustomPlant}
-          placeholder="Outra planta? (ex.: Gergelim, Batata-doce)"
+          placeholder={pickLang(
+            language,
+            'Other crop? (e.g. Sesame, Sweet potato)',
+            'Outra planta? (ex.: Gergelim, Batata-doce)'
+          )}
           placeholderTextColor={theme.textMuted}
           style={[
             styles.input,
@@ -198,11 +237,17 @@ export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps>
           ]}
         />
 
-        <Text style={[styles.label, { color: theme.textMuted }]}>Duração:</Text>
+        <Text style={[styles.label, { color: theme.textMuted }]}>
+          {pickLang(language, 'Duration:', 'Duração:')}
+        </Text>
         <TextInput
           value={duracaoTexto}
           onChangeText={setDuracaoTexto}
-          placeholder="Ex.: 90 dias (Janeiro a Abril/2026)"
+          placeholder={pickLang(
+            language,
+            'e.g. 90 days (Jan to Apr/2026)',
+            'Ex.: 90 dias (Janeiro a Abril/2026)'
+          )}
           placeholderTextColor={theme.textMuted}
           style={[
             styles.input,
@@ -210,11 +255,17 @@ export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps>
           ]}
         />
 
-        <Text style={[styles.label, { color: theme.textMuted }]}>Mais informações?</Text>
+        <Text style={[styles.label, { color: theme.textMuted }]}>
+          {pickLang(language, 'Additional notes?', 'Mais informações?')}
+        </Text>
         <TextInput
           value={maisInfos}
           onChangeText={setMaisInfos}
-          placeholder="Ex.: Produção de 12 sacas, solo segurou bem a chuva"
+          placeholder={pickLang(
+            language,
+            'e.g. Yield of 12 bags, soil held rain well',
+            'Ex.: Produção de 12 sacas, solo segurou bem a chuva'
+          )}
           placeholderTextColor={theme.textMuted}
           multiline
           style={[
@@ -235,7 +286,9 @@ export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps>
         >
           <Ionicons name="add-circle" size={18} color={theme.primaryText} />
           <Text style={{ fontWeight: '900', color: theme.primaryText }}>
-            {saving ? 'Salvando...' : 'Salvar no histórico'}
+            {saving
+              ? pickLang(language, 'Saving...', 'Salvando...')
+              : pickLang(language, 'Save to history', 'Salvar no histórico')}
           </Text>
         </Pressable>
 
@@ -246,15 +299,21 @@ export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps>
         )}
       </View>
 
-      {/* Bloco 2: Histórico cadastrado */}
+      {/* Block 2: Registered History */}
       <View
         style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
       >
-        <Text style={[styles.cardTitle, { color: theme.text }]}>Histórico cadastrado</Text>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>
+          {pickLang(language, 'Saved history', 'Histórico cadastrado')}
+        </Text>
 
         {detailedHistory.length === 0 && legacyNames.length === 0 ? (
           <Text style={{ fontSize: 12, color: theme.textMuted }}>
-            Nenhuma rotação antiga registrada ainda.
+            {pickLang(
+              language,
+              'No past rotation logged yet.',
+              'Nenhuma rotação antiga registrada ainda.'
+            )}
           </Text>
         ) : (
           <View style={{ gap: 8 }}>
@@ -271,14 +330,19 @@ export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps>
                     {item.nomeCultura}
                   </Text>
                   <Text style={{ fontSize: 11, fontWeight: '800', color: theme.primary }}>
-                    {item.tipoSistema === 'monocultura' ? 'Monocultura' : 'Rotação'}
+                    {item.tipoSistema === 'monocultura'
+                      ? pickLang(language, 'Monoculture', 'Monocultura')
+                      : pickLang(language, 'Rotation', 'Rotação')}
                   </Text>
                 </View>
                 <Text style={{ fontSize: 11, color: theme.textMuted }}>
                   {item.loteNome ? `${item.loteNome} • ` : ''}
-                  Duração: {item.duracaoTexto || item.periodoSafra || 'Safra anterior'}
+                  {pickLang(language, 'Duration:', 'Duração:')}{' '}
+                  {item.duracaoTexto ||
+                    item.periodoSafra ||
+                    pickLang(language, 'Previous season', 'Safra anterior')}
                   {item.quantidadeColhida
-                    ? ` • Colhido: ${item.quantidadeColhida} ${item.unidadeQuantidade || 'kg'}`
+                    ? ` • ${pickLang(language, 'Harvested:', 'Colhido:')} ${item.quantidadeColhida} ${item.unidadeQuantidade || 'kg'}`
                     : ''}
                 </Text>
                 {item.observacao ? (

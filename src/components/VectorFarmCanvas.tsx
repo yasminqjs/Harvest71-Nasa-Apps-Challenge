@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Polygon, Rect, Text as SvgText } from 'react-native-svg';
+import { useAccessibility } from '../context/AccessibilityContext';
+import { pickLang } from '../i18n/locale';
 import { AppTheme } from '../theme/tokens';
 import { GeoPoint, NdviZonePatch, WellPoint } from '../types/domain';
 import { sortPolygonPoints } from '../utils/geoprocessing';
@@ -46,6 +48,7 @@ export const VectorFarmCanvas: React.FC<FarmMapCanvasProps> = ({
   onAddPoint,
   theme,
 }) => {
+  const { language } = useAccessibility();
   const [size, setSize] = useState({ width: 320, height: 240 });
 
   const spanDeg = showWells ? 0.16 : 0.0045;
@@ -297,10 +300,10 @@ export const VectorFarmCanvas: React.FC<FarmMapCanvasProps> = ({
         </Text>
         <Text style={styles.modeTag}>
           {drawingMode
-            ? '👆 Toque para demarcar'
+            ? pickLang(language, '👆 Tap to mark', '👆 Toque para demarcar')
             : showWells
-            ? '💧 Mapa + Poços'
-            : '🛰️ Mapa da Roça Offline'}
+            ? pickLang(language, '💧 Map + Wells', '💧 Mapa + Poços')
+            : pickLang(language, '🛰️ Offline Farm Map', '🛰️ Mapa da Roça Offline')}
         </Text>
       </View>
     </Pressable>

@@ -12,6 +12,7 @@ import { createDefaultLotsForFarm } from '../utils/agronomyHelpers';
 import {
   AccessibilityProfile,
   AppFeedbackItem,
+  AppLanguage,
   EdiblePlantPANC,
   FarmProperty,
   FarmerProfile,
@@ -39,6 +40,7 @@ export const DEFAULT_ACCESSIBILITY: AccessibilityProfile = {
   voiceOnboardingCompleted: false,
   registrationCompleted: false,
   tutorialCompleted: false,
+  appLanguage: 'en',
   voiceGuidanceEnabled: false,
   speechRate: 0.85,
   highContrast: false,
@@ -46,11 +48,12 @@ export const DEFAULT_ACCESSIBILITY: AccessibilityProfile = {
   languageLevel: 'acessivel',
 };
 
-export function buildSeedSnapshot(): LocalDatabaseSnapshot {
+export function buildSeedSnapshot(lang: AppLanguage = 'en'): LocalDatabaseSnapshot {
   const partialFarms = buildInitialSeedFarms();
   const fazendas: FarmProperty[] = partialFarms.map((pf) => {
     const centroid = pf.centroid ?? DEFAULT_IRECE_FARM_CENTROID;
-    const cultura = pf.culturaPrincipal ?? 'Feijão-Caupi + Milho';
+    const cultura =
+      pf.culturaPrincipal ?? (lang === 'en' ? 'Cowpea + Maize' : 'Feijão-Caupi + Milho');
     const raio = pf.raioBuscaKm ?? 15;
     const polygon = pf.polygon ?? DEFAULT_IRECE_FARM_POLYGON;
     return {
@@ -67,13 +70,19 @@ export function buildSeedSnapshot(): LocalDatabaseSnapshot {
       areaTarefasBa: pf.areaTarefasBa!,
       raioBuscaKm: raio,
       culturaPrincipal: cultura,
-      lotes: createDefaultLotsForFarm(centroid, pf.areaHectares ?? 6.85, cultura, polygon),
-      diagnostico: runLocalAgronomicEngine(centroid, cultura, raio),
+      lotes: createDefaultLotsForFarm(
+        centroid,
+        pf.areaHectares ?? 6.85,
+        cultura,
+        polygon,
+        lang
+      ),
+      diagnostico: runLocalAgronomicEngine(centroid, cultura, raio, {}, lang),
     };
   });
 
   return {
-    accessibility: { ...DEFAULT_ACCESSIBILITY },
+    accessibility: { ...DEFAULT_ACCESSIBILITY, appLanguage: lang },
     activeFarmerId: SEED_FARMERS[0].id,
     activeFarmId: fazendas[0].id,
     usuarios: [...SEED_FARMERS],

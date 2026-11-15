@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { pickLang } from '../i18n/locale';
 import { buildFarmLeafletHtml } from '../utils/leafletHtml';
 import { FarmMapCanvasProps, VectorFarmCanvas } from './VectorFarmCanvas';
 
@@ -28,12 +29,13 @@ const LeafletFarmWebCanvas: React.FC<
   onFallbackOffline,
   theme,
 }) => {
+  const { language } = useAccessibility();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const onAddPointRef = useRef(onAddPoint);
   const onSelectLotRef = useRef(onSelectLot);
   const [ready, setReady] = useState(false);
   const [basemap, setBasemap] = useState<'satellite' | 'streets'>('satellite');
-  const html = useMemo(() => buildFarmLeafletHtml(), []);
+  const html = useMemo(() => buildFarmLeafletHtml(language), [language]);
 
   useEffect(() => {
     onAddPointRef.current = onAddPoint;
@@ -130,7 +132,7 @@ const LeafletFarmWebCanvas: React.FC<
     <View style={[styles.wrap, { height, borderColor: theme.border }]}>
       <iframe
         ref={iframeRef}
-        title="Mapa interativo da roça"
+        title={pickLang(language, 'Interactive farm map', 'Mapa interativo da roça')}
         srcDoc={html}
         onLoad={handleIframeLoad}
         onError={onFallbackOffline}
@@ -162,7 +164,7 @@ const LeafletFarmWebCanvas: React.FC<
                 { color: basemap === 'satellite' ? theme.primaryText : '#19221C' },
               ]}
             >
-              Satélite
+              {pickLang(language, 'Satellite', 'Satélite')}
             </Text>
           </Pressable>
           <Pressable
@@ -180,7 +182,7 @@ const LeafletFarmWebCanvas: React.FC<
                 { color: basemap === 'streets' ? theme.primaryText : '#19221C' },
               ]}
             >
-              Cartográfico
+              {pickLang(language, 'Street Map', 'Cartográfico')}
             </Text>
           </Pressable>
         </View>
@@ -206,21 +208,29 @@ const LeafletFarmWebCanvas: React.FC<
       <View style={styles.badge}>
         <Text style={styles.badgeText}>
           {drawingMode
-            ? 'Toque no mapa para demarcar os cantos'
+            ? pickLang(
+                language,
+                'Tap on the map to mark boundary corners',
+                'Toque no mapa para demarcar os cantos'
+              )
             : showWells
-            ? `${basemap === 'streets' ? 'Cartográfico' : 'Satélite'} + Poços (SIAGAS)`
+            ? `${
+                basemap === 'streets'
+                  ? pickLang(language, 'Street Map', 'Cartográfico')
+                  : pickLang(language, 'Satellite', 'Satélite')
+              } + ${pickLang(language, 'Wells (SIAGAS)', 'Poços (SIAGAS)')}`
             : basemap === 'streets'
-            ? 'Mapa Cartográfico (Esri/OSM)'
-            : 'Satélite da Roça (Esri)'}
+            ? pickLang(language, 'Street Map (Esri/OSM)', 'Mapa Cartográfico (Esri/OSM)')
+            : pickLang(language, 'Farm Satellite (Esri)', 'Satélite da Roça (Esri)')}
         </Text>
       </View>
     </View>
   );
 };
 
-/** Mapa da propriedade na Web com Leaflet (Satélite/Cartográfico) e fallback vetorial offline. */
+/** Farm map on Web with Leaflet (Satellite/Street) and offline vector fallback. */
 export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
-  const { isOnline } = useAccessibility();
+  const { isOnline, language } = useAccessibility();
   const [forceVectorOffline, setForceVectorOffline] = useState(false);
 
   if (isOnline && !forceVectorOffline) {
@@ -244,7 +254,11 @@ export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
         >
           <Ionicons name="planet-outline" size={14} color={props.theme.primary} />
           <Text style={[styles.backOnlineText, { color: props.theme.text }]}>
-            Voltar para Satélite / Cartográfico (Online)
+            {pickLang(
+              language,
+              'Switch back to Satellite / Street (Online)',
+              'Voltar para Satélite / Cartográfico (Online)'
+            )}
           </Text>
         </Pressable>
       )}

@@ -1,21 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useAccessibility } from '../../context/AccessibilityContext';
+import { pickLang } from '../../i18n/locale';
 import { FEATURE_COLOR_STYLES } from '../../models/farmArchitecture';
 import { AppTheme } from '../../theme/tokens';
 import { FarmArchitectureModel } from '../../types/domain';
 import { FeatureBadge } from '../FeatureBadge';
 
 /**
- * @featureColor CINZA
- * @featureModule Previsão / Comparador / Otimizador DSSAT
- * @userAction Encontrar rotação otimizada (Aba Plantação)
- * @status PLACEHOLDER — Substituir em merge futuro pelo algoritmo de otimização + DSSAT.
- *
- * Ponto de substituição no merge:
- * Este componente recebe `farmArchitecture` completa (`variaveisDaFazenda`,
- * `acontecimentosDaRegiao`, `plantacoes[].historicoDaTerra` e `culturaAtual`) e devolve
- * recomendações para `culturasFuturas` simuladas pelo software DSSAT.
+ * @featureColor GRAY (CINZA)
+ * @featureModule DSSAT Forecast / Comparator / Optimizer
+ * @userAction Find optimized rotation (Crop Tab)
+ * @status PLACEHOLDER — Replace in future merge with optimization algorithm + DSSAT.
  */
 export interface DssatOptimizerPlaceholderProps {
   farmArchitecture: FarmArchitectureModel;
@@ -28,6 +25,7 @@ export const DssatOptimizerPlaceholder: React.FC<DssatOptimizerPlaceholderProps>
   onBack,
   theme,
 }) => {
+  const { language } = useAccessibility();
   const palette = FEATURE_COLOR_STYLES.cinza;
   const vars = farmArchitecture.variaveisDaFazenda;
 
@@ -40,10 +38,12 @@ export const DssatOptimizerPlaceholder: React.FC<DssatOptimizerPlaceholderProps>
             style={[styles.backBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
             <Ionicons name="arrow-back" size={18} color={theme.text} />
-            <Text style={[styles.backText, { color: theme.text }]}>Voltar</Text>
+            <Text style={[styles.backText, { color: theme.text }]}>
+              {pickLang(language, 'Back', 'Voltar')}
+            </Text>
           </Pressable>
           <Text style={[styles.title, { color: theme.text, fontSize: 17 * theme.scale }]}>
-            Otimizador de Rotação (DSSAT)
+            {pickLang(language, 'Rotation Optimizer (DSSAT)', 'Otimizador de Rotação (DSSAT)')}
           </Text>
           <View style={{ width: 64 }} />
         </View>
@@ -59,37 +59,57 @@ export const DssatOptimizerPlaceholder: React.FC<DssatOptimizerPlaceholderProps>
         <View style={styles.headerRow}>
           <Ionicons name="sparkles-outline" size={26} color={palette.text} />
           <Text style={[styles.cardTitle, { color: palette.text, fontSize: 16 * theme.scale }]}>
-            Encontrar rotação otimizada
+            {pickLang(language, 'Find optimized rotation', 'Encontrar rotação otimizada')}
           </Text>
         </View>
         <Text style={[styles.body, { color: palette.text }]}>
-          Placeholder da feature Cinza (algoritmo de otimização + previsão de resultado no
-          software DSSAT). Em merges futuros, este módulo calculará a melhor sequência de culturas
-          futuras considerando restrições da fazenda e clima local.
+          {pickLang(
+            language,
+            'Gray feature placeholder (optimization algorithm + DSSAT crop-outcome forecast). Future merges will compute the best upcoming crop sequence considering farm constraints and local climate.',
+            'Placeholder da feature Cinza (algoritmo de otimização + previsão de resultado no software DSSAT). Em merges futuros, este módulo calculará a melhor sequência de culturas futuras considerando restrições da fazenda e clima local.'
+          )}
         </Text>
 
         <View style={[styles.slotBox, { backgroundColor: theme.surface, borderColor: palette.border }]}>
           <Text style={[styles.slotTitle, { color: theme.text }]}>
-            Variáveis da fazenda prontas para o otimizador:
+            {pickLang(
+              language,
+              'Farm variables ready for the optimizer:',
+              'Variáveis da fazenda prontas para o otimizador:'
+            )}
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Área demarcada: {vars.areaHectares.toFixed(2)} ha ({farmArchitecture.plantacoes.length}{' '}
-            plantações)
+            {pickLang(language, '• Demarcated area: ', '• Área demarcada: ')}
+            {vars.areaHectares.toFixed(2)} ha ({farmArchitecture.plantacoes.length}{' '}
+            {pickLang(language, 'plantations', 'plantações')})
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Acesso à água: {vars.waterAccess} • Trabalho: {vars.laborType}
+            {pickLang(language, '• Water access: ', '• Acesso à água: ')}
+            {vars.waterAccess} • {pickLang(language, 'Labor: ', 'Trabalho: ')}
+            {vars.laborType}
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Perfil financeiro: {vars.financialTier} • Objetivo: {vars.objective}
+            {pickLang(language, '• Financial profile: ', '• Perfil financeiro: ')}
+            {vars.financialTier} • {pickLang(language, 'Objective: ', 'Objetivo: ')}
+            {vars.objective}
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Acontecimentos da região considerados:{' '}
-            {farmArchitecture.acontecimentosDaRegiao.eventos.length} relatos
+            {pickLang(
+              language,
+              '• Regional events considered: ',
+              '• Acontecimentos da região considerados: '
+            )}
+            {farmArchitecture.acontecimentosDaRegiao.eventos.length}{' '}
+            {pickLang(language, 'reports', 'relatos')}
           </Text>
         </View>
 
         <Text style={[styles.mergeNote, { color: palette.text }]}>
-          Arquivo alvo para merge: src/components/placeholders/DssatOptimizerPlaceholder.tsx
+          {pickLang(
+            language,
+            'Target merge file: src/components/placeholders/DssatOptimizerPlaceholder.tsx',
+            'Arquivo alvo para merge: src/components/placeholders/DssatOptimizerPlaceholder.tsx'
+          )}
         </Text>
       </View>
     </View>

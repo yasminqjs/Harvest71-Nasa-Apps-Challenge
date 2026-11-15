@@ -47,12 +47,15 @@ export type DroughtAlertLevel =
 
 export type ErosionRiskLevel = 'baixo' | 'moderado' | 'alto';
 
+export type AppLanguage = 'en' | 'pt';
+
 export interface AccessibilityProfile {
   voiceOnboardingCompleted: boolean;
   registrationCompleted?: boolean;
   tutorialCompleted?: boolean;
+  appLanguage?: AppLanguage;
   voiceGuidanceEnabled: boolean;
-  speechRate: number; // 0.85 padrão para cadência clara no campo
+  speechRate: number; // 0.85 default for clear cadence in the field
   highContrast: boolean;
   largeText: boolean;
   languageLevel: LanguageLevel;
@@ -213,7 +216,7 @@ export interface ModelAWaterBalance {
 }
 
 export interface DroughtSignalStep {
-  etapa: 'Chuva' | 'Solo' | 'Planta' | 'Calor';
+  etapa: 'Chuva' | 'Solo' | 'Planta' | 'Calor' | 'Rainfall' | 'Soil' | 'Crop' | 'Heat';
   fonte: string;
   anomaliaDetectada: boolean;
   valorAtual: string;
@@ -580,7 +583,7 @@ export interface PlantationArchitectureModel {
     fonteSelecao: 'usuario_ou_algoritmo_otimizacao';
     rotacaoPlanejada: string[];
     previsaoResultado: {
-      fonte: 'Software DSSAT';
+      fonte: 'Software DSSAT' | 'DSSAT Software';
       status: 'placeholder';
       mensagemPlaceholder: string;
     };

@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useAccessibility } from '../../context/AccessibilityContext';
 import { buildLotTarget, useCropQuality } from '../../context/CropQualityContext';
+import { pickLang } from '../../i18n/locale';
 import { FEATURE_COLOR_STYLES } from '../../models/farmArchitecture';
 import { AppTheme } from '../../theme/tokens';
 import { VisualFieldZone } from '../../types/cropQuality';
@@ -23,9 +25,6 @@ import { MapLotOverlay } from '../VectorFarmCanvas';
  * - Landsat C2 L2 TIRS 30 m (lwir11, downscaling DisTrad) → CWSI (Jackson, 1981)
  * - NASADEM 30 m → declividade / fator LS → risco RUSLE
  * - FAO EcoCrop + FAO GAEZ v4 + ISRIC SoilGrids (Saxton & Rawls, 2006)
- *
- * O nome do componente e as props foram mantidos para não alterar quem o consome
- * (src/screens/DecisionScreen.tsx).
  */
 export interface PlantationQualityPlaceholderProps {
   farmArchitecture: FarmArchitectureModel;
@@ -41,6 +40,7 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
   onOpenSatelliteForecast,
   theme,
 }) => {
+  const { language } = useAccessibility();
   const palette = FEATURE_COLOR_STYLES.roxo;
   const {
     target,
@@ -129,19 +129,29 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
             style={[styles.backBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
             <Ionicons name="arrow-back" size={18} color={theme.text} />
-            <Text style={[styles.backText, { color: theme.text }]}>Voltar</Text>
+            <Text style={[styles.backText, { color: theme.text }]}>
+              {pickLang(language, 'Back', 'Voltar')}
+            </Text>
           </Pressable>
           <Text style={[styles.title, { color: theme.text, fontSize: 17 * theme.scale }]}>
-            Qualidade da Plantação Atual
+            {pickLang(language, 'Current Plantation Quality', 'Qualidade da Plantação Atual')}
           </Text>
           <View style={{ width: 64 }} />
         </View>
       )}
 
       <View style={[styles.headerCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-        <FeatureBadge color="roxo" customText="ROXO • Qualidade da plantação (NASA + Sentinel-2)" />
+        <FeatureBadge
+          color="roxo"
+          customText={pickLang(
+            language,
+            'PURPLE • Plantation Quality (NASA + Sentinel-2)',
+            'ROXO • Qualidade da plantação (NASA + Sentinel-2)'
+          )}
+        />
         <Text style={[styles.targetLabel, { color: palette.text }]}>
-          📍 Analisando: {target?.label ?? farmArchitecture.nomeFazenda}
+          📍 {pickLang(language, 'Analyzing', 'Analisando')}:{' '}
+          {target?.label ?? farmArchitecture.nomeFazenda}
         </Text>
         <View style={styles.chipsRow}>
           <Pressable
@@ -164,7 +174,7 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
                 },
               ]}
             >
-              🏡 Fazenda inteira
+              🏡 {pickLang(language, 'Whole Farm', 'Fazenda inteira')}
             </Text>
           </Pressable>
           {lots.map((lot) => {
@@ -213,8 +223,16 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
               }}
             >
               {showRealSatelliteOverlay
-                ? 'Ocultar Satélite Real + Previsões'
-                : 'Ver Satélite Real + Previsões'}
+                ? pickLang(
+                    language,
+                    'Hide Live Satellite + Forecasts',
+                    'Ocultar Satélite Real + Previsões'
+                  )
+                : pickLang(
+                    language,
+                    'View Live Satellite + Forecasts',
+                    'Ver Satélite Real + Previsões'
+                  )}
             </Text>
           </Pressable>
 
@@ -228,7 +246,11 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
             >
               <Ionicons name="trending-up-outline" size={15} color="#38BDF8" />
               <Text style={{ fontSize: 12, fontWeight: '900', color: '#F8FAFC' }}>
-                Painel Completo de Previsões por Grão
+                {pickLang(
+                  language,
+                  'Full Grain Forecast Panel',
+                  'Painel Completo de Previsões por Grão'
+                )}
               </Text>
             </Pressable>
           )}
@@ -237,8 +259,12 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
         {showRealSatelliteOverlay && farmVars.polygon.length >= 3 && (
           <View style={{ gap: 6, marginTop: 4 }}>
             <Text style={{ fontSize: 11, fontWeight: '800', color: palette.text }}>
-              🛰️ Imagem de Satélite Real ({farmVars.municipio}-{farmVars.estado}) com Terreno da
-              Fazenda ({farmVars.areaHectares.toFixed(2)} ha) e {lots.length} Grãos Mapeados:
+              🛰️{' '}
+              {pickLang(
+                language,
+                `Real Satellite Imagery (${farmVars.municipio}-${farmVars.estado}) with Farm Boundary (${farmVars.areaHectares.toFixed(2)} ha) & ${lots.length} Mapped Grains:`,
+                `Imagem de Satélite Real (${farmVars.municipio}-${farmVars.estado}) com Terreno da Fazenda (${farmVars.areaHectares.toFixed(2)} ha) e ${lots.length} Grãos Mapeados:`
+              )}
             </Text>
             <FarmMapCanvas
               key={`roxo-sat-${farmVars.centroid.latitude.toFixed(4)}-${lots.length}`}

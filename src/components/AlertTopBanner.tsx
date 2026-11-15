@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { formatAlertSeverity, pickLang } from '../i18n/locale';
 import { getAppTheme } from '../theme/tokens';
 import { ProactiveAlertItem } from '../types/domain';
 
@@ -18,7 +19,7 @@ const SEVERITY_PRIORITY: Record<ProactiveAlertItem['severidade'], number> = {
 export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
   onOpenAllAlerts,
 }) => {
-  const { accessibility, alerts, markAlertRead, speak } = useAccessibility();
+  const { language, accessibility, alerts, markAlertRead, speak } = useAccessibility();
   const theme = getAppTheme(accessibility);
   const [expanded, setExpanded] = useState(true);
 
@@ -61,11 +62,7 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
     ? 'alert-circle'
     : 'notifications';
 
-  const severityLabel = isUrgent
-    ? 'ALERTA URGENTE'
-    : isAttention
-    ? 'ATENÇÃO NA ROÇA'
-    : 'AVISO IMPORTANTE';
+  const severityLabel = formatAlertSeverity(activeAlert.severidade, language);
 
   const bodyMsg =
     accessibility.languageLevel === 'acessivel'
@@ -74,7 +71,13 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
 
   const handleConfirmAware = async () => {
     await markAlertRead(activeAlert.id);
-    speak('Alerta confirmado. Você registrou que está ciente da situação.');
+    speak(
+      pickLang(
+        language,
+        'Alert confirmed. You recorded that you are aware of the situation.',
+        'Alerta confirmado. Você registrou que está ciente da situação.'
+      )
+    );
   };
 
   return (
@@ -90,7 +93,11 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
       <Pressable
         onPress={() => setExpanded((e) => !e)}
         accessibilityRole="button"
-        accessibilityLabel="Expandir ou recolher notificação de alerta"
+        accessibilityLabel={pickLang(
+          language,
+          'Expand or collapse alert notification',
+          'Expandir ou recolher notificação de alerta'
+        )}
         style={styles.topRow}
       >
         <View style={[styles.iconPill, { backgroundColor: borderColor }]}>
@@ -105,7 +112,11 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
             {pendingAlerts.length > 1 && (
               <View style={[styles.countPill, { backgroundColor: borderColor }]}>
                 <Text style={styles.countText}>
-                  1 de {pendingAlerts.length} pendentes
+                  {pickLang(
+                    language,
+                    `1 of ${pendingAlerts.length} pending`,
+                    `1 de ${pendingAlerts.length} pendentes`
+                  )}
                 </Text>
               </View>
             )}
@@ -149,7 +160,11 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
             >
               <Ionicons name="checkmark-done-circle" size={18} color="#FFFFFF" />
               <Text style={styles.confirmBtnText}>
-                Estou ciente da situação
+                {pickLang(
+                  language,
+                  'I am aware of this alert',
+                  'Estou ciente da situação'
+                )}
               </Text>
             </Pressable>
 
@@ -162,7 +177,7 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
             >
               <Ionicons name="volume-high" size={16} color={textColor} />
               <Text style={[styles.secondaryBtnText, { color: textColor }]}>
-                Ouvir
+                {pickLang(language, 'Listen', 'Ouvir')}
               </Text>
             </Pressable>
 
@@ -175,7 +190,7 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
                 ]}
               >
                 <Text style={[styles.secondaryBtnText, { color: textColor }]}>
-                  Ver todos
+                  {pickLang(language, 'View all', 'Ver todos')}
                 </Text>
               </Pressable>
             )}

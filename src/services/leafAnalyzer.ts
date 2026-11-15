@@ -1,6 +1,7 @@
 import * as jpeg from 'jpeg-js';
 import { Platform } from 'react-native';
-import { LeafAnalysisResult } from '../types/domain';
+import { AppLanguage, LeafAnalysisResult } from '../types/domain';
+import { isEn } from '../i18n/locale';
 
 function decodeBase64ToBytes(base64: string): Uint8Array {
   const clean = base64.includes(',') ? base64.split(',')[1] : base64;
@@ -196,8 +197,10 @@ export function analyzeRgbaPixels(
 
 function buildResultFromMetrics(
   imageUri: string,
-  m: FoliarPixelMetrics
+  m: FoliarPixelMetrics,
+  lang: AppLanguage = 'en'
 ): LeafAnalysisResult {
+  const en = isEn(lang);
   const { greenPct, yellowPct, dryBrownPct, blackSpotPct } = m;
 
   if (greenPct + yellowPct + dryBrownPct + blackSpotPct === 0) {
@@ -210,17 +213,20 @@ function buildResultFromMetrics(
       necrosePct: 0,
       pontosPretosPct: 0,
       status: 'estresse_leve',
-      titulo: 'Enquadre a folha mais de perto',
-      diagnosticoAcessivel:
-        'Não consegui enxergar a folha direito no centro da foto. Tente tirar outra foto mais perto da folha, em lugar claro.',
-      diagnosticoTecnico:
-        'Baixa cobertura foliar detectada no centro da imagem. Repita a captura aproximando a câmera.',
-      acaoRecomendada:
-        'Coloque a folha no meio da tela, evitando muito fundo de terra ou parede.',
+      titulo: en ? 'Frame the leaf closer' : 'Enquadre a folha mais de perto',
+      diagnosticoAcessivel: en
+        ? 'Could not see the leaf clearly in the center of the photo. Try taking another photo closer to the leaf in good light.'
+        : 'Não consegui enxergar a folha direito no centro da foto. Tente tirar outra foto mais perto da folha, em lugar claro.',
+      diagnosticoTecnico: en
+        ? 'Low foliar coverage detected in image center. Retake photo closer to leaf.'
+        : 'Baixa cobertura foliar detectada no centro da imagem. Repita a captura aproximando a câmera.',
+      acaoRecomendada: en
+        ? 'Place the leaf in the center of the screen, avoiding too much soil or wall background.'
+        : 'Coloque a folha no meio da tela, evitando muito fundo de terra ou parede.',
     };
   }
 
-  // 1) Folha totalmente seca / ressecada (predomínio de marrom/palha e quase sem verde)
+  // 1) Completely dried leaf (predominantly brown/straw, almost no green)
   if (
     dryBrownPct >= 50 ||
     (dryBrownPct + blackSpotPct >= 62 && greenPct < 18)
@@ -234,15 +240,20 @@ function buildResultFromMetrics(
       necrosePct: dryBrownPct,
       pontosPretosPct: blackSpotPct,
       status: 'seca_total',
-      titulo: 'Folha totalmente seca',
-      diagnosticoAcessivel: `Essa folha já está seca (${dryBrownPct}% seca e apenas ${greenPct}% verde). Pode ser seca severa, calor forte ou folha velha que já secou no pé.`,
-      diagnosticoTecnico: `Tecido foliar senescente/seco: ${dryBrownPct}% seco, ${blackSpotPct}% necrose escura, ${yellowPct}% amarelo, ${greenPct}% clorofila.`,
-      acaoRecomendada:
-        'Confira também folhas novas do meio do pé; cubra o solo com bastante palha e priorize água nas plantas mais jovens.',
+      titulo: en ? 'Completely dried leaf' : 'Folha totalmente seca',
+      diagnosticoAcessivel: en
+        ? `This leaf is already dry (${dryBrownPct}% dry and only ${greenPct}% green). This may indicate severe drought, intense heat, or an old dried lower leaf.`
+        : `Essa folha já está seca (${dryBrownPct}% seca e apenas ${greenPct}% verde). Pode ser seca severa, calor forte ou folha velha que já secou no pé.`,
+      diagnosticoTecnico: en
+        ? `Senescent/dry leaf tissue: ${dryBrownPct}% dry, ${blackSpotPct}% dark necrosis, ${yellowPct}% yellow, ${greenPct}% chlorophyll.`
+        : `Tecido foliar senescente/seco: ${dryBrownPct}% seco, ${blackSpotPct}% necrose escura, ${yellowPct}% amarelo, ${greenPct}% clorofila.`,
+      acaoRecomendada: en
+        ? 'Also check younger leaves in the middle of the plant; cover soil with plenty of mulch and prioritize water for younger plants.'
+        : 'Confira também folhas novas do meio do pé; cubra o solo com bastante palha e priorize água nas plantas mais jovens.',
     };
   }
 
-  // 2) Pontos pretos / manchas escuras (antracnose, pinta-preta, fungo) — mesmo com folha verde!
+  // 2) Black spots / dark lesions (anthracnose, early blight, fungus) — even on green leaf
   if (blackSpotPct >= 5) {
     const withYellow = yellowPct >= 14;
     return {
@@ -254,17 +265,26 @@ function buildResultFromMetrics(
       necrosePct: dryBrownPct,
       pontosPretosPct: blackSpotPct,
       status: 'manchas_pretas',
-      titulo: 'Pontos pretos / manchas escuras na folha',
-      diagnosticoAcessivel: `Foram detectados pontos pretos ou manchas escuras (${blackSpotPct}%)${
-        withYellow ? ` junto com amarelamento (${yellowPct}%)` : ''
-      }. Isso costuma ser sinal de fungo (como pinta-preta ou antracnose) ou mancha de doença.`,
-      diagnosticoTecnico: `Lesões escuras/necrose pontual (${blackSpotPct}% pontos pretos | ${greenPct}% verde | ${yellowPct}% clorose | ${dryBrownPct}% seco).`,
-      acaoRecomendada:
-        'Retire e descarte longe da roça as folhas muito manchadas, evite molhar as folhas à noite e observe se está espalhando pelos pés vizinhos.',
+      titulo: en
+        ? 'Black spots / dark lesions on leaf'
+        : 'Pontos pretos / manchas escuras na folha',
+      diagnosticoAcessivel: en
+        ? `Black spots or dark lesions detected (${blackSpotPct}%)${
+            withYellow ? ` along with yellowing (${yellowPct}%)` : ''
+          }. This is commonly a sign of fungus (such as black spot or anthracnose) or foliar disease.`
+        : `Foram detectados pontos pretos ou manchas escuras (${blackSpotPct}%)${
+            withYellow ? ` junto com amarelamento (${yellowPct}%)` : ''
+          }. Isso costuma ser sinal de fungo (como pinta-preta ou antracnose) ou mancha de doença.`,
+      diagnosticoTecnico: en
+        ? `Dark lesions / spot necrosis (${blackSpotPct}% black spots | ${greenPct}% green | ${yellowPct}% chlorosis | ${dryBrownPct}% dry).`
+        : `Lesões escuras/necrose pontual (${blackSpotPct}% pontos pretos | ${greenPct}% verde | ${yellowPct}% clorose | ${dryBrownPct}% seco).`,
+      acaoRecomendada: en
+        ? 'Remove heavily spotted leaves and dispose away from the plot, avoid wetting leaves at night, and watch neighboring plants for spread.'
+        : 'Retire e descarte longe da roça as folhas muito manchadas, evite molhar as folhas à noite e observe se está espalhando pelos pés vizinhos.',
     };
   }
 
-  // 3) Queima / necrose parcial (manchas secas sem ser folha toda seca)
+  // 3) Partial scorch / necrosis (dry spots without whole leaf dried)
   if (dryBrownPct >= 22 && dryBrownPct > yellowPct) {
     return {
       id: `leaf-${Date.now()}`,
@@ -275,15 +295,22 @@ function buildResultFromMetrics(
       necrosePct: dryBrownPct,
       pontosPretosPct: blackSpotPct,
       status: 'clorose_ou_seca',
-      titulo: 'Manchas secas ou queima na folha',
-      diagnosticoAcessivel: `Foram vistas partes secas ou queimadas na folha (${dryBrownPct}%). Pode ser sol forte com pouca água ou mancha de doença.`,
-      diagnosticoTecnico: `Necrose/queima foliar parcial (${dryBrownPct}% seco | ${yellowPct}% clorose | ${greenPct}% verde).`,
-      acaoRecomendada:
-        'Retire folhas muito queimadas, reforce a cobertura morta e evite molhar as folhas no sol quente.',
+      titulo: en
+        ? 'Dry spots or leaf scorch'
+        : 'Manchas secas ou queima na folha',
+      diagnosticoAcessivel: en
+        ? `Dry or scorched patches were spotted on the leaf (${dryBrownPct}%). Could be strong sun with low water or a disease lesion.`
+        : `Foram vistas partes secas ou queimadas na folha (${dryBrownPct}%). Pode ser sol forte com pouca água ou mancha de doença.`,
+      diagnosticoTecnico: en
+        ? `Partial foliar necrosis/scorch (${dryBrownPct}% dry | ${yellowPct}% chlorosis | ${greenPct}% green).`
+        : `Necrose/queima foliar parcial (${dryBrownPct}% seco | ${yellowPct}% clorose | ${greenPct}% verde).`,
+      acaoRecomendada: en
+        ? 'Remove heavily scorched leaves, reinforce mulch cover, and avoid watering leaves during peak heat.'
+        : 'Retire folhas muito queimadas, reforce a cobertura morta e evite molhar as folhas no sol quente.',
     };
   }
 
-  // 4) Clorose severa (folha bastante amarelada)
+  // 4) Severe chlorosis (heavily yellowed leaf)
   if (yellowPct >= 30 || (greenPct < 50 && yellowPct >= 15)) {
     return {
       id: `leaf-${Date.now()}`,
@@ -294,15 +321,22 @@ function buildResultFromMetrics(
       necrosePct: dryBrownPct,
       pontosPretosPct: blackSpotPct,
       status: 'clorose_ou_seca',
-      titulo: 'Estresse forte ou clorose na folha',
-      diagnosticoAcessivel: `A folha está bastante amarelada (${yellowPct}%). Isso mostra estresse de calor, falta de água ou deficiência de nitrogênio na terra.`,
-      diagnosticoTecnico: `Clorose severa (${yellowPct}% amarelamento | ${dryBrownPct}% seco | ${greenPct}% verde).`,
-      acaoRecomendada:
-        'Reforce a cobertura morta, cheque se há pragas embaixo da folha e evite adubação química no sol quente.',
+      titulo: en
+        ? 'Severe stress or leaf chlorosis'
+        : 'Estresse forte ou clorose na folha',
+      diagnosticoAcessivel: en
+        ? `The leaf is heavily yellowed (${yellowPct}%). This indicates heat stress, lack of water, or soil nitrogen deficiency.`
+        : `A folha está bastante amarelada (${yellowPct}%). Isso mostra estresse de calor, falta de água ou deficiência de nitrogênio na terra.`,
+      diagnosticoTecnico: en
+        ? `Severe chlorosis (${yellowPct}% yellowing | ${dryBrownPct}% dry | ${greenPct}% green).`
+        : `Clorose severa (${yellowPct}% amarelamento | ${dryBrownPct}% seco | ${greenPct}% verde).`,
+      acaoRecomendada: en
+        ? 'Reinforce mulch cover, check underside of leaf for pests, and avoid synthetic fertilizer in harsh sun.'
+        : 'Reforce a cobertura morta, cheque se há pragas embaixo da folha e evite adubação química no sol quente.',
     };
   }
 
-  // 5) Início de amarelamento / estresse leve
+  // 5) Early yellowing / mild stress
   if (yellowPct >= 12 || dryBrownPct >= 10 || blackSpotPct >= 2) {
     return {
       id: `leaf-${Date.now()}`,
@@ -313,15 +347,22 @@ function buildResultFromMetrics(
       necrosePct: dryBrownPct,
       pontosPretosPct: blackSpotPct,
       status: 'estresse_leve',
-      titulo: 'Início de amarelamento (atenção)',
-      diagnosticoAcessivel: `A folha mostrou sinais iniciais de amarelamento (${yellowPct}%) ou pontas secas (${dryBrownPct}%). Pode ser início de falta de água ou de adubo orgânico.`,
-      diagnosticoTecnico: `Estresse leve: ${greenPct}% verde | ${yellowPct}% amarelamento | ${dryBrownPct}% seco | ${blackSpotPct}% pontos pretos.`,
-      acaoRecomendada:
-        'Cubra o solo ao redor da planta com palha seca ou esterco curtido e observe a umidade da terra.',
+      titulo: en
+        ? 'Early yellowing (watch closely)'
+        : 'Início de amarelamento (atenção)',
+      diagnosticoAcessivel: en
+        ? `Leaf shows early signs of yellowing (${yellowPct}%) or dry tips (${dryBrownPct}%). Could be early water deficit or need for organic matter.`
+        : `A folha mostrou sinais iniciais de amarelamento (${yellowPct}%) ou pontas secas (${dryBrownPct}%). Pode ser início de falta de água ou de adubo orgânico.`,
+      diagnosticoTecnico: en
+        ? `Mild stress: ${greenPct}% green | ${yellowPct}% yellowing | ${dryBrownPct}% dry | ${blackSpotPct}% black spots.`
+        : `Estresse leve: ${greenPct}% verde | ${yellowPct}% amarelamento | ${dryBrownPct}% seco | ${blackSpotPct}% pontos pretos.`,
+      acaoRecomendada: en
+        ? 'Cover soil around the plant with dry straw or aged manure and monitor soil moisture.'
+        : 'Cubra o solo ao redor da planta com palha seca ou esterco curtido e observe a umidade da terra.',
     };
   }
 
-  // 6) Folha saudável
+  // 6) Healthy leaf
   return {
     id: `leaf-${Date.now()}`,
     imageUri,
@@ -331,11 +372,16 @@ function buildResultFromMetrics(
     necrosePct: dryBrownPct,
     pontosPretosPct: blackSpotPct,
     status: 'saudavel',
-    titulo: 'Folha saudável (bom vigor)',
-    diagnosticoAcessivel: `A folha está bem verdinha (${greenPct}% verde) e forte! A planta está puxando água e nutrientes direito da terra.`,
-    diagnosticoTecnico: `Clorofila/verde foliar: ${greenPct}% | Amarelamento: ${yellowPct}% | Seco: ${dryBrownPct}% | Pontos pretos: ${blackSpotPct}%.`,
-    acaoRecomendada:
-      'Continue mantendo cobertura de palha no pé da planta para segurar a umidade.',
+    titulo: en ? 'Healthy leaf (strong vigor)' : 'Folha saudável (bom vigor)',
+    diagnosticoAcessivel: en
+      ? `The leaf is rich green (${greenPct}% green) and vigorous! The plant is taking up water and nutrients well from the soil.`
+      : `A folha está bem verdinha (${greenPct}% verde) e forte! A planta está puxando água e nutrientes direito da terra.`,
+    diagnosticoTecnico: en
+      ? `Leaf chlorophyll/green: ${greenPct}% | Yellowing: ${yellowPct}% | Dry: ${dryBrownPct}% | Black spots: ${blackSpotPct}%.`
+      : `Clorofila/verde foliar: ${greenPct}% | Amarelamento: ${yellowPct}% | Seco: ${dryBrownPct}% | Pontos pretos: ${blackSpotPct}%.`,
+    acaoRecomendada: en
+      ? 'Keep maintaining straw mulch around the plant base to hold soil moisture.'
+      : 'Continue mantendo cobertura de palha no pé da planta para segurar a umidade.',
   };
 }
 
@@ -346,48 +392,65 @@ export type SimulatedLeafProfile =
   | 'pontos_pretos';
 
 /**
- * Analisa localmente (100% offline) a foto da folha capturada pela câmera.
+ * Analyzes a captured leaf photo 100% locally / offline.
  */
 export async function analyzeLeafImageOffline(
   imageUri: string,
   simulatedProfile?: SimulatedLeafProfile,
-  base64Data?: string | null
+  base64Data?: string | null,
+  lang: AppLanguage = 'en'
 ): Promise<LeafAnalysisResult> {
   if (simulatedProfile === 'saudavel') {
-    return buildResultFromMetrics(imageUri, {
-      greenPct: 92,
-      yellowPct: 4,
-      dryBrownPct: 3,
-      blackSpotPct: 1,
-      leafCoveragePct: 80,
-    });
+    return buildResultFromMetrics(
+      imageUri,
+      {
+        greenPct: 92,
+        yellowPct: 4,
+        dryBrownPct: 3,
+        blackSpotPct: 1,
+        leafCoveragePct: 80,
+      },
+      lang
+    );
   }
   if (simulatedProfile === 'amarelada') {
-    return buildResultFromMetrics(imageUri, {
-      greenPct: 34,
-      yellowPct: 54,
-      dryBrownPct: 11,
-      blackSpotPct: 1,
-      leafCoveragePct: 80,
-    });
+    return buildResultFromMetrics(
+      imageUri,
+      {
+        greenPct: 34,
+        yellowPct: 54,
+        dryBrownPct: 11,
+        blackSpotPct: 1,
+        leafCoveragePct: 80,
+      },
+      lang
+    );
   }
   if (simulatedProfile === 'seca_total') {
-    return buildResultFromMetrics(imageUri, {
-      greenPct: 6,
-      yellowPct: 14,
-      dryBrownPct: 74,
-      blackSpotPct: 6,
-      leafCoveragePct: 80,
-    });
+    return buildResultFromMetrics(
+      imageUri,
+      {
+        greenPct: 6,
+        yellowPct: 14,
+        dryBrownPct: 74,
+        blackSpotPct: 6,
+        leafCoveragePct: 80,
+      },
+      lang
+    );
   }
   if (simulatedProfile === 'pontos_pretos') {
-    return buildResultFromMetrics(imageUri, {
-      greenPct: 68,
-      yellowPct: 12,
-      dryBrownPct: 6,
-      blackSpotPct: 14,
-      leafCoveragePct: 80,
-    });
+    return buildResultFromMetrics(
+      imageUri,
+      {
+        greenPct: 68,
+        yellowPct: 12,
+        dryBrownPct: 6,
+        blackSpotPct: 14,
+        leafCoveragePct: 80,
+      },
+      lang
+    );
   }
 
   if (base64Data) {
@@ -400,10 +463,10 @@ export async function analyzeLeafImageOffline(
           tolerantDecoding: true,
         });
         const metrics = analyzeRgbaPixels(decoded.data, decoded.width, decoded.height);
-        return buildResultFromMetrics(imageUri, metrics);
+        return buildResultFromMetrics(imageUri, metrics, lang);
       }
     } catch {
-      // Fallback para canvas na Web
+      // Fallback for Web canvas
     }
   }
 
@@ -430,17 +493,21 @@ export async function analyzeLeafImageOffline(
         img.onerror = () => reject(new Error('img-load-err'));
         img.src = imageUri;
       });
-      return buildResultFromMetrics(imageUri, metrics);
+      return buildResultFromMetrics(imageUri, metrics, lang);
     } catch {
-      // Fallback caso imagem falhe
+      // Fallback if image load fails
     }
   }
 
-  return buildResultFromMetrics(imageUri, {
-    greenPct: 0,
-    yellowPct: 0,
-    dryBrownPct: 0,
-    blackSpotPct: 0,
-    leafCoveragePct: 0,
-  });
+  return buildResultFromMetrics(
+    imageUri,
+    {
+      greenPct: 0,
+      yellowPct: 0,
+      dryBrownPct: 0,
+      blackSpotPct: 0,
+      leafCoveragePct: 0,
+    },
+    lang
+  );
 }
