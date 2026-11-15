@@ -17,6 +17,7 @@ import {
 } from '../services/leafAnalyzer';
 import { getAppTheme } from '../theme/tokens';
 import { formatArea, formatCurrencyBRL, regionalizarTexto } from '../utils/regionalize';
+import { CropHistorySection } from './CropHistorySection';
 
 const ROTATION_OPTIONS = [
   'Feijão-Caupi + Mandioca',
@@ -265,6 +266,8 @@ export const DecisionScreen: React.FC = () => {
           </Text>
         </Pressable>
       </View>
+
+      <CropHistorySection />
 
       {/* Saúde das Plantações: Visão Orbital NDVI + Câmera Offline */}
       <View
