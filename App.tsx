@@ -14,10 +14,12 @@ import { AppHeader } from './src/components/AppHeader';
 import { AppTutorialModal } from './src/components/AppTutorialModal';
 import { BottomTabBar, MainTabKey } from './src/components/BottomTabBar';
 import { MobileViewport } from './src/components/MobileViewport';
+import { SatelliteLoadingBanner } from './src/components/SatelliteLoadingBanner';
 import {
   AccessibilityProvider,
   useAccessibility,
 } from './src/context/AccessibilityContext';
+import { CropQualityProvider } from './src/context/CropQualityContext';
 import { CommunityScreen } from './src/screens/CommunityScreen';
 import { DecisionScreen } from './src/screens/DecisionScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -112,6 +114,7 @@ const RoçaVivaRoot: React.FC = () => {
             onOpenTutorial={openTutorial}
           />
           <AlertTopBanner onOpenAllAlerts={() => openSettingsAt('alertas')} />
+          <SatelliteLoadingBanner onNavigateTab={setActiveTab} />
           <View style={styles.body}>
             {activeTab === 'resumo' && (
               <HomeScreen
@@ -147,9 +150,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AccessibilityProvider>
-        <MobileViewport>
-          <RoçaVivaRoot />
-        </MobileViewport>
+        <CropQualityProvider>
+          <MobileViewport>
+            <RoçaVivaRoot />
+          </MobileViewport>
+        </CropQualityProvider>
       </AccessibilityProvider>
     </SafeAreaProvider>
   );

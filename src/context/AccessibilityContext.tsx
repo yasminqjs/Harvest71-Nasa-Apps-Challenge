@@ -9,7 +9,10 @@ import React, {
 } from 'react';
 import { AppState } from 'react-native';
 import { MOCK_COMMUNITY_POSTS } from '../data/communityMockData';
-import { NORDESTE_REGIONS } from '../data/seedData';
+import {
+  DEFAULT_IRECE_FARM_POLYGON,
+  NORDESTE_REGIONS,
+} from '../data/seedData';
 import { DEFAULT_ACCESSIBILITY, buildSeedSnapshot } from '../database/seedBuilder';
 import { sqliteDb } from '../database/sqlite';
 import { buildFarmArchitectureModel } from '../models/farmArchitecture';
@@ -164,7 +167,12 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         lotes:
           f.lotes && f.lotes.length > 0
             ? f.lotes
-            : createDefaultLotsForFarm(f.centroid, f.areaHectares, f.culturaPrincipal),
+            : createDefaultLotsForFarm(
+                f.centroid,
+                f.areaHectares,
+                f.culturaPrincipal,
+                f.polygon
+              ),
       }));
       setAccessibility(snap.accessibility);
       setFarmers(safeFarmers);
@@ -470,7 +478,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
             : createDefaultLotsForFarm(
                 metrics.centroid,
                 metrics.areaHectares,
-                options.culturaPrincipal ?? activeFarm.culturaPrincipal
+                options.culturaPrincipal ?? activeFarm.culturaPrincipal,
+                polygon
               );
         const primaryLotCrop =
           lotsToSave[0]?.culturaAtual ||
@@ -584,7 +593,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
           : createDefaultLotsForFarm(
               activeFarm.centroid,
               activeFarm.areaHectares,
-              activeFarm.culturaPrincipal
+              activeFarm.culturaPrincipal,
+              activeFarm.polygon
             );
       const nextLots = existingLots.map((lot) =>
         lot.id === lotId ? { ...lot, ...patch } : lot
@@ -599,10 +609,13 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!activeFarm) return;
       const preset =
         NORDESTE_REGIONS.find((r) => r.id === regionId) ?? NORDESTE_REGIONS[0];
-      const polygon = createMicroPlotAroundPoint(
-        preset.centroid,
-        activeFarm.areaHectares || 4.2
-      );
+      const polygon =
+        preset.id === 'irece-ba'
+          ? DEFAULT_IRECE_FARM_POLYGON
+          : createMicroPlotAroundPoint(
+              preset.centroid,
+              activeFarm.areaHectares || 6.85
+            );
       const metrics = calculatePolygonMetrics(polygon);
       const diag = runLocalAgronomicEngine(
         metrics.centroid,
@@ -623,7 +636,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         lotes: createDefaultLotsForFarm(
           metrics.centroid,
           metrics.areaHectares,
-          activeFarm.culturaPrincipal
+          activeFarm.culturaPrincipal,
+          polygon
         ),
         diagnostico: diag,
       };

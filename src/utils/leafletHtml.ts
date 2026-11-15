@@ -344,6 +344,33 @@ html, body, #map {
   font-size: 9px !important;
   background: rgba(255,255,255,0.78) !important;
 }
+.lot-sat-pill {
+  background: rgba(17, 24, 39, 0.88);
+  color: #FFFFFF;
+  border: 2px solid #FFFFFF;
+  border-radius: 10px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
+  white-space: nowrap;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+}
+.lot-sat-pill-active {
+  background: rgba(15, 23, 42, 0.96);
+  border-color: #FDE047;
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.45), 0 4px 10px rgba(0,0,0,0.55);
+}
+.lot-sat-sub {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #A7F3D0;
+  margin-top: 1px;
+}
 </style>
 </head>
 <body>
@@ -355,7 +382,7 @@ ${LEAFLET_JS}
 (function() {
 ${HOST_EMITTER_HELPER}
   var state = {
-    centroid: { latitude: -12.9714, longitude: -38.5014 },
+    centroid: { latitude: -11.346531, longitude: -41.960674 },
     polygon: [],
     lots: [],
     activeLotId: null,
@@ -366,7 +393,7 @@ ${HOST_EMITTER_HELPER}
   };
 
   var map = L.map('map', {
-    center: [-12.9714, -38.5014],
+    center: [-11.346531, -41.960674],
     zoom: 16,
     minZoom: 5,
     maxZoom: 19,
@@ -445,14 +472,14 @@ ${HOST_EMITTER_HELPER}
           if (state.showWells && state.wells && state.wells.length > 0) {
             map.setView([state.centroid.latitude, state.centroid.longitude], 12, { animate: false });
           } else {
-            map.fitBounds(poly.getBounds(), { padding: [28, 28], maxZoom: 16, animate: false });
+            map.fitBounds(poly.getBounds(), { padding: [24, 24], maxZoom: 17, animate: false });
           }
         } catch (e) {
-          map.setView([state.centroid.latitude, state.centroid.longitude], 15, { animate: false });
+          map.setView([state.centroid.latitude, state.centroid.longitude], 16, { animate: false });
         }
       }
     } else if (shouldFit) {
-      map.setView([state.centroid.latitude, state.centroid.longitude], state.showWells ? 12 : 15, { animate: false });
+      map.setView([state.centroid.latitude, state.centroid.longitude], state.showWells ? 12 : 16, { animate: false });
     }
 
     (state.lots || []).forEach(function(lot) {
@@ -461,13 +488,51 @@ ${HOST_EMITTER_HELPER}
       if (lotPts.length >= 3) {
         var orderedLot = sortPolygonVertices(lotPts);
         var lotLatLngs = orderedLot.map(function(p) { return [p.latitude, p.longitude]; });
-        L.polygon(lotLatLngs, {
+        var lotPoly = L.polygon(lotLatLngs, {
           color: lot.corHex || '#2563EB',
-          weight: isActive ? 3.5 : 2,
+          weight: isActive ? 3.5 : 2.5,
           dashArray: isActive ? null : '5,4',
           fillColor: lot.corHex || '#2563EB',
-          fillOpacity: isActive ? 0.42 : 0.26
-        }).bindTooltip(lot.nome || 'Lote', { sticky: true }).addTo(lotsLayer);
+          fillOpacity: isActive ? 0.45 : 0.28
+        }).bindTooltip((lot.nome || 'Lote') + (lot.culturaAtual ? ' • ' + lot.culturaAtual : ''), { sticky: true }).addTo(lotsLayer);
+
+        lotPoly.on('click', function(ev) {
+          if (state.drawingMode) return;
+          if (ev && ev.originalEvent && ev.originalEvent.stopPropagation) {
+            ev.originalEvent.stopPropagation();
+          }
+          emitHostMessage('farm', { type: 'selectLot', lotId: lot.id });
+        });
+
+        var cLat = 0;
+        var cLon = 0;
+        for (var j = 0; j < orderedLot.length; j++) {
+          cLat += orderedLot[j].latitude;
+          cLon += orderedLot[j].longitude;
+        }
+        cLat /= orderedLot.length;
+        cLon /= orderedLot.length;
+
+        var titleText = lot.culturaAtual
+          ? (lot.nome + ' • ' + lot.culturaAtual)
+          : (lot.nome || 'Lote');
+        var badgeHtml =
+          '<div class="lot-sat-pill ' + (isActive ? 'lot-sat-pill-active' : '') + '" style="border-left: 5px solid ' + (lot.corHex || '#2563EB') + ';">' +
+            '<span>' + titleText + '</span>' +
+            (lot.previsaoBadge ? '<span class="lot-sat-sub">' + lot.previsaoBadge + '</span>' : '') +
+          '</div>';
+        var pillMarker = L.marker([cLat, cLon], {
+          icon: L.divIcon({
+            className: '',
+            html: badgeHtml,
+            iconSize: [0, 0]
+          })
+        }).addTo(lotsLayer);
+
+        pillMarker.on('click', function() {
+          if (state.drawingMode) return;
+          emitHostMessage('farm', { type: 'selectLot', lotId: lot.id });
+        });
       } else if (isActive && lotPts.length === 2) {
         L.polyline(
           lotPts.map(function(p) { return [p.latitude, p.longitude]; }),

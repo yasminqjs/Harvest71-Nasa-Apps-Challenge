@@ -1,0 +1,809 @@
+[
+  {
+    "pilot_id": "irece-ba",
+    "name": "Irecê - BA (4.2 ha — Sequeiro)",
+    "municipality": "Irecê",
+    "state": "BA",
+    "area_ha": 4.2,
+    "centroid": {
+      "lat": -11.30545,
+      "lon": -41.85519999999999
+    },
+    "response": {
+      "request_id": "b77881c1-eb77-4431-bf7a-891c0166ac47",
+      "evaluated_at_utc": "2026-11-15T12:51:01Z",
+      "farmer_accessible_view": {
+        "overall_traffic_light": "RED",
+        "status_badge_title": "Alerta na Roça: Planta com Sede na Terra Seca",
+        "status_icon": "water-alert",
+        "health_score_0_to_100": 18,
+        "voice_tts_script_pt": "Olá, companheiro agricultor. Olhamos sua roça de Feijão-caupi pelos satélites da NASA. Nos últimos 30 dias choveu apenas 36 milímetros e a terra está secando na raiz. As folhas estão fechando os poros para não perder água. Toque nos cartões abaixo para ver o que fazer hoje.",
+        "visual_field_zones": [
+          {
+            "zone_id": "zona_norte",
+            "location_label_pt": "Parte de cima do terreno (Norte)",
+            "color_hex": "#DC2626",
+            "icon_name": "flame",
+            "short_label_pt": "Calor forte na florada",
+            "polygon_geojson": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -41.8542,
+                    -11.3045
+                  ],
+                  [
+                    -41.8542,
+                    -11.305127
+                  ],
+                  [
+                    -41.8562,
+                    -11.305127
+                  ],
+                  [
+                    -41.8562,
+                    -11.3045
+                  ],
+                  [
+                    -41.8542,
+                    -11.3045
+                  ]
+                ]
+              ]
+            }
+          },
+          {
+            "zone_id": "zona_central",
+            "location_label_pt": "Meio da roça",
+            "color_hex": "#DC2626",
+            "icon_name": "droplet",
+            "short_label_pt": "Planta com sede",
+            "polygon_geojson": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -41.8542,
+                    -11.305754
+                  ],
+                  [
+                    -41.8562,
+                    -11.305754
+                  ],
+                  [
+                    -41.8562,
+                    -11.305127
+                  ],
+                  [
+                    -41.8542,
+                    -11.305127
+                  ],
+                  [
+                    -41.8542,
+                    -11.305754
+                  ]
+                ]
+              ]
+            }
+          },
+          {
+            "zone_id": "zona_sul_baixa",
+            "location_label_pt": "Parte mais baixa (Descida)",
+            "color_hex": "#DC2626",
+            "icon_name": "droplet",
+            "short_label_pt": "Planta com sede",
+            "polygon_geojson": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -41.8542,
+                    -11.3064
+                  ],
+                  [
+                    -41.8562,
+                    -11.3064
+                  ],
+                  [
+                    -41.8562,
+                    -11.305754
+                  ],
+                  [
+                    -41.8542,
+                    -11.305754
+                  ],
+                  [
+                    -41.8542,
+                    -11.3064
+                  ]
+                ]
+              ]
+            }
+          }
+        ],
+        "action_cards": [
+          {
+            "step_number": 1,
+            "urgency_color": "RED",
+            "icon_name": "droplet",
+            "title_pt": "Segurar a água no pé da planta",
+            "instruction_pt": "Cubra o chão ao redor das plantas com palha seca ou resto de capim para o sol não secar a pouca umidade que sobrou."
+          },
+          {
+            "step_number": 2,
+            "urgency_color": "YELLOW",
+            "icon_name": "flame",
+            "title_pt": "Proteger a florada do sol quente",
+            "instruction_pt": "Se tiver água reservada, molhe bem cedo ou no final da tarde. Evite capinar nas horas mais quentes do dia."
+          }
+        ]
+      },
+      "crop_agronomic_baseline": {
+        "scientific_name": "Vigna unguiculata",
+        "common_name_pt": "Feijão-caupi",
+        "fao_ecocrop_parameters": {
+          "t_base_c": 15.0,
+          "t_opt_min_c": 25.0,
+          "t_opt_max_c": 35.0,
+          "t_max_lethal_c": 40.0,
+          "cycle_days_min": 30,
+          "cycle_days_max": 240,
+          "r_min_mm": 300.0,
+          "r_opt_min_mm": 500.0,
+          "source": "FAO_ECOCROP_DATABASE"
+        },
+        "fao_gaez_v4_suitability": {
+          "suitability_index_0_100": 90.2,
+          "attainable_yield_low_input_kg_ha": 1792.7,
+          "water_supply_regime": "RAINFED",
+          "source": "FAO_GAEZ_V4_RES05_COG"
+        }
+      },
+      "scientific_telemetry": {
+        "data_provenance": [
+          {
+            "dataset": "COPERNICUS/S2_L2A_STAC",
+            "scene_id": "S2C_MSIL2A_20261108T130241_R095_T23LRH_20261108T143806",
+            "scene_datetime": "2026-11-08T13:02:41.025000+00:00",
+            "native_resolution_m": 10,
+            "valid_pixels_in_polygon": 462,
+            "clean_pixel_ratio": 1.0,
+            "historical_baseline_scenes": 4
+          },
+          {
+            "dataset": "NASA_USGS/LANDSAT_C2_L2_TIRS",
+            "scene_id": "LC09_L2SP_218068_20261024_02_T1",
+            "scene_datetime": "2026-10-24T12:55:04.868250+00:00",
+            "native_resolution_m": 30,
+            "band": "lwir11_surface_temperature"
+          },
+          {
+            "dataset": "NASA/NASADEM_HGT_V001",
+            "tile_id": "NASADEM_HGT_s12w042",
+            "elevation_m": 733.6,
+            "native_resolution_m": 30
+          },
+          {
+            "dataset": "NASA/POWER_MERRA2_AG_DAILY",
+            "variables": [
+              "PRECTOTCORR",
+              "GWETROOT",
+              "GWETTOP",
+              "T2M_MAX",
+              "T2M_MIN",
+              "T2M",
+              "RH2M",
+              "ALLSKY_SFC_SW_DWN",
+              "WS2M",
+              "EVPTRNS"
+            ],
+            "window": "20260928..20261110",
+            "native_resolution_km": 50.0
+          },
+          {
+            "dataset": "ISRIC/SOILGRIDS_V2",
+            "source": "ISRIC_SOILGRIDS_V2_REST",
+            "clay_pct": 27.9,
+            "sand_pct": 42.9,
+            "om_pct": 2.29,
+            "ph_h2o": 6.73,
+            "theta_wp": 0.1796,
+            "theta_fc": 0.3075
+          }
+        ],
+        "biophysical_indices": {
+          "ndvi_mean": 0.101,
+          "ndvi_phenological_z_score": -0.137,
+          "evi_mean": 0.092,
+          "lai_boegh_m2_m2": 0.231,
+          "ndwi_gao_mean": -0.121,
+          "ndwi_z_score": 0.677,
+          "bsi_rikimaru_mean": 0.141,
+          "rusle_c_factor": 0.803,
+          "rusle_ls_factor": 0.273,
+          "canopy_temp_celsius": 44.96,
+          "cwsi_jackson_index": 1.0,
+          "nasa_gwetroot_0_to_1": 0.34,
+          "fao56_ks_water_stress_coeff": 0.0,
+          "gdd_accumulated_c_day": 596.1,
+          "et0_fao56_30d_mm": 224.0,
+          "precip_gpm_power_30d_mm": 35.8
+        },
+        "diagnostic_assessments": [
+          {
+            "condition_code": "WATER_DEFICIT_STRESS",
+            "severity": "HIGH",
+            "confidence": 0.96,
+            "equation_triggered": "FAO56_Ks=0.00 < 0.55 AND (Z_NDWI=0.68 <= -1.0 OR CWSI=1.00 >= 0.50)"
+          },
+          {
+            "condition_code": "THERMAL_HEAT_SHOCK",
+            "severity": "HIGH",
+            "confidence": 0.9,
+            "equation_triggered": "T2M_MAX_7d=39.0C > EcoCrop_TOPMX=35.0C AND CWSI=1.00 >= 0.45"
+          }
+        ]
+      },
+      "dssat_state_vector": {
+        "observed_lai_m2_m2": 0.231,
+        "water_stress_factor_swfac": 0.0,
+        "rootzone_soil_wetness_fraction": 0.34,
+        "soil_surface_cover_fraction": 0.454,
+        "accumulated_gdd": 596.1,
+        "pest_disease_damage_detected": false,
+        "rotation_constraints_for_dssat": [
+          "PRIORITIZE_DROUGHT_TOLERANT_CULTIVAR",
+          "HEAT_RESILIENT_FLOWERING_WINDOW"
+        ]
+      },
+      "scale_disclaimers": [
+        "O diagnóstico espacial dentro do terreno (< 5 ha) utiliza pixels reais de 10m (Sentinel-2) e 30m (Landsat TIRS e NASA NASADEM). Variáveis agroclimáticas e de umidade profunda (NASA POWER/MERRA-2 GWETROOT e FAO GAEZ v4) possuem resolução regional (9 km a 50 km) e calibram o balanço físico macro."
+      ],
+      "human_in_the_loop_notice": "Esta ferramenta apoia a tomada de decisão e não substitui o conhecimento do agricultor nem a vistoria presencial de um técnico da extensão rural (EMATER/BAHIATER).",
+      "cache_metadata": {
+        "fallback_used": false,
+        "reason": "audited_live_capture",
+        "pilot_id": "irece-ba"
+      }
+    }
+  },
+  {
+    "pilot_id": "quixeramobim-ce",
+    "name": "Quixeramobim - CE (3.6 ha — Semiárido Central)",
+    "municipality": "Quixeramobim",
+    "state": "CE",
+    "area_ha": 3.6,
+    "centroid": {
+      "lat": -5.19905,
+      "lon": -39.290600000000005
+    },
+    "response": {
+      "request_id": "8569fc4f-a4df-4e9e-847c-084b5c837f5b",
+      "evaluated_at_utc": "2026-11-15T12:52:05Z",
+      "farmer_accessible_view": {
+        "overall_traffic_light": "RED",
+        "status_badge_title": "Alerta na Roça: Planta com Sede na Terra Seca",
+        "status_icon": "water-alert",
+        "health_score_0_to_100": 18,
+        "voice_tts_script_pt": "Olá, companheiro agricultor. Olhamos sua roça de Sorgo pelos satélites da NASA. Nos últimos 30 dias choveu apenas 6 milímetros e a terra está secando na raiz. As folhas estão fechando os poros para não perder água. Toque nos cartões abaixo para ver o que fazer hoje.",
+        "visual_field_zones": [
+          {
+            "zone_id": "zona_norte",
+            "location_label_pt": "Parte de cima do terreno (Norte)",
+            "color_hex": "#DC2626",
+            "icon_name": "flame",
+            "short_label_pt": "Calor forte na florada",
+            "polygon_geojson": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -39.2897,
+                    -5.1982
+                  ],
+                  [
+                    -39.2897,
+                    -5.198761
+                  ],
+                  [
+                    -39.2915,
+                    -5.198761
+                  ],
+                  [
+                    -39.2915,
+                    -5.1982
+                  ],
+                  [
+                    -39.2897,
+                    -5.1982
+                  ]
+                ]
+              ]
+            }
+          },
+          {
+            "zone_id": "zona_central",
+            "location_label_pt": "Meio da roça",
+            "color_hex": "#DC2626",
+            "icon_name": "droplet",
+            "short_label_pt": "Planta com sede",
+            "polygon_geojson": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -39.2897,
+                    -5.199322
+                  ],
+                  [
+                    -39.2915,
+                    -5.199322
+                  ],
+                  [
+                    -39.2915,
+                    -5.198761
+                  ],
+                  [
+                    -39.2897,
+                    -5.198761
+                  ],
+                  [
+                    -39.2897,
+                    -5.199322
+                  ]
+                ]
+              ]
+            }
+          },
+          {
+            "zone_id": "zona_sul_baixa",
+            "location_label_pt": "Parte mais baixa (Descida)",
+            "color_hex": "#DC2626",
+            "icon_name": "droplet",
+            "short_label_pt": "Planta com sede",
+            "polygon_geojson": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -39.2897,
+                    -5.1999
+                  ],
+                  [
+                    -39.2915,
+                    -5.1999
+                  ],
+                  [
+                    -39.2915,
+                    -5.199322
+                  ],
+                  [
+                    -39.2897,
+                    -5.199322
+                  ],
+                  [
+                    -39.2897,
+                    -5.1999
+                  ]
+                ]
+              ]
+            }
+          }
+        ],
+        "action_cards": [
+          {
+            "step_number": 1,
+            "urgency_color": "RED",
+            "icon_name": "droplet",
+            "title_pt": "Segurar a água no pé da planta",
+            "instruction_pt": "Cubra o chão ao redor das plantas com palha seca ou resto de capim para o sol não secar a pouca umidade que sobrou."
+          },
+          {
+            "step_number": 2,
+            "urgency_color": "YELLOW",
+            "icon_name": "flame",
+            "title_pt": "Proteger a florada do sol quente",
+            "instruction_pt": "Se tiver água reservada, molhe bem cedo ou no final da tarde. Evite capinar nas horas mais quentes do dia."
+          }
+        ]
+      },
+      "crop_agronomic_baseline": {
+        "scientific_name": "Sorghum bicolor",
+        "common_name_pt": "Sorgo",
+        "fao_ecocrop_parameters": {
+          "t_base_c": 8.0,
+          "t_opt_min_c": 22.0,
+          "t_opt_max_c": 35.0,
+          "t_max_lethal_c": 40.0,
+          "cycle_days_min": 90,
+          "cycle_days_max": 300,
+          "r_min_mm": 300.0,
+          "r_opt_min_mm": 400.0,
+          "source": "FAO_ECOCROP_DATABASE"
+        },
+        "fao_gaez_v4_suitability": {
+          "suitability_index_0_100": 82.5,
+          "attainable_yield_low_input_kg_ha": 985.3,
+          "water_supply_regime": "RAINFED",
+          "source": "FAO_GAEZ_V4_RES05_COG"
+        }
+      },
+      "scientific_telemetry": {
+        "data_provenance": [
+          {
+            "dataset": "COPERNICUS/S2_L2A_STAC",
+            "scene_id": "S2A_MSIL2A_20261031T130251_R095_T24MVV_20261031T184411",
+            "scene_datetime": "2026-10-31T13:02:51.024000+00:00",
+            "native_resolution_m": 10,
+            "valid_pixels_in_polygon": 284,
+            "clean_pixel_ratio": 0.747,
+            "historical_baseline_scenes": 4
+          },
+          {
+            "dataset": "NASA_USGS/LANDSAT_C2_L2_TIRS",
+            "scene_id": "LC08_L2SP_217064_20261025_02_T1",
+            "scene_datetime": "2026-10-25T12:47:15.996802+00:00",
+            "native_resolution_m": 30,
+            "band": "lwir11_surface_temperature"
+          },
+          {
+            "dataset": "NASA/NASADEM_HGT_V001",
+            "tile_id": "NASADEM_HGT_s06w040",
+            "elevation_m": 195.2,
+            "native_resolution_m": 30
+          },
+          {
+            "dataset": "NASA/POWER_MERRA2_AG_DAILY",
+            "variables": [
+              "PRECTOTCORR",
+              "GWETROOT",
+              "GWETTOP",
+              "T2M_MAX",
+              "T2M_MIN",
+              "T2M",
+              "RH2M",
+              "ALLSKY_SFC_SW_DWN",
+              "WS2M",
+              "EVPTRNS"
+            ],
+            "window": "20260928..20261110",
+            "native_resolution_km": 50.0
+          },
+          {
+            "dataset": "ISRIC/SOILGRIDS_V2",
+            "source": "ISRIC_SOILGRIDS_V2_REST",
+            "clay_pct": 20.8,
+            "sand_pct": 58.0,
+            "om_pct": 1.9,
+            "ph_h2o": 6.1,
+            "theta_wp": 0.1379,
+            "theta_fc": 0.2416
+          }
+        ],
+        "biophysical_indices": {
+          "ndvi_mean": 0.152,
+          "ndvi_phenological_z_score": -1.527,
+          "evi_mean": 0.125,
+          "lai_boegh_m2_m2": 0.335,
+          "ndwi_gao_mean": -0.119,
+          "ndwi_z_score": 1.897,
+          "bsi_rikimaru_mean": 0.13,
+          "rusle_c_factor": 0.7,
+          "rusle_ls_factor": 0.71,
+          "canopy_temp_celsius": 44.39,
+          "cwsi_jackson_index": 1.0,
+          "nasa_gwetroot_0_to_1": 0.27,
+          "fao56_ks_water_stress_coeff": 0.0,
+          "gdd_accumulated_c_day": 1030.5,
+          "et0_fao56_30d_mm": 236.7,
+          "precip_gpm_power_30d_mm": 6.1
+        },
+        "diagnostic_assessments": [
+          {
+            "condition_code": "WATER_DEFICIT_STRESS",
+            "severity": "HIGH",
+            "confidence": 0.96,
+            "equation_triggered": "FAO56_Ks=0.00 < 0.55 AND (Z_NDWI=1.90 <= -1.0 OR CWSI=1.00 >= 0.50)"
+          },
+          {
+            "condition_code": "THERMAL_HEAT_SHOCK",
+            "severity": "HIGH",
+            "confidence": 0.88,
+            "equation_triggered": "T2M_MAX_7d=38.5C > EcoCrop_TOPMX=35.0C AND CWSI=1.00 >= 0.45"
+          }
+        ]
+      },
+      "dssat_state_vector": {
+        "observed_lai_m2_m2": 0.335,
+        "water_stress_factor_swfac": 0.0,
+        "rootzone_soil_wetness_fraction": 0.27,
+        "soil_surface_cover_fraction": 0.524,
+        "accumulated_gdd": 1030.5,
+        "pest_disease_damage_detected": false,
+        "rotation_constraints_for_dssat": [
+          "PRIORITIZE_DROUGHT_TOLERANT_CULTIVAR",
+          "HEAT_RESILIENT_FLOWERING_WINDOW"
+        ]
+      },
+      "scale_disclaimers": [
+        "O diagnóstico espacial dentro do terreno (< 5 ha) utiliza pixels reais de 10m (Sentinel-2) e 30m (Landsat TIRS e NASA NASADEM). Variáveis agroclimáticas e de umidade profunda (NASA POWER/MERRA-2 GWETROOT e FAO GAEZ v4) possuem resolução regional (9 km a 50 km) e calibram o balanço físico macro."
+      ],
+      "human_in_the_loop_notice": "Esta ferramenta apoia a tomada de decisão e não substitui o conhecimento do agricultor nem a vistoria presencial de um técnico da extensão rural (EMATER/BAHIATER).",
+      "cache_metadata": {
+        "fallback_used": false,
+        "reason": "audited_live_capture",
+        "pilot_id": "quixeramobim-ce"
+      }
+    }
+  },
+  {
+    "pilot_id": "juazeiro-ba",
+    "name": "Juazeiro - BA / Vale do São Francisco (4.8 ha — Irrigado)",
+    "municipality": "Juazeiro",
+    "state": "BA",
+    "area_ha": 4.8,
+    "centroid": {
+      "lat": -9.432,
+      "lon": -40.48089999999999
+    },
+    "response": {
+      "request_id": "ce1eb84f-ec8a-4c39-b95d-ec6ed324e2a1",
+      "evaluated_at_utc": "2026-11-15T12:53:08Z",
+      "farmer_accessible_view": {
+        "overall_traffic_light": "RED",
+        "status_badge_title": "Atenção na Roça: Possível Praga e Estresse Local",
+        "status_icon": "bug-alert",
+        "health_score_0_to_100": 38,
+        "voice_tts_script_pt": "Olá, companheiro agricultor. Olhamos sua roça de Milho pelos satélites da NASA. A terra tem umidade razoável, mas em um trecho do terreno as plantas perderam força e esquentaram na folha, o que indica ataque de bicho ou doença, e não falta de chuva. Toque nos cartões abaixo para ver o que fazer hoje.",
+        "visual_field_zones": [
+          {
+            "zone_id": "zona_norte",
+            "location_label_pt": "Parte de cima do terreno (Norte)",
+            "color_hex": "#DC2626",
+            "icon_name": "flame",
+            "short_label_pt": "Calor forte na florada",
+            "polygon_geojson": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -40.4798,
+                    -9.431
+                  ],
+                  [
+                    -40.4798,
+                    -9.43166
+                  ],
+                  [
+                    -40.482,
+                    -9.43166
+                  ],
+                  [
+                    -40.482,
+                    -9.431
+                  ],
+                  [
+                    -40.4798,
+                    -9.431
+                  ]
+                ]
+              ]
+            }
+          },
+          {
+            "zone_id": "zona_central",
+            "location_label_pt": "Meio da roça",
+            "color_hex": "#DC2626",
+            "icon_name": "flame",
+            "short_label_pt": "Calor forte na florada",
+            "polygon_geojson": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -40.4798,
+                    -9.43232
+                  ],
+                  [
+                    -40.482,
+                    -9.43232
+                  ],
+                  [
+                    -40.482,
+                    -9.43166
+                  ],
+                  [
+                    -40.4798,
+                    -9.43166
+                  ],
+                  [
+                    -40.4798,
+                    -9.43232
+                  ]
+                ]
+              ]
+            }
+          },
+          {
+            "zone_id": "zona_sul_baixa",
+            "location_label_pt": "Parte mais baixa (Descida)",
+            "color_hex": "#DC2626",
+            "icon_name": "bug",
+            "short_label_pt": "Olhar folhas (Suspeita de Praga)",
+            "polygon_geojson": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -40.4798,
+                    -9.433
+                  ],
+                  [
+                    -40.482,
+                    -9.433
+                  ],
+                  [
+                    -40.482,
+                    -9.43232
+                  ],
+                  [
+                    -40.4798,
+                    -9.43232
+                  ],
+                  [
+                    -40.4798,
+                    -9.433
+                  ]
+                ]
+              ]
+            }
+          }
+        ],
+        "action_cards": [
+          {
+            "step_number": 1,
+            "urgency_color": "RED",
+            "icon_name": "search-leaf",
+            "title_pt": "Olhar debaixo das folhas na mancha vermelha",
+            "instruction_pt": "Vá até a parte vermelha do mapa e vire as folhas. Procure por pulgão, lagarta ou manchas. Não jogue veneno antes de mostrar a um técnico rural."
+          },
+          {
+            "step_number": 2,
+            "urgency_color": "YELLOW",
+            "icon_name": "flame",
+            "title_pt": "Proteger a florada do sol quente",
+            "instruction_pt": "Se tiver água reservada, molhe bem cedo ou no final da tarde. Evite capinar nas horas mais quentes do dia."
+          }
+        ]
+      },
+      "crop_agronomic_baseline": {
+        "scientific_name": "Zea mays",
+        "common_name_pt": "Milho",
+        "fao_ecocrop_parameters": {
+          "t_base_c": 10.0,
+          "t_opt_min_c": 18.0,
+          "t_opt_max_c": 33.0,
+          "t_max_lethal_c": 47.0,
+          "cycle_days_min": 65,
+          "cycle_days_max": 365,
+          "r_min_mm": 400.0,
+          "r_opt_min_mm": 600.0,
+          "source": "FAO_ECOCROP_DATABASE"
+        },
+        "fao_gaez_v4_suitability": {
+          "suitability_index_0_100": 81.8,
+          "attainable_yield_low_input_kg_ha": 737.4,
+          "water_supply_regime": "IRRIGATED",
+          "source": "FAO_GAEZ_V4_RES05_COG"
+        }
+      },
+      "scientific_telemetry": {
+        "data_provenance": [
+          {
+            "dataset": "COPERNICUS/S2_L2A_STAC",
+            "scene_id": "S2B_MSIL2A_20261113T130249_R095_T24LUQ_20261113T152136",
+            "scene_datetime": "2026-11-13T13:02:49.024000+00:00",
+            "native_resolution_m": 10,
+            "valid_pixels_in_polygon": 528,
+            "clean_pixel_ratio": 1.0,
+            "historical_baseline_scenes": 4
+          },
+          {
+            "dataset": "NASA_USGS/LANDSAT_C2_L2_TIRS",
+            "scene_id": "LANDSAT_THERMAL_FALLBACK",
+            "scene_datetime": "2026-11-15",
+            "native_resolution_m": 30,
+            "band": "lwir11_surface_temperature"
+          },
+          {
+            "dataset": "NASA/NASADEM_HGT_V001",
+            "tile_id": "NASADEM_HGT_s10w041",
+            "elevation_m": 364.9,
+            "native_resolution_m": 30
+          },
+          {
+            "dataset": "NASA/POWER_MERRA2_AG_DAILY",
+            "variables": [
+              "PRECTOTCORR",
+              "GWETROOT",
+              "GWETTOP",
+              "T2M_MAX",
+              "T2M_MIN",
+              "T2M",
+              "RH2M",
+              "ALLSKY_SFC_SW_DWN",
+              "WS2M",
+              "EVPTRNS"
+            ],
+            "window": "20260928..20261110",
+            "native_resolution_km": 50.0
+          },
+          {
+            "dataset": "ISRIC/SOILGRIDS_V2",
+            "source": "ISRIC_SOILGRIDS_V2_REST",
+            "clay_pct": 24.6,
+            "sand_pct": 56.1,
+            "om_pct": 1.37,
+            "ph_h2o": 6.67,
+            "theta_wp": 0.156,
+            "theta_fc": 0.2597
+          }
+        ],
+        "biophysical_indices": {
+          "ndvi_mean": 0.172,
+          "ndvi_phenological_z_score": -0.963,
+          "evi_mean": 0.134,
+          "lai_boegh_m2_m2": 0.369,
+          "ndwi_gao_mean": -0.157,
+          "ndwi_z_score": -0.668,
+          "bsi_rikimaru_mean": 0.197,
+          "rusle_c_factor": 0.664,
+          "rusle_ls_factor": 0.406,
+          "canopy_temp_celsius": 37.21,
+          "cwsi_jackson_index": 0.638,
+          "nasa_gwetroot_0_to_1": 0.21,
+          "fao56_ks_water_stress_coeff": 0.0,
+          "gdd_accumulated_c_day": 960.0,
+          "et0_fao56_30d_mm": 257.7,
+          "precip_gpm_power_30d_mm": 13.0
+        },
+        "diagnostic_assessments": [
+          {
+            "condition_code": "PHYTOSANITARY_ANOMALY",
+            "severity": "HIGH",
+            "confidence": 0.83,
+            "equation_triggered": "Ks=0.82 >= 0.65 AND GWETROOT=0.68 >= 0.50 AND Z_NDVI=-0.96 <= -1.5 AND CWSI=0.64 >= 0.50"
+          },
+          {
+            "condition_code": "THERMAL_HEAT_SHOCK",
+            "severity": "MODERATE",
+            "confidence": 0.94,
+            "equation_triggered": "T2M_MAX_7d=41.2C > EcoCrop_TOPMX=33.0C AND CWSI=0.64 >= 0.45"
+          }
+        ]
+      },
+      "dssat_state_vector": {
+        "observed_lai_m2_m2": 0.369,
+        "water_stress_factor_swfac": 0.0,
+        "rootzone_soil_wetness_fraction": 0.21,
+        "soil_surface_cover_fraction": 0.548,
+        "accumulated_gdd": 960.0,
+        "pest_disease_damage_detected": true,
+        "rotation_constraints_for_dssat": [
+          "BREAK_PEST_HOST_CYCLE",
+          "HEAT_RESILIENT_FLOWERING_WINDOW"
+        ]
+      },
+      "scale_disclaimers": [
+        "O diagnóstico espacial dentro do terreno (< 5 ha) utiliza pixels reais de 10m (Sentinel-2) e 30m (Landsat TIRS e NASA NASADEM). Variáveis agroclimáticas e de umidade profunda (NASA POWER/MERRA-2 GWETROOT e FAO GAEZ v4) possuem resolução regional (9 km a 50 km) e calibram o balanço físico macro."
+      ],
+      "human_in_the_loop_notice": "Esta ferramenta apoia a tomada de decisão e não substitui o conhecimento do agricultor nem a vistoria presencial de um técnico da extensão rural (EMATER/BAHIATER).",
+      "cache_metadata": {
+        "fallback_used": false,
+        "reason": "audited_live_capture",
+        "pilot_id": "juazeiro-ba"
+      }
+    }
+  }
+]

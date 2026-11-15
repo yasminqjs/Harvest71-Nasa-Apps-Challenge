@@ -10,6 +10,9 @@ export interface MapLotOverlay {
   nome: string;
   corHex: string;
   polygon: GeoPoint[];
+  culturaAtual?: string;
+  previsaoBadge?: string;
+  areaHectares?: number;
 }
 
 export interface FarmMapCanvasProps {
@@ -24,6 +27,7 @@ export interface FarmMapCanvasProps {
   drawingMode: boolean;
   height?: number;
   onAddPoint: (point: GeoPoint) => void;
+  onSelectLot?: (lotId: string) => void;
   theme: AppTheme;
 }
 

@@ -13,8 +13,14 @@ import {
 import { FarmBoundaryStep, FarmLotsStep } from '../components/onboarding/FarmLotDemarcationStep';
 import { NordesteSvgMap } from '../components/NordesteSvgMap';
 import { useAccessibility } from '../context/AccessibilityContext';
-import { BahiaRegionPreset, NORDESTE_REGIONS } from '../data/seedData';
+import {
+  BahiaRegionPreset,
+  DEFAULT_IRECE_FARM_CENTROID,
+  DEFAULT_IRECE_FARM_POLYGON,
+  NORDESTE_REGIONS,
+} from '../data/seedData';
 import { getAppTheme } from '../theme/tokens';
+import { createDefaultLotsForFarm } from '../utils/agronomyHelpers';
 import {
   calculatePolygonMetrics,
   createMicroPlotAroundPoint,
@@ -214,12 +220,24 @@ export const NordesteOnboardingScreen: React.FC = () => {
   const [farmPolygonDraft, setFarmPolygonDraft] = useState<GeoPoint[]>(
     activeFarm?.polygon && activeFarm.polygon.length >= 3
       ? activeFarm.polygon
-      : createMicroPlotAroundPoint(
-          activeFarm?.centroid ?? { latitude: -12.9714, longitude: -38.5014 },
-          3.8
-        )
+      : DEFAULT_IRECE_FARM_POLYGON
   );
-  const [lotesDraft, setLotesDraft] = useState<PlantingLot[]>([]);
+  const [lotesDraft, setLotesDraft] = useState<PlantingLot[]>(() => {
+    if (activeFarm?.lotes && activeFarm.lotes.length >= 2) {
+      return activeFarm.lotes;
+    }
+    const initPoly =
+      activeFarm?.polygon && activeFarm.polygon.length >= 3
+        ? activeFarm.polygon
+        : DEFAULT_IRECE_FARM_POLYGON;
+    const initMetrics = calculatePolygonMetrics(initPoly);
+    return createDefaultLotsForFarm(
+      initMetrics.centroid,
+      initMetrics.areaHectares,
+      activeFarm?.culturaPrincipal ?? 'Feijão-Caupi + Milho',
+      initPoly
+    );
+  });
   const [lotStepError, setLotStepError] = useState<string | null>(null);
   const [waterAccess, setWaterAccess] = useState<WaterAccess>(
     activeFarmer?.waterAccess ?? 'sequeiro'
@@ -281,8 +299,20 @@ export const NordesteOnboardingScreen: React.FC = () => {
       setGpsMatch(match);
       setGpsStatus('found');
       await selectBahiaRegion(match.region.id);
-      setFarmPolygonDraft(createMicroPlotAroundPoint(match.region.centroid, 3.8));
-      setLotesDraft([]);
+      const freshPoly =
+        match.region.id === 'irece-ba'
+          ? DEFAULT_IRECE_FARM_POLYGON
+          : createMicroPlotAroundPoint(match.region.centroid, 6.85);
+      const freshMetrics = calculatePolygonMetrics(freshPoly);
+      setFarmPolygonDraft(freshPoly);
+      setLotesDraft(
+        createDefaultLotsForFarm(
+          freshMetrics.centroid,
+          freshMetrics.areaHectares,
+          'Feijão-Caupi + Milho',
+          freshPoly
+        )
+      );
       setLotStepError(null);
       speak(
         `Local detectado pelo GPS: ${match.region.nome}, em ${match.region.municipio}. Toque em confirmar se estiver correto ou escolha outra região no mapa.`
@@ -317,9 +347,20 @@ export const NordesteOnboardingScreen: React.FC = () => {
 
   const handleSelectRegion = async (reg: BahiaRegionPreset) => {
     await selectBahiaRegion(reg.id);
-    const freshPoly = createMicroPlotAroundPoint(reg.centroid, 3.8);
+    const freshPoly =
+      reg.id === 'irece-ba'
+        ? DEFAULT_IRECE_FARM_POLYGON
+        : createMicroPlotAroundPoint(reg.centroid, 6.85);
+    const freshMetrics = calculatePolygonMetrics(freshPoly);
     setFarmPolygonDraft(freshPoly);
-    setLotesDraft([]);
+    setLotesDraft(
+      createDefaultLotsForFarm(
+        freshMetrics.centroid,
+        freshMetrics.areaHectares,
+        activeFarm?.culturaPrincipal ?? 'Feijão-Caupi + Milho',
+        freshPoly
+      )
+    );
     setLotStepError(null);
     speak(`Região selecionada: ${reg.nome}, ${reg.municipio} - ${reg.estado}.`);
   };
@@ -330,9 +371,22 @@ export const NordesteOnboardingScreen: React.FC = () => {
       const distLat = Math.abs(m.centroid.latitude - activeFarm.centroid.latitude);
       const distLon = Math.abs(m.centroid.longitude - activeFarm.centroid.longitude);
       if (farmPolygonDraft.length < 3 || distLat > 0.2 || distLon > 0.2) {
-        const freshPoly = createMicroPlotAroundPoint(activeFarm.centroid, 3.8);
+        const isIrece =
+          activeFarm.municipio.toLowerCase().includes('irecê') ||
+          activeFarm.regiaoNome.toLowerCase().includes('irecê');
+        const freshPoly = isIrece
+          ? DEFAULT_IRECE_FARM_POLYGON
+          : createMicroPlotAroundPoint(activeFarm.centroid, 6.85);
+        const freshMetrics = calculatePolygonMetrics(freshPoly);
         setFarmPolygonDraft(freshPoly);
-        setLotesDraft([]);
+        setLotesDraft(
+          createDefaultLotsForFarm(
+            freshMetrics.centroid,
+            freshMetrics.areaHectares,
+            activeFarm.culturaPrincipal ?? 'Feijão-Caupi + Milho',
+            freshPoly
+          )
+        );
         setLotStepError(null);
       }
     }
@@ -548,10 +602,10 @@ export const NordesteOnboardingScreen: React.FC = () => {
       >
         {stage === 'demarcacao_fazenda' ? (
           <FarmBoundaryStep
-            regiaoNome={activeFarm?.regiaoNome ?? 'Recôncavo Baiano'}
-            municipio={activeFarm?.municipio ?? 'Cruz das Almas'}
+            regiaoNome={activeFarm?.regiaoNome ?? 'Território de Irecê'}
+            municipio={activeFarm?.municipio ?? 'Irecê'}
             estado={activeFarm?.estado ?? 'BA'}
-            centroid={activeFarm?.centroid ?? { latitude: -12.9714, longitude: -38.5014 }}
+            centroid={activeFarm?.centroid ?? DEFAULT_IRECE_FARM_CENTROID}
             farmPolygon={farmPolygonDraft}
             onChangeFarmPolygon={setFarmPolygonDraft}
             onSpeak={(txt) => speak(txt)}
@@ -687,7 +741,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
             </View>
 
             <NordesteSvgMap
-              selectedRegionName={activeFarm?.regiaoNome ?? 'Recôncavo Baiano'}
+              selectedRegionName={activeFarm?.regiaoNome ?? 'Território de Irecê'}
               gpsDetectedRegionId={gpsMatch?.region.id ?? null}
               gpsUserCoords={gpsUserCoords}
               onSelectRegion={handleSelectRegion}
@@ -1184,6 +1238,17 @@ export const NordesteOnboardingScreen: React.FC = () => {
                 if (farmPolygonDraft.length < 3) {
                   handleGoToFarmDemarcation();
                   return;
+                }
+                if (lotesDraft.length === 0) {
+                  const m = calculatePolygonMetrics(farmPolygonDraft);
+                  setLotesDraft(
+                    createDefaultLotsForFarm(
+                      m.centroid,
+                      m.areaHectares,
+                      activeFarm?.culturaPrincipal ?? 'Feijão-Caupi + Milho',
+                      farmPolygonDraft
+                    )
+                  );
                 }
                 setLotStepError(null);
                 setStage('lotes');

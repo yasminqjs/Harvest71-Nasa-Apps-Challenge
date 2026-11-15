@@ -11,7 +11,7 @@ import {
 } from '../types/domain';
 import { LocalDatabaseSnapshot, buildSeedSnapshot } from './seedBuilder';
 
-const STORAGE_KEY = 'rocaviva_sqlite_web_v1';
+const STORAGE_KEY = 'rocaviva_sqlite_web_v3';
 let memoryStore: LocalDatabaseSnapshot | null = null;
 
 function readStore(): LocalDatabaseSnapshot {

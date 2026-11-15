@@ -1,0 +1,53 @@
+[
+  {
+    "pilot_id": "irece-ba",
+    "lat": -11.30545,
+    "lon": -41.85519999999999,
+    "profile": {
+      "clay_pct": 27.9,
+      "sand_pct": 42.9,
+      "silt_pct": 29.2,
+      "soc_g_kg": 13.27,
+      "om_pct": 2.29,
+      "ph_h2o": 6.73,
+      "theta_wp": 0.1796,
+      "theta_fc": 0.3075,
+      "theta_sat": 0.451,
+      "source": "ISRIC_SOILGRIDS_V2_REST"
+    }
+  },
+  {
+    "pilot_id": "quixeramobim-ce",
+    "lat": -5.19905,
+    "lon": -39.290600000000005,
+    "profile": {
+      "clay_pct": 20.8,
+      "sand_pct": 58.0,
+      "silt_pct": 21.2,
+      "soc_g_kg": 11.0,
+      "om_pct": 1.9,
+      "ph_h2o": 6.1,
+      "theta_wp": 0.1379,
+      "theta_fc": 0.2416,
+      "theta_sat": 0.4273,
+      "source": "ISRIC_SOILGRIDS_V2_REST"
+    }
+  },
+  {
+    "pilot_id": "juazeiro-ba",
+    "lat": -9.432,
+    "lon": -40.48089999999999,
+    "profile": {
+      "clay_pct": 24.6,
+      "sand_pct": 56.1,
+      "silt_pct": 19.3,
+      "soc_g_kg": 7.97,
+      "om_pct": 1.37,
+      "ph_h2o": 6.67,
+      "theta_wp": 0.156,
+      "theta_fc": 0.2597,
+      "theta_sat": 0.4177,
+      "source": "ISRIC_SOILGRIDS_V2_REST"
+    }
+  }
+]

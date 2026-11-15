@@ -43,7 +43,7 @@ export const FEATURE_COLOR_STYLES: Record<
     text: '#374151',
   },
   roxo: {
-    codeLabel: 'ROXO [PLACEHOLDER] • Visualizador de qualidade da plantação atual',
+    codeLabel: 'ROXO • Visualizador de qualidade da plantação atual',
     bg: '#F3E8FF',
     border: '#9333EA',
     text: '#581C87',
@@ -110,7 +110,7 @@ export const FEATURE_COLOR_ARCHITECTURE: FeatureArchitectureDescriptor[] = [
     featureName: 'Visualizador de qualidade da plantação atual',
     tab: 'plantacao',
     userActionLabel: 'Ver qualidade da plantação atual',
-    status: 'placeholder',
+    status: 'implementado',
     targetFile: 'src/components/placeholders/PlantationQualityPlaceholder.tsx',
     placeholderComponent: 'PlantationQualityPlaceholder',
   },

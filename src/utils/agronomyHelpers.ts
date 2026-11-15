@@ -1,4 +1,9 @@
 import {
+  DEFAULT_IRECE_FARM_CENTROID,
+  DEFAULT_IRECE_LOT1_POLYGON,
+  DEFAULT_IRECE_LOT2_POLYGON,
+} from '../data/seedData';
+import {
   FarmProperty,
   GeoPoint,
   NasaDiagnosticsPackage,
@@ -30,75 +35,118 @@ export const PLANT_CATALOG_CHIPS = [
   'Hortaliças / PANCs',
 ];
 
+function subdividePolygonIntoTwoLots(
+  centroid: GeoPoint,
+  areaHectares: number,
+  farmPolygon?: GeoPoint[]
+): { poly1: GeoPoint[]; poly2: GeoPoint[] } {
+  const isDefaultIrece =
+    Math.abs(centroid.latitude - DEFAULT_IRECE_FARM_CENTROID.latitude) < 0.008 &&
+    Math.abs(centroid.longitude - DEFAULT_IRECE_FARM_CENTROID.longitude) < 0.008;
+
+  if (isDefaultIrece && (!farmPolygon || farmPolygon.length === 4)) {
+    return {
+      poly1: DEFAULT_IRECE_LOT1_POLYGON.map((pt) => ({ ...pt })),
+      poly2: DEFAULT_IRECE_LOT2_POLYGON.map((pt) => ({ ...pt })),
+    };
+  }
+
+  const basePoly =
+    farmPolygon && farmPolygon.length >= 3
+      ? farmPolygon
+      : createMicroPlotAroundPoint(centroid, Math.max(0.8, areaHectares || 4.2));
+
+  const lats = basePoly.map((p) => p.latitude);
+  const lons = basePoly.map((p) => p.longitude);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLon = Math.min(...lons);
+  const maxLon = Math.max(...lons);
+  const latPad = (maxLat - minLat) * 0.08;
+  const lonPad = (maxLon - minLon) * 0.08;
+  const midLon = (minLon + maxLon) / 2;
+  const gapLon = (maxLon - minLon) * 0.03;
+
+  const poly1: GeoPoint[] = [
+    { latitude: Number((maxLat - latPad).toFixed(6)), longitude: Number((minLon + lonPad).toFixed(6)) },
+    { latitude: Number((maxLat - latPad).toFixed(6)), longitude: Number((midLon - gapLon).toFixed(6)) },
+    { latitude: Number((minLat + latPad).toFixed(6)), longitude: Number((midLon - gapLon).toFixed(6)) },
+    { latitude: Number((minLat + latPad).toFixed(6)), longitude: Number((minLon + lonPad).toFixed(6)) },
+  ];
+  const poly2: GeoPoint[] = [
+    { latitude: Number((maxLat - latPad).toFixed(6)), longitude: Number((midLon + gapLon).toFixed(6)) },
+    { latitude: Number((maxLat - latPad).toFixed(6)), longitude: Number((maxLon - lonPad).toFixed(6)) },
+    { latitude: Number((minLat + latPad).toFixed(6)), longitude: Number((maxLon - lonPad).toFixed(6)) },
+    { latitude: Number((minLat + latPad).toFixed(6)), longitude: Number((midLon + gapLon).toFixed(6)) },
+  ];
+  return { poly1, poly2 };
+}
+
 export function createDefaultLotsForFarm(
   centroid: GeoPoint,
   areaHectares: number,
-  culturaPrincipal: string
+  culturaPrincipal: string,
+  farmPolygon?: GeoPoint[]
 ): PlantingLot[] {
-  const safeArea = Math.max(0.8, areaHectares || 3.8);
-  const lot1Area = Number((safeArea * 0.52).toFixed(2));
-  const lot2Area = Number((safeArea * 0.42).toFixed(2));
-  const latOffset = 0.00045;
-  const lonOffset = 0.00055;
-
-  const poly1 = createMicroPlotAroundPoint(
-    { latitude: centroid.latitude + latOffset, longitude: centroid.longitude - lonOffset },
-    lot1Area
-  );
-  const poly2 = createMicroPlotAroundPoint(
-    { latitude: centroid.latitude - latOffset, longitude: centroid.longitude + lonOffset },
-    lot2Area
+  const { poly1, poly2 } = subdividePolygonIntoTwoLots(
+    centroid,
+    areaHectares,
+    farmPolygon
   );
 
   const plants = culturaPrincipal
     .split('+')
     .map((p) => p.trim())
     .filter(Boolean);
-  const firstPlant = plants[0] || 'Feijão-Caupi';
-  const secondPlant = plants[1] || 'Mandioca';
+  const firstGrain = plants[0] || 'Feijão-Caupi';
+  const secondGrain =
+    plants[1] && plants[1].toLowerCase() !== firstGrain.toLowerCase()
+      ? plants[1]
+      : 'Milho';
   const m1 = calculatePolygonMetrics(poly1);
   const m2 = calculatePolygonMetrics(poly2);
 
   return [
     {
       id: 'lot-1',
-      nome: 'Lote 1 — Principal',
-      corHex: LOT_PALETTE[0],
+      nome: `Lote 1 — Talhão Sudoeste (${firstGrain})`,
+      corHex: LOT_PALETTE[2], // Âmbar (#D97706) de alto contraste sobre o verde da fazenda
       polygon: poly1,
       areaHectares: m1.areaHectares,
       areaTarefasBa: m1.areaTarefasBa,
-      sistema: plants.length > 1 ? 'rotacao' : 'monocultura',
-      culturaAtual: culturaPrincipal,
-      plantasRotacao: plants.length > 0 ? plants : [firstPlant],
+      sistema: 'rotacao',
+      culturaAtual: firstGrain,
+      plantasRotacao: [firstGrain, 'Milheto (cobertura)'],
       tempoPlantadaDias: 47,
       temDataColheita: true,
-      dataColheitaPrevista: 'Em ~28 dias',
-      cronogramaPlantacao: `${firstPlant} (dias 1–65) → ${secondPlant} + palha (dias 66–180)`,
-      progressoRealPct: 63,
-      progressoEsperadoPct: 66,
-      retornoFinanceiroEstR$: Math.round(m1.areaHectares * 3150),
-      historicoTerra: ['Milho sequeiro (2024)', 'Feijão-Caupi (2025)'],
-      culturasFuturas: ['Sorgo Forrageiro', 'Palma em faixas'],
+      dataColheitaPrevista: 'Em ~23 dias',
+      cronogramaPlantacao: `${firstGrain} BRS Guariba (dias 1–70) → Milheto cobertura de solo (pós-colheita)`,
+      progressoRealPct: 67,
+      progressoEsperadoPct: 67,
+      retornoFinanceiroEstR$: Math.round(m1.areaHectares * 7360),
+      historicoTerra: ['Milho BRS Caatingueiro (2024)', 'Feijão-Caupi BRS Guariba (2025)'],
+      culturasFuturas: ['Sorgo Granífero', 'Milheto (cobertura)'],
       fotosValidacao: [],
     },
     {
       id: 'lot-2',
-      nome: 'Lote 2 — Reserva / Forragem',
-      corHex: LOT_PALETTE[1],
+      nome: `Lote 2 — Talhão Leste (${secondGrain} + Sorgo)`,
+      corHex: LOT_PALETTE[1], // Azul (#2563EB)
       polygon: poly2,
       areaHectares: m2.areaHectares,
       areaTarefasBa: m2.areaTarefasBa,
       sistema: 'rotacao',
-      culturaAtual: `${secondPlant} + Sorgo`,
-      plantasRotacao: [secondPlant, 'Sorgo', 'Palma Forrageira'],
-      tempoPlantadaDias: 32,
-      temDataColheita: false,
-      cronogramaPlantacao: `${secondPlant} + cobertura viva contínua para segurar umidade`,
-      progressoRealPct: 41,
-      progressoEsperadoPct: 45,
-      retornoFinanceiroEstR$: Math.round(m2.areaHectares * 2680),
-      historicoTerra: ['Pasto nativo / descanso (2024)'],
-      culturasFuturas: ['Feijão-Caupi', 'Milheto (cobertura)'],
+      culturaAtual: `${secondGrain} + Sorgo`,
+      plantasRotacao: [secondGrain, 'Sorgo'],
+      tempoPlantadaDias: 38,
+      temDataColheita: true,
+      dataColheitaPrevista: 'Em ~57 dias',
+      cronogramaPlantacao: `${secondGrain} BRS Caatingueiro + Sorgo BRS Ponta Negra (dias 1–95) → Feijão-de-Porco`,
+      progressoRealPct: 40,
+      progressoEsperadoPct: 42,
+      retornoFinanceiroEstR$: Math.round(m2.areaHectares * 4620),
+      historicoTerra: ['Feijão-Caupi sequeiro (2024)', 'Sorgo Granífero (2025)'],
+      culturasFuturas: ['Feijão-Caupi', 'Crotalária'],
       fotosValidacao: [],
     },
   ];

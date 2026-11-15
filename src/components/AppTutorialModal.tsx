@@ -32,7 +32,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     bullets: [
       'Atualizar dados da plantação e da fazenda: edite terreno no mapa, lotes, cultura atual, variáveis da fazenda e histórico.',
       'Comparador e otimizador de rotações (DSSAT — espaço reservado para próximos merges).',
-      'Qualidade da plantação atual (espaço reservado para próximos merges).',
+      'Qualidade da plantação atual (mapa de manchas por satélite NASA + Sentinel-2 e ações passo-a-passo).',
     ],
     voiceText:
       'Passo 2 do tutorial. Na aba Plantação, você atualiza dados da fazenda, lotes e culturas, e acessa as áreas de comparação DSSAT e qualidade da plantação.',

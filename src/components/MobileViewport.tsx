@@ -1,13 +1,17 @@
 import React from 'react';
 import {
+  ActivityIndicator,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from 'react-native';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { useCropQuality } from '../context/CropQualityContext';
+import { PILOT_AREAS_AUDITED } from '../services/cropQualityService';
 
 export const MobileViewport: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { width, height } = useWindowDimensions();
@@ -19,6 +23,27 @@ export const MobileViewport: React.FC<{ children: React.ReactNode }> = ({ childr
     resetDemoData,
     pendingSyncCount,
   } = useAccessibility();
+  const {
+    analysis,
+    selectedPilotId,
+    isAnalyzing,
+    loadingProgressPct,
+    loadingStage,
+    selectPilotArea,
+    refreshAnalysis,
+  } = useCropQuality();
+  const bio = analysis?.scientific_telemetry.biophysical_indices;
+  const view = analysis?.farmer_accessible_view;
+  const isFallback = Boolean(analysis?.cache_metadata?.fallback_used);
+  const powerProv = analysis?.scientific_telemetry.data_provenance.find(
+    (p) => typeof p.dataset === 'string' && p.dataset.includes('NASA/POWER')
+  ) as Record<string, unknown> | undefined;
+  const s2Prov = analysis?.scientific_telemetry.data_provenance.find(
+    (p) => typeof p.dataset === 'string' && p.dataset.includes('COPERNICUS/S2')
+  ) as Record<string, unknown> | undefined;
+  const powerWin = typeof powerProv?.window === 'string' ? powerProv.window : '—';
+  const s2AcqDate =
+    typeof s2Prov?.acquisition_date === 'string' ? s2Prov.acquisition_date : '—';
 
   const isDesktopWeb = Platform.OS === 'web' && width > 560;
 
@@ -31,11 +56,77 @@ export const MobileViewport: React.FC<{ children: React.ReactNode }> = ({ childr
   return (
     <View style={styles.desktopBg}>
       {/* Painel lateral de testes em notebook (fora da tela do celular) */}
-      <View style={styles.testPanel}>
+      <ScrollView
+        style={[styles.testPanel, { maxHeight: frameHeight }]}
+        contentContainerStyle={styles.testPanelContent}
+      >
         <Text style={styles.testTitle}>Modo Teste (Notebook)</Text>
         <Text style={styles.testSubtitle}>
           Simulador de tela móvel para validar voz, offline SQLite, mapa, câmera foliar e alertas.
         </Text>
+
+        <Text style={styles.sectionLabel}>Satélite Real (NASA &amp; Copernicus)</Text>
+        <Pressable
+          onPress={() => refreshAnalysis({ liveSatellite: true })}
+          disabled={isAnalyzing}
+          style={[styles.liveSatBtn, isAnalyzing && styles.liveSatBtnLoading]}
+        >
+          {isAnalyzing ? (
+            <View style={styles.liveRow}>
+              <ActivityIndicator size="small" color="#FACC15" />
+              <Text style={styles.liveSatBtnText}>
+                Baixando NASA ({Math.round(loadingProgressPct)}%)...
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.liveSatBtnText}>
+              🛰️ Pegar Dados Reais (NASA Ao Vivo)
+            </Text>
+          )}
+        </Pressable>
+        {isAnalyzing && <Text style={styles.liveStageNote}>{loadingStage}</Text>}
+
+        <View style={styles.emojiRow}>
+          {PILOT_AREAS_AUDITED.map((pilot) => {
+            const active = selectedPilotId === pilot.id;
+            return (
+              <Pressable
+                key={pilot.id}
+                onPress={() => selectPilotArea(pilot.id)}
+                style={[styles.chipBtn, active && styles.chipBtnActive]}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                  📍 {pilot.municipality}-{pilot.state}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {bio && view && (
+          <View style={styles.telemetryBox}>
+            <Text style={styles.telemetrySource}>
+              {isFallback ? '⚡ Fonte: Cache Auditado NASA' : '🟢 Fonte: NASA Ao Vivo'}
+            </Text>
+            <Text style={styles.telemetryLine}>
+              NDVI: {bio.ndvi_mean.toFixed(2)} • GWETROOT:{' '}
+              {Math.round(bio.nasa_gwetroot_0_to_1 * 100)}%
+            </Text>
+            <Text style={styles.telemetryLine}>
+              Chuva 30d: {bio.precip_gpm_power_30d_mm.toFixed(1)}mm • ET₀:{' '}
+              {bio.et0_fao56_30d_mm.toFixed(0)}mm
+            </Text>
+            <Text style={styles.telemetryLine}>
+              Saúde: {view.health_score_0_to_100}/100 ({view.overall_traffic_light})
+            </Text>
+            <Text style={styles.telemetryLine}>
+              📅 POWER: {powerWin}
+            </Text>
+            <Text style={styles.telemetryLine}>
+              🛰️ Cena S2: {s2AcqDate}
+            </Text>
+          </View>
+        )}
 
         <Text style={styles.sectionLabel}>Conectividade (NetInfo)</Text>
         <Pressable
@@ -89,7 +180,7 @@ export const MobileViewport: React.FC<{ children: React.ReactNode }> = ({ childr
         <Pressable onPress={resetDemoData} style={styles.resetBtn}>
           <Text style={styles.resetBtnText}>↺ Reiniciar Onboarding & Mapa</Text>
         </Pressable>
-      </View>
+      </ScrollView>
 
       {/* Moldura realista de smartphone */}
       <View style={[styles.phoneShell, { height: frameHeight }]}>
@@ -114,15 +205,63 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   testPanel: {
-    width: 274,
+    width: 288,
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 18,
     borderWidth: 1,
     borderColor: '#D1D5DB',
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 12,
+  },
+  testPanelContent: {
+    padding: 16,
+  },
+  liveSatBtn: {
+    backgroundColor: '#1E3A8A',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 6,
+    alignItems: 'center',
+  },
+  liveSatBtnLoading: {
+    backgroundColor: '#0F172A',
+  },
+  liveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  liveSatBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  liveStageNote: {
+    fontSize: 10,
+    color: '#1D4ED8',
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  telemetryBox: {
+    marginTop: 6,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    padding: 8,
+    gap: 2,
+  },
+  telemetrySource: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  telemetryLine: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
   },
   testTitle: {
     fontSize: 16,

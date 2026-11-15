@@ -8,7 +8,9 @@ import { PlantationQualityPlaceholder } from '../components/placeholders/Plantat
 import { FarmVariablesEditorSubscreen } from '../components/subscreens/FarmVariablesEditorSubscreen';
 import { HistoricoPlantioSubscreen } from '../components/subscreens/HistoricoPlantioSubscreen';
 import { RotacaoAtualSubscreen } from '../components/subscreens/RotacaoAtualSubscreen';
+import { SatellitePlantationForecastSubscreen } from '../components/subscreens/SatellitePlantationForecastSubscreen';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { useCropQuality } from '../context/CropQualityContext';
 import { FEATURE_COLOR_STYLES } from '../models/farmArchitecture';
 import { getAppTheme } from '../theme/tokens';
 import { formatArea } from '../utils/regionalize';
@@ -23,6 +25,7 @@ type PlantationBlock =
   | 'comparar_dssat'
   | 'otimizar_dssat'
   | 'qualidade_atual'
+  | 'satelite_previsoes'
   | null;
 
 /**
@@ -30,12 +33,20 @@ type PlantationBlock =
  * - VERDE:   Atualizar dados da plantação e da fazenda (Pegador de informações da fazenda)
  * - CINZA:   Comparar rotação atual com outras rotações [PLACEHOLDER DSSAT]
  * - CINZA:   Encontrar rotação otimizada [PLACEHOLDER DSSAT]
- * - ROXO:    Ver qualidade da plantação atual [PLACEHOLDER Visualizador de qualidade]
+ * - ROXO:    Ver qualidade da plantação atual [IMPLEMENTADO — NASA + Sentinel-2]
  */
 export const DecisionScreen: React.FC = () => {
   const { accessibility, activeFarmer, activeFarm, farmArchitecture } = useAccessibility();
+  const { openQualityRequested, clearOpenQualityRequest } = useCropQuality();
   const theme = getAppTheme(accessibility);
-  const [activeBlock, setActiveBlock] = useState<PlantationBlock>(null);
+  const [activeBlock, setActiveBlock] = useState<PlantationBlock>(() =>
+    openQualityRequested ? 'qualidade_atual' : null
+  );
+
+  // Pedido vindo do banner global de satélite: já abre direto a feature ROXA.
+  useEffect(() => {
+    if (openQualityRequested) clearOpenQualityRequest();
+  }, [openQualityRequested, clearOpenQualityRequest]);
 
   useEffect(() => {
     if (!activeBlock) return undefined;
@@ -242,7 +253,13 @@ export const DecisionScreen: React.FC = () => {
             farmArchitecture={farmArchitecture}
             selectedPlantation={plantacoes[0]}
             onBack={() => setActiveBlock(null)}
+            onOpenSatelliteForecast={() => setActiveBlock('satelite_previsoes')}
             theme={theme}
+          />
+        ) : activeBlock === 'satelite_previsoes' ? (
+          <SatellitePlantationForecastSubscreen
+            onBack={() => setActiveBlock(null)}
+            onOpenFullNasaDiagnostics={() => setActiveBlock('qualidade_atual')}
           />
         ) : (
           /* HUB DA ABA PLANTAÇÃO (exactamente as 4 features coloridas do diagrama) */
@@ -347,25 +364,53 @@ export const DecisionScreen: React.FC = () => {
               <Ionicons name="chevron-forward" size={22} color={cinza.text} />
             </Pressable>
 
-            {/* 4. ROXO [PLACEHOLDER]: Ver qualidade da plantação atual */}
+            {/* 4. SATÉLITE + PREVISÕES: Ver plantação com imagem de satélite e previsões */}
+            <Pressable
+              onPress={() => setActiveBlock('satelite_previsoes')}
+              style={[
+                styles.choiceBlock,
+                { backgroundColor: theme.surface, borderColor: '#0284C7' },
+              ]}
+            >
+              <View style={[styles.choiceIcon, { backgroundColor: '#E0F2FE' }]}>
+                <Ionicons name="planet-outline" size={26} color="#0369A1" />
+              </View>
+              <View style={styles.choiceBody}>
+                <FeatureBadge
+                  color="roxo"
+                  customText="SATÉLITE + PREVISÕES • Tempo Real"
+                />
+                <Text style={[styles.choiceTitle, { color: theme.text }]}>
+                  Ver plantação com imagem de satélite e previsões
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.textMuted }}>
+                  Terreno real em {activeFarm.municipio}-{activeFarm.estado} com{' '}
+                  {plantacoes.length} grãos mapeados ({plantacoes
+                    .map((p) => p.culturaAtual.culturaNome)
+                    .join(' • ')}), previsão de sacas/ha, janela de colheita e clima 7 dias
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={22} color="#0284C7" />
+            </Pressable>
+
+            {/* 5. ROXO: Ver qualidade da plantação atual (Implementado) */}
             <Pressable
               onPress={() => setActiveBlock('qualidade_atual')}
               style={[
                 styles.choiceBlock,
-                styles.placeholderBlock,
-                { backgroundColor: roxo.bg, borderColor: roxo.border },
+                { backgroundColor: theme.surface, borderColor: roxo.border },
               ]}
             >
-              <View style={[styles.choiceIcon, { backgroundColor: theme.surface }]}>
+              <View style={[styles.choiceIcon, { backgroundColor: roxo.bg }]}>
                 <Ionicons name="pulse-outline" size={26} color={roxo.text} />
               </View>
               <View style={styles.choiceBody}>
-                <FeatureBadge color="roxo" customText="ROXO • Placeholder Qualidade" />
-                <Text style={[styles.choiceTitle, { color: roxo.text }]}>
+                <FeatureBadge color="roxo" customText="ROXO • Implementado" />
+                <Text style={[styles.choiceTitle, { color: theme.text }]}>
                   Ver qualidade da plantação atual
                 </Text>
-                <Text style={{ fontSize: 12, color: roxo.text }}>
-                  Visualizador de qualidade da plantação aguardando merge futuro
+                <Text style={{ fontSize: 12, color: theme.textMuted }}>
+                  Mapa de manchas (10 m), diagnóstico por satélite NASA/Sentinel-2 e orientação por voz
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={22} color={roxo.text} />

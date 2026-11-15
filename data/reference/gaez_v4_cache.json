@@ -1,0 +1,35 @@
+[
+  {
+    "pilot_id": "irece-ba",
+    "lat": -11.30545,
+    "lon": -41.85519999999999,
+    "cog_values": {
+      "res05_scc_cot": 1.0,
+      "res05_yldl_cot": 753.0,
+      "lr_soi2_sss_low": 2.0,
+      "res01_lgd": 163.0
+    }
+  },
+  {
+    "pilot_id": "quixeramobim-ce",
+    "lat": -5.19905,
+    "lon": -39.290600000000005,
+    "cog_values": {
+      "res05_scc_cot": 2.0,
+      "res05_yldl_cot": 830.0,
+      "lr_soi2_sss_low": 3.0,
+      "res01_lgd": 173.0
+    }
+  },
+  {
+    "pilot_id": "juazeiro-ba",
+    "lat": -9.432,
+    "lon": -40.48089999999999,
+    "cog_values": {
+      "res05_scc_cot": 2.0,
+      "res05_yldl_cot": 277.0,
+      "lr_soi2_sss_low": 3.0,
+      "res01_lgd": 97.0
+    }
+  }
+]

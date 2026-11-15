@@ -91,6 +91,9 @@ export const MapScreen: React.FC = () => {
         drawingMode={drawingMode}
         height={410}
         onAddPoint={handleAddTouchPoint}
+        onSelectLot={(lotId) =>
+          setSelectedLotId((prev) => (prev === lotId ? undefined : lotId))
+        }
         theme={theme}
       />
 

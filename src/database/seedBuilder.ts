@@ -1,4 +1,6 @@
 import {
+  DEFAULT_IRECE_FARM_CENTROID,
+  DEFAULT_IRECE_FARM_POLYGON,
   SEED_ALERTS,
   SEED_FARMERS,
   SEED_PANCS,
@@ -47,9 +49,10 @@ export const DEFAULT_ACCESSIBILITY: AccessibilityProfile = {
 export function buildSeedSnapshot(): LocalDatabaseSnapshot {
   const partialFarms = buildInitialSeedFarms();
   const fazendas: FarmProperty[] = partialFarms.map((pf) => {
-    const centroid = pf.centroid ?? { latitude: -12.9714, longitude: -38.5014 };
-    const cultura = pf.culturaPrincipal ?? 'Feijão-Caupi + Mandioca';
+    const centroid = pf.centroid ?? DEFAULT_IRECE_FARM_CENTROID;
+    const cultura = pf.culturaPrincipal ?? 'Feijão-Caupi + Milho';
     const raio = pf.raioBuscaKm ?? 15;
+    const polygon = pf.polygon ?? DEFAULT_IRECE_FARM_POLYGON;
     return {
       id: pf.id!,
       farmerId: pf.farmerId!,
@@ -59,12 +62,12 @@ export function buildSeedSnapshot(): LocalDatabaseSnapshot {
       regiaoNome: pf.regiaoNome!,
       bioma: pf.bioma!,
       centroid,
-      polygon: pf.polygon!,
+      polygon,
       areaHectares: pf.areaHectares!,
       areaTarefasBa: pf.areaTarefasBa!,
       raioBuscaKm: raio,
       culturaPrincipal: cultura,
-      lotes: createDefaultLotsForFarm(centroid, pf.areaHectares ?? 3.8, cultura),
+      lotes: createDefaultLotsForFarm(centroid, pf.areaHectares ?? 6.85, cultura, polygon),
       diagnostico: runLocalAgronomicEngine(centroid, cultura, raio),
     };
   });

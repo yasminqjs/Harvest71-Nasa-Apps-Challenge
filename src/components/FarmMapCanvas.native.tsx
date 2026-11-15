@@ -41,6 +41,7 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
   drawingMode,
   height = 280,
   onAddPoint,
+  onSelectLot,
   onFallbackOffline,
   theme,
 }) => {
@@ -70,6 +71,7 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
         type: string;
         latitude?: number;
         longitude?: number;
+        lotId?: string;
       };
       if (msg.type === 'ready') {
         setReady(true);
@@ -90,6 +92,10 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
       }
       if (msg.type === 'addPoint' && msg.latitude !== undefined && msg.longitude !== undefined) {
         onAddPoint({ latitude: msg.latitude, longitude: msg.longitude });
+        return;
+      }
+      if (msg.type === 'selectLot' && msg.lotId) {
+        onSelectLot?.(msg.lotId);
       }
     } catch {
       // Ignora mensagem malformada

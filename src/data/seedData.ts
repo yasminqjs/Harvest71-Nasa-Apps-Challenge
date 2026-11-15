@@ -25,14 +25,64 @@ export interface BahiaRegionPreset {
   salinidadeRisco: 'baixo' | 'moderado' | 'alto';
 }
 
+export const DEFAULT_IRECE_FARM_CENTROID = {
+  latitude: -11.346531,
+  longitude: -41.960674,
+};
+
+/**
+ * Perímetro real de propriedade agrícola produtora de grãos (Feijão-Caupi, Milho e Sorgo)
+ * na localidade de Fazenda Nova, município de Irecê - BA (Território de Irecê, Polo de Grãos
+ * do Semiárido Baiano — IBGE/CONAB/Embrapa), mapeado diretamente sobre as cercas vivas e
+ * divisas visíveis na imagem de satélite Esri World Imagery / Copernicus Sentinel-2.
+ */
+export const DEFAULT_IRECE_FARM_POLYGON = [
+  { latitude: -11.345537, longitude: -41.962216 }, // Noroeste (estrada rural / entrada)
+  { latitude: -11.345243, longitude: -41.959502 }, // Nordeste (cerca viva leste)
+  { latitude: -11.347515, longitude: -41.958997 }, // Sudeste (divisa sul-leste)
+  { latitude: -11.34783, longitude: -41.96198 }, // Sudoeste (divisa sul-oeste)
+];
+
+/** Lote 1 real (Talhão Sudoeste — linhas de plantio de Feijão-Caupi BRS Guariba). */
+export const DEFAULT_IRECE_LOT1_POLYGON = [
+  { latitude: -11.346841, longitude: -41.962045 },
+  { latitude: -11.346673, longitude: -41.960564 },
+  { latitude: -11.34762, longitude: -41.960456 },
+  { latitude: -11.347767, longitude: -41.961937 },
+];
+
+/** Lote 2 real (Talhão Leste — plantio de Milho BRS Caatingueiro + Sorgo Granífero). */
+export const DEFAULT_IRECE_LOT2_POLYGON = [
+  { latitude: -11.345642, longitude: -41.960585 },
+  { latitude: -11.345516, longitude: -41.959545 },
+  { latitude: -11.347452, longitude: -41.959083 },
+  { latitude: -11.347599, longitude: -41.960392 },
+];
+
 export const NORDESTE_REGIONS: BahiaRegionPreset[] = [
+  {
+    id: 'irece-ba',
+    nome: 'Território de Irecê',
+    municipio: 'Irecê',
+    estado: 'BA',
+    bioma: 'Caatinga',
+    centroid: DEFAULT_IRECE_FARM_CENTROID,
+    chuvaSemanalBaseMm: 16,
+    et0SemanalMm: 38,
+    phSolo: 6.8,
+    texturaSolo: 'Cambissolo / Franco-argiloso fértil (Irecê)',
+    declividadePct: 2.8,
+    riscoVeranicoPct: 48,
+    sinaisSecaPadrao: 1,
+    salinidadeRisco: 'moderado',
+  },
   {
     id: 'reconcavo-ba',
     nome: 'Recôncavo Baiano',
     municipio: 'Salvador / Cruz das Almas',
     estado: 'BA',
     bioma: 'Mata Atlântica',
-    centroid: { latitude: -12.9714, longitude: -38.5014 },
+    centroid: { latitude: -12.6718, longitude: -39.0865 },
     chuvaSemanalBaseMm: 28,
     et0SemanalMm: 31,
     phSolo: 5.8,
@@ -57,22 +107,6 @@ export const NORDESTE_REGIONS: BahiaRegionPreset[] = [
     riscoVeranicoPct: 44,
     sinaisSecaPadrao: 2,
     salinidadeRisco: 'moderado',
-  },
-  {
-    id: 'irece-ba',
-    nome: 'Território de Irecê',
-    municipio: 'Irecê',
-    estado: 'BA',
-    bioma: 'Caatinga',
-    centroid: { latitude: -11.3042, longitude: -41.8558 },
-    chuvaSemanalBaseMm: 9,
-    et0SemanalMm: 41,
-    phSolo: 6.8,
-    texturaSolo: 'Calcário / Franco-argiloso',
-    declividadePct: 3.2,
-    riscoVeranicoPct: 62,
-    sinaisSecaPadrao: 3,
-    salinidadeRisco: 'alto',
   },
   {
     id: 'juazeiro-ba',
@@ -635,17 +669,17 @@ export function buildInitialSeedFarms(): Partial<FarmProperty>[] {
     {
       id: 'farm-maria-reconcavo',
       farmerId: 'farmer-maria',
-      nome: 'Roça Esperança',
-      municipio: 'Cruz das Almas',
+      nome: 'Fazenda Nova — Polo de Grãos',
+      municipio: 'Irecê',
       estado: 'BA',
-      regiaoNome: 'Recôncavo Baiano',
-      bioma: 'Mata Atlântica',
-      centroid: { latitude: -12.9714, longitude: -38.5014 },
-      polygon: createMicroPlotAroundPoint({ latitude: -12.9714, longitude: -38.5014 }, 3.8),
-      areaHectares: 3.8,
-      areaTarefasBa: 8.72,
+      regiaoNome: 'Território de Irecê',
+      bioma: 'Caatinga',
+      centroid: { ...DEFAULT_IRECE_FARM_CENTROID },
+      polygon: DEFAULT_IRECE_FARM_POLYGON.map((pt) => ({ ...pt })),
+      areaHectares: 6.85,
+      areaTarefasBa: 15.72,
       raioBuscaKm: 15,
-      culturaPrincipal: 'Feijão-Caupi + Mandioca',
+      culturaPrincipal: 'Feijão-Caupi + Milho',
     },
     {
       id: 'farm-joao-sertao',
@@ -660,7 +694,7 @@ export function buildInitialSeedFarms(): Partial<FarmProperty>[] {
       areaHectares: 6.4,
       areaTarefasBa: 14.69,
       raioBuscaKm: 20,
-      culturaPrincipal: 'Feijão-Caupi + Milho',
+      culturaPrincipal: 'Feijão-Caupi + Sorgo',
     },
   ];
 }
