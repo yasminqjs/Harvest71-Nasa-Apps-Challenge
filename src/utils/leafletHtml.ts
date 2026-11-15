@@ -1,6 +1,8 @@
 import { LEAFLET_CSS, LEAFLET_JS } from '../data/leafletInline';
 import { NORDESTE_IBGE_GEOJSON } from '../data/nordesteIbgeGeo';
 import { NORDESTE_REGIONS } from '../data/seedData';
+import { AppLanguage } from '../types/domain';
+import { isEn } from '../i18n/locale';
 
 const HOST_EMITTER_HELPER = `
   function emitHostMessage(channel, payload) {
@@ -323,9 +325,10 @@ ${HOST_EMITTER_HELPER}
 </html>`;
 }
 
-export function buildFarmLeafletHtml(): string {
+export function buildFarmLeafletHtml(lang: AppLanguage = 'en'): string {
+  const en = isEn(lang);
   return `<!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="${en ? 'en' : 'pt-BR'}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -375,14 +378,14 @@ ${HOST_EMITTER_HELPER}
 
   var satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 19,
-    attribution: 'Esri Satélite'
+    attribution: '${en ? 'Esri Satellite' : 'Esri Satélite'}'
   });
   var satLabelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 19
   });
   var osmLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 19,
-    attribution: 'Esri Ruas'
+    attribution: '${en ? 'Esri Streets' : 'Esri Ruas'}'
   });
 
   var farmOsmFallbackApplied = false;
@@ -467,7 +470,7 @@ ${HOST_EMITTER_HELPER}
           dashArray: isActive ? null : '5,4',
           fillColor: lot.corHex || '#2563EB',
           fillOpacity: isActive ? 0.42 : 0.26
-        }).bindTooltip(lot.nome || 'Lote', { sticky: true }).addTo(lotsLayer);
+        }).bindTooltip(lot.nome || '${en ? 'Plot' : 'Lote'}', { sticky: true }).addTo(lotsLayer);
       } else if (isActive && lotPts.length === 2) {
         L.polyline(
           lotPts.map(function(p) { return [p.latitude, p.longitude]; }),
@@ -483,7 +486,7 @@ ${HOST_EMITTER_HELPER}
             weight: 2,
             fillColor: lot.corHex || '#2563EB',
             fillOpacity: 1
-          }).bindTooltip((lot.nome || 'Lote') + ' · Ponto ' + (idx + 1)).addTo(lotsLayer);
+          }).bindTooltip((lot.nome || '${en ? 'Plot' : 'Lote'}') + ' · ${en ? 'Point' : 'Ponto'} ' + (idx + 1)).addTo(lotsLayer);
         });
       }
     });
@@ -496,7 +499,7 @@ ${HOST_EMITTER_HELPER}
           weight: 2,
           fillColor: '#16A34A',
           fillOpacity: 1
-        }).bindTooltip('Ponto ' + (idx + 1)).addTo(polyLayer);
+        }).bindTooltip('${en ? 'Point' : 'Ponto'} ' + (idx + 1)).addTo(polyLayer);
       });
     }
 
@@ -519,7 +522,7 @@ ${HOST_EMITTER_HELPER}
         }).bindPopup(
           '<strong>' + w.codigoSiagas + '</strong><br/>' +
           w.profundidadeM + ' m · ' + w.vazaoLph + ' L/h<br/>' +
-          'Água: ' + w.salinidade + ' (' + w.sucessoHistoricoPct + '% sucesso)'
+          '${en ? 'Water' : 'Água'}: ' + w.salinidade + ' (' + w.sucessoHistoricoPct + '% ${en ? 'success' : 'sucesso'})'
         ).addTo(wellsLayer);
       });
     }

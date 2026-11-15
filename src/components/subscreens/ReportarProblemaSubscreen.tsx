@@ -3,10 +3,12 @@ import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAccessibility } from '../../context/AccessibilityContext';
+import { localizeBiome } from '../../data/seedData';
+import { pickLang } from '../../i18n/locale';
 import { getAppTheme } from '../../theme/tokens';
 import { ProblemReportType } from '../../types/domain';
 import {
-  PROBLEM_REPORT_OPTIONS,
+  getProblemReportOptions,
   getRegionalSimilarProblems,
 } from '../../utils/agronomyHelpers';
 
@@ -17,8 +19,9 @@ interface ReportarProblemaSubscreenProps {
 export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps> = ({
   onBack,
 }) => {
-  const { accessibility, activeFarm, registerFieldLog, speak } = useAccessibility();
+  const { accessibility, language, activeFarm, registerFieldLog, speak } = useAccessibility();
   const theme = getAppTheme(accessibility);
+  const problemOptions = getProblemReportOptions(language);
 
   const [tipoProblema, setTipoProblema] = useState<ProblemReportType>('seca_estiagem');
   const [fotoUri, setFotoUri] = useState<string | null>(null);
@@ -31,9 +34,12 @@ export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps>
 
   const lots = activeFarm.lotes ?? [];
   const activeOption =
-    PROBLEM_REPORT_OPTIONS.find((p) => p.id === tipoProblema) ??
-    PROBLEM_REPORT_OPTIONS[0];
-  const similarProblems = getRegionalSimilarProblems(activeFarm.bioma, tipoProblema);
+    problemOptions.find((p) => p.id === tipoProblema) ?? problemOptions[0];
+  const similarProblems = getRegionalSimilarProblems(
+    activeFarm.bioma,
+    tipoProblema,
+    language
+  );
 
   const handlePickPhoto = async () => {
     try {
@@ -45,7 +51,7 @@ export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps>
         setFotoUri(res.assets[0].uri);
       }
     } catch {
-      // Silencioso caso câmera indisponível
+      // Silent fallback if camera unavailable
     }
   };
 
@@ -78,10 +84,20 @@ export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps>
           descricao.trim() || `${activeOption.label}${selectedLot ? ` (${selectedLot.nome})` : ''}`,
       });
       setSubmittedMsg(
-        `Problema registrado! Dica imediata: ${activeOption.dicaRapida}`
+        pickLang(
+          language,
+          `Issue logged! Immediate tip: ${activeOption.dicaRapida}`,
+          `Problema registrado! Dica imediata: ${activeOption.dicaRapida}`
+        )
       );
       setDescricao('');
-      speak(`Problema registrado: ${activeOption.label}. ${activeOption.dicaRapida}`);
+      speak(
+        pickLang(
+          language,
+          `Issue logged: ${activeOption.label}. ${activeOption.dicaRapida}`,
+          `Problema registrado: ${activeOption.label}. ${activeOption.dicaRapida}`
+        )
+      );
     } finally {
       setSaving(false);
     }
@@ -95,19 +111,23 @@ export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps>
           style={[styles.backBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
         >
           <Ionicons name="arrow-back" size={18} color={theme.text} />
-          <Text style={[styles.backText, { color: theme.text }]}>Voltar</Text>
+          <Text style={[styles.backText, { color: theme.text }]}>
+            {pickLang(language, 'Back', 'Voltar')}
+          </Text>
         </Pressable>
         <Text style={[styles.screenTitle, { color: theme.text, fontSize: 18 * theme.scale }]}>
-          Reportar problema
+          {pickLang(language, 'Report an Issue', 'Reportar problema')}
         </Text>
         <View style={{ width: 64 }} />
       </View>
 
-      {/* Bloco 1: Tipo de problema */}
+      {/* Block 1: Issue type */}
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: '#2563EB' }]}>
-        <Text style={[styles.cardTitle, { color: theme.text }]}>Tipo de problema</Text>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>
+          {pickLang(language, 'Issue type', 'Tipo de problema')}
+        </Text>
         <View style={styles.chipWrap}>
-          {PROBLEM_REPORT_OPTIONS.map((opt) => {
+          {problemOptions.map((opt) => {
             const active = tipoProblema === opt.id;
             return (
               <Pressable
@@ -171,7 +191,11 @@ export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps>
         <TextInput
           value={descricao}
           onChangeText={setDescricao}
-          placeholder="Descreva o que está acontecendo no lote (opcional)"
+          placeholder={pickLang(
+            language,
+            'Describe what is happening on this plot (optional)',
+            'Descreva o que está acontecendo no lote (opcional)'
+          )}
           placeholderTextColor={theme.textMuted}
           multiline
           style={[
@@ -180,9 +204,9 @@ export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps>
           ]}
         />
 
-        {/* Foto de validação */}
+        {/* Validation photo */}
         <Text style={[styles.cardTitle, { color: theme.text, marginTop: 4 }]}>
-          Foto de validação
+          {pickLang(language, 'Validation photo', 'Foto de validação')}
         </Text>
         <Pressable
           onPress={handlePickPhoto}
@@ -193,7 +217,13 @@ export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps>
         >
           <Ionicons name="camera-outline" size={20} color="#2563EB" />
           <Text style={{ fontWeight: '800', color: '#2563EB' }}>
-            {fotoUri ? 'Trocar foto do problema' : 'Tirar foto ou escolher da galeria'}
+            {fotoUri
+              ? pickLang(language, 'Change issue photo', 'Trocar foto do problema')
+              : pickLang(
+                  language,
+                  'Take photo or choose from gallery',
+                  'Tirar foto ou escolher da galeria'
+                )}
           </Text>
         </Pressable>
 
@@ -208,7 +238,9 @@ export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps>
         >
           <Ionicons name="send" size={18} color="#FFFFFF" />
           <Text style={{ fontWeight: '900', color: '#FFFFFF' }}>
-            {saving ? 'Enviando...' : 'Registrar problema'}
+            {saving
+              ? pickLang(language, 'Submitting...', 'Enviando...')
+              : pickLang(language, 'Submit issue report', 'Registrar problema')}
           </Text>
         </Pressable>
 
@@ -226,13 +258,21 @@ export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps>
         )}
       </View>
 
-      {/* Bloco 2: Leitura de problemas semelhantes na região */}
+      {/* Block 2: Similar issues in the region */}
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.cardTitle, { color: theme.text }]}>
-          Leitura de problemas semelhantes na região
+          {pickLang(
+            language,
+            'Similar regional issues',
+            'Leitura de problemas semelhantes na região'
+          )}
         </Text>
         <Text style={{ fontSize: 12, color: theme.textMuted }}>
-          Relatos próximos ao bioma {activeFarm.bioma} e o que funcionou na prática:
+          {pickLang(
+            language,
+            `Nearby ${localizeBiome(activeFarm.bioma, language)} reports and what worked in practice:`,
+            `Relatos próximos ao bioma ${activeFarm.bioma} e o que funcionou na prática:`
+          )}
         </Text>
 
         {similarProblems.map((prob) => (
@@ -249,18 +289,26 @@ export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps>
                   {prob.titulo}
                 </Text>
                 <Text style={{ fontSize: 11, color: theme.textMuted }}>
-                  {prob.autor} • {prob.municipio} • há {prob.haQuantosDias} dias
+                  {prob.autor} • {prob.municipio} •{' '}
+                  {pickLang(language, `${prob.haQuantosDias}d ago`, `há ${prob.haQuantosDias} dias`)}
                 </Text>
               </View>
               <Pressable
                 onPress={() =>
-                  speak(`${prob.titulo}. ${prob.descricao}. O que funcionou: ${prob.acaoQueFuncionou}`, true)
+                  speak(
+                    pickLang(
+                      language,
+                      `${prob.titulo}. ${prob.descricao}. What worked: ${prob.acaoQueFuncionou}`,
+                      `${prob.titulo}. ${prob.descricao}. O que funcionou: ${prob.acaoQueFuncionou}`
+                    ),
+                    true
+                  )
                 }
                 style={[styles.listenBtn, { backgroundColor: theme.surfaceMuted }]}
               >
                 <Ionicons name="volume-high" size={16} color={theme.primary} />
                 <Text style={{ fontSize: 11, fontWeight: '800', color: theme.primary }}>
-                  Ouvir
+                  {pickLang(language, 'Listen', 'Ouvir')}
                 </Text>
               </Pressable>
             </View>
@@ -268,7 +316,7 @@ export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps>
               {prob.descricao}
             </Text>
             <Text style={{ fontSize: 12, fontWeight: '800', color: theme.primary }}>
-              ✓ O que funcionou: {prob.acaoQueFuncionou}
+              ✓ {pickLang(language, 'What worked:', 'O que funcionou:')} {prob.acaoQueFuncionou}
             </Text>
           </View>
         ))}

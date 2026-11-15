@@ -2,24 +2,26 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { pickLang } from '../i18n/locale';
 import { startVoiceCapture } from '../services/voiceAssistant';
 import { getAppTheme } from '../theme/tokens';
 import { AppFeedbackItem } from '../types/domain';
 
 const CATEGORIES: {
   id: AppFeedbackItem['categoria'];
-  label: string;
+  labelEn: string;
+  labelPt: string;
   icon: keyof typeof Ionicons.glyphMap;
 }[] = [
-  { id: 'previsao', label: 'Previsão / Chuva', icon: 'rainy-outline' },
-  { id: 'folha', label: 'Exame da Folha', icon: 'camera-outline' },
-  { id: 'mapa_pocos', label: 'Mapa e Poços', icon: 'map-outline' },
-  { id: 'voz_clareza', label: 'Voz e Clareza', icon: 'volume-high-outline' },
-  { id: 'sugestao', label: 'Sugestão / Erro', icon: 'bulb-outline' },
+  { id: 'previsao', labelEn: 'Forecast / Rain', labelPt: 'Previsão / Chuva', icon: 'rainy-outline' },
+  { id: 'folha', labelEn: 'Leaf Exam', labelPt: 'Exame da Folha', icon: 'camera-outline' },
+  { id: 'mapa_pocos', labelEn: 'Map & Plots', labelPt: 'Mapa e Lotes', icon: 'map-outline' },
+  { id: 'voz_clareza', labelEn: 'Voice & Clarity', labelPt: 'Voz e Clareza', icon: 'volume-high-outline' },
+  { id: 'sugestao', labelEn: 'Suggestion / Bug', labelPt: 'Sugestão / Erro', icon: 'bulb-outline' },
 ];
 
 export const FeedbackSection: React.FC = () => {
-  const { accessibility, feedbacks, submitAppFeedback, speak } = useAccessibility();
+  const { language, accessibility, feedbacks, submitAppFeedback, speak } = useAccessibility();
   const theme = getAppTheme(accessibility);
 
   const [categoria, setCategoria] = useState<AppFeedbackItem['categoria']>('previsao');
@@ -53,6 +55,7 @@ export const FeedbackSection: React.FC = () => {
         setStatusMsg(err);
       },
       {
+        lang: language,
         onEnd: () => {
           stopRef.current = null;
           setListening(false);
@@ -60,8 +63,11 @@ export const FeedbackSection: React.FC = () => {
         onExpoGoFallback: () => {
           setTimeout(() => commentInputRef.current?.focus(), 100);
         },
-        unsupportedMessage:
-          'No Expo Go, toque no microfone (🎤) do teclado para ditar seu feedback.',
+        unsupportedMessage: pickLang(
+          language,
+          'In Expo Go, tap your keyboard microphone (🎤) to dictate feedback.',
+          'No Expo Go, toque no microfone (🎤) do teclado para ditar seu feedback.'
+        ),
       }
     );
   };
@@ -73,11 +79,27 @@ export const FeedbackSection: React.FC = () => {
       nota,
       comentario:
         comentario.trim() ||
-        `Avaliação ${nota}/5 sobre ${categoria} (bateu com a roça: ${previsaoBateu})`,
+        pickLang(
+          language,
+          `Rating ${nota}/5 for ${categoria} (matched farm reality: ${previsaoBateu})`,
+          `Avaliação ${nota}/5 sobre ${categoria} (bateu com a roça: ${previsaoBateu})`
+        ),
     });
     setComentario('');
-    setStatusMsg('Obrigado! Sua opinião foi registrada com sucesso.');
-    speak('Obrigado! Sua opinião foi salva no aplicativo.');
+    setStatusMsg(
+      pickLang(
+        language,
+        'Thank you! Your feedback has been saved.',
+        'Obrigado! Sua opinião foi registrada com sucesso.'
+      )
+    );
+    speak(
+      pickLang(
+        language,
+        'Thank you! Your feedback has been saved in the app.',
+        'Obrigado! Sua opinião foi salva no aplicativo.'
+      )
+    );
   };
 
   return (
@@ -89,21 +111,29 @@ export const FeedbackSection: React.FC = () => {
         ]}
       >
         <Text style={[styles.title, { color: theme.text, fontSize: 17 * theme.scale }]}>
-          💬 Sua Opinião sobre o RoçaViva
+          {pickLang(language, '💬 Your Feedback on RoçaViva', '💬 Sua Opinião sobre o RoçaViva')}
         </Text>
         <Text style={{ fontSize: 12, color: theme.textMuted }}>
-          Conte se as dicas e previsões funcionaram na sua roça. Funciona offline e envia quando conectar.
+          {pickLang(
+            language,
+            'Tell us if the tips and forecasts worked on your farm. Works offline and syncs when connected.',
+            'Conte se as dicas e previsões funcionaram na sua roça. Funciona offline e envia quando conectar.'
+          )}
         </Text>
 
         <Text style={[styles.label, { color: theme.text }]}>
-          1. A previsão/dica bateu com a realidade da sua terra?
+          {pickLang(
+            language,
+            '1. Did the forecast/tip match your farm reality?',
+            '1. A previsão/dica bateu com a realidade da sua terra?'
+          )}
         </Text>
         <View style={styles.rowGap}>
           {(
             [
-              { id: 'sim', label: '👍 Bateu certo' },
-              { id: 'parcial', label: '😐 Mais ou menos' },
-              { id: 'nao', label: '👎 Não bateu' },
+              { id: 'sim', labelEn: '👍 Matched', labelPt: '👍 Bateu certo' },
+              { id: 'parcial', labelEn: '😐 Partially', labelPt: '😐 Mais ou menos' },
+              { id: 'nao', labelEn: '👎 Did not match', labelPt: '👎 Não bateu' },
             ] as const
           ).map((opt) => {
             const active = previsaoBateu === opt.id;
@@ -126,7 +156,7 @@ export const FeedbackSection: React.FC = () => {
                     color: active ? theme.primaryText : theme.text,
                   }}
                 >
-                  {opt.label}
+                  {pickLang(language, opt.labelEn, opt.labelPt)}
                 </Text>
               </Pressable>
             );
@@ -134,7 +164,11 @@ export const FeedbackSection: React.FC = () => {
         </View>
 
         <Text style={[styles.label, { color: theme.text }]}>
-          2. Nota de facilidade do aplicativo:
+          {pickLang(
+            language,
+            '2. App ease-of-use rating:',
+            '2. Nota de facilidade do aplicativo:'
+          )}
         </Text>
         <View style={styles.starsRow}>
           {([1, 2, 3, 4, 5] as const).map((star) => (
@@ -158,7 +192,9 @@ export const FeedbackSection: React.FC = () => {
           ))}
         </View>
 
-        <Text style={[styles.label, { color: theme.text }]}>3. Assunto do comentário:</Text>
+        <Text style={[styles.label, { color: theme.text }]}>
+          {pickLang(language, '3. Feedback topic:', '3. Assunto do comentário:')}
+        </Text>
         <View style={styles.rowGap}>
           {CATEGORIES.map((cat) => {
             const active = categoria === cat.id;
@@ -186,7 +222,7 @@ export const FeedbackSection: React.FC = () => {
                     color: active ? theme.primaryText : theme.text,
                   }}
                 >
-                  {cat.label}
+                  {pickLang(language, cat.labelEn, cat.labelPt)}
                 </Text>
               </Pressable>
             );
@@ -194,14 +230,22 @@ export const FeedbackSection: React.FC = () => {
         </View>
 
         <Text style={[styles.label, { color: theme.text }]}>
-          4. Escreva ou fale o que achou (opcional):
+          {pickLang(
+            language,
+            '4. Write or speak what you thought (optional):',
+            '4. Escreva ou fale o que achou (opcional):'
+          )}
         </Text>
         <View style={styles.commentRow}>
           <TextInput
             ref={commentInputRef}
             value={comentario}
             onChangeText={setComentario}
-            placeholder="Ex.: Aviso de seca ajudou a plantar mandioca..."
+            placeholder={pickLang(
+              language,
+              'e.g., Drought warning helped us plant cassava...',
+              'Ex.: Aviso de seca ajudou a plantar mandioca...'
+            )}
             placeholderTextColor={theme.textMuted}
             multiline
             style={[
@@ -215,7 +259,11 @@ export const FeedbackSection: React.FC = () => {
           />
           <Pressable
             onPress={handleVoiceComment}
-            accessibilityLabel="Falar comentário pelo microfone"
+            accessibilityLabel={pickLang(
+              language,
+              'Speak comment using microphone',
+              'Falar comentário pelo microfone'
+            )}
             style={[
               styles.micBtn,
               {
@@ -238,7 +286,7 @@ export const FeedbackSection: React.FC = () => {
         >
           <Ionicons name="send" size={18} color={theme.primaryText} />
           <Text style={{ color: theme.primaryText, fontWeight: '900', fontSize: 15 }}>
-            Enviar Feedback
+            {pickLang(language, 'Send Feedback', 'Enviar Feedback')}
           </Text>
         </Pressable>
 
@@ -256,11 +304,19 @@ export const FeedbackSection: React.FC = () => {
         ]}
       >
         <Text style={[styles.title, { color: theme.text, fontSize: 15 * theme.scale }]}>
-          📋 Feedbacks registrados ({feedbacks.length})
+          {pickLang(
+            language,
+            `📋 Saved feedback (${feedbacks.length})`,
+            `📋 Feedbacks registrados (${feedbacks.length})`
+          )}
         </Text>
         {feedbacks.length === 0 ? (
           <Text style={{ fontSize: 12, color: theme.textMuted }}>
-            Nenhuma opinião enviada ainda neste aparelho.
+            {pickLang(
+              language,
+              'No feedback submitted yet on this device.',
+              'Nenhuma opinião enviada ainda neste aparelho.'
+            )}
           </Text>
         ) : (
           feedbacks.slice(0, 8).map((fb) => (
@@ -276,7 +332,9 @@ export const FeedbackSection: React.FC = () => {
                     color: fb.sincronizado ? theme.successText : theme.warningText,
                   }}
                 >
-                  {fb.sincronizado ? '✓ Sincronizado' : '⏳ Offline na fila'}
+                  {fb.sincronizado
+                    ? pickLang(language, '✓ Synced', '✓ Sincronizado')
+                    : pickLang(language, '⏳ Queued offline', '⏳ Offline na fila')}
                 </Text>
               </View>
               <Text style={{ fontSize: 12, color: theme.text }}>{fb.comentario}</Text>

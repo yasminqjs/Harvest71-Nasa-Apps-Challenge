@@ -1,4 +1,5 @@
 import {
+  AppLanguage,
   CropDecisionItem,
   EdiblePlantPANC,
   FarmProperty,
@@ -6,6 +7,7 @@ import {
   ProactiveAlertItem,
   WellPoint,
 } from '../types/domain';
+import { pickLang } from '../i18n/locale';
 import { createMicroPlotAroundPoint } from '../utils/geoprocessing';
 
 export interface BahiaRegionPreset {
@@ -564,11 +566,11 @@ export const SEED_ALERTS: ProactiveAlertItem[] = [
     id: 'al-1',
     categoria: 'plantio',
     severidade: 'info',
-    titulo: 'Janela de plantio aberta no Recôncavo',
+    titulo: 'Planting window open in Recôncavo',
     mensagemAcessivel:
-      'A terra segurou chuva nos últimos dias. Bom momento para semear feijão-caupi com cobertura de palha.',
+      'Soil retained recent rainfall moisture. Good moment to sow cowpea with straw mulch cover.',
     mensagemTecnica:
-      'Umidade SMAP estável por 9 dias e risco de veranico em 18% (NASA IMERG).',
+      'SMAP moisture stable for 9 days and mid-season dry-spell risk at 18% (NASA IMERG).',
     criadoEm: new Date().toISOString(),
     lido: false,
   },
@@ -576,11 +578,11 @@ export const SEED_ALERTS: ProactiveAlertItem[] = [
     id: 'al-2',
     categoria: 'veranico',
     severidade: 'atencao',
-    titulo: 'Atenção para veranico no Semiárido',
+    titulo: 'Dry-spell watch in the Semiarid',
     mensagemAcessivel:
-      'No Sertão, pode dar uma estiagem no meio das chuvas nos próximos 10 dias. Não gaste toda a semente de uma vez.',
+      'A short dry break during the rainy season may occur in the next 10 days. Avoid sowing all seeds at once.',
     mensagemTecnica:
-      'Probabilidade histórica de veranico de 44%–62% nas microrregiões semiáridas da Bahia.',
+      'Historical mid-season dry-spell probability of 44%–62% across semiarid Bahia microregions.',
     criadoEm: new Date().toISOString(),
     lido: false,
   },
@@ -588,15 +590,229 @@ export const SEED_ALERTS: ProactiveAlertItem[] = [
     id: 'al-3',
     categoria: 'fitossanitario',
     severidade: 'atencao',
+    titulo: 'Crop health watch: leafhoppers & aphids after heat spikes',
+    mensagemAcessivel:
+      'With intense sun and yellowing leaf edges, inspect a leaf with the app camera before applying bio-control.',
+    mensagemTecnica:
+      'Thermal stress (MODIS LST) favors sap-sucking pests in young cowpea and maize plots.',
+    criadoEm: new Date().toISOString(),
+    lido: false,
+  },
+];
+
+const SEED_ALERTS_PT_COPY: Record<
+  string,
+  Pick<ProactiveAlertItem, 'titulo' | 'mensagemAcessivel' | 'mensagemTecnica'>
+> = {
+  'al-1': {
+    titulo: 'Janela de plantio aberta no Recôncavo',
+    mensagemAcessivel:
+      'A terra segurou chuva nos últimos dias. Bom momento para semear feijão-caupi com cobertura de palha.',
+    mensagemTecnica:
+      'Umidade SMAP estável por 9 dias e risco de veranico em 18% (NASA IMERG).',
+  },
+  'al-2': {
+    titulo: 'Atenção para veranico no Semiárido',
+    mensagemAcessivel:
+      'No Sertão, pode dar uma estiagem no meio das chuvas nos próximos 10 dias. Não gaste toda a semente de uma vez.',
+    mensagemTecnica:
+      'Probabilidade histórica de veranico de 44%–62% nas microrregiões semiáridas da Bahia.',
+  },
+  'al-3': {
     titulo: 'Alerta fitossanitário: cigarrinha e pulgão após calor',
     mensagemAcessivel:
       'Com sol forte e folha amarelando na borda da roça, use a câmera do app para checar a folha e aplique calda de nim se precisar.',
     mensagemTecnica:
       'Estresse térmico (MODIS LST) favorece pragas sugadoras em feijão-caupi e milho jovem.',
-    criadoEm: new Date().toISOString(),
-    lido: false,
   },
-];
+};
+
+export function getLocalizedAlerts(
+  lang: AppLanguage,
+  existing?: ProactiveAlertItem[]
+): ProactiveAlertItem[] {
+  const enById = Object.fromEntries(SEED_ALERTS.map((a) => [a.id, a]));
+  const baseList = existing && existing.length > 0 ? existing : SEED_ALERTS;
+  return baseList.map((item) => {
+    if (lang === 'pt') {
+      const pt = SEED_ALERTS_PT_COPY[item.id];
+      return pt ? { ...item, ...pt } : item;
+    }
+    const en = enById[item.id];
+    return en
+      ? {
+          ...item,
+          titulo: en.titulo,
+          mensagemAcessivel: en.mensagemAcessivel,
+          mensagemTecnica: en.mensagemTecnica,
+        }
+      : item;
+  });
+}
+
+export function localizeBiome(
+  bioma: 'Caatinga' | 'Mata Atlântica' | 'Cerrado',
+  lang: AppLanguage
+): string {
+  if (lang === 'pt') return bioma;
+  if (bioma === 'Mata Atlântica') return 'Atlantic Forest';
+  return bioma;
+}
+
+export function getLocalizedCrops(lang: AppLanguage): CropDecisionItem[] {
+  if (lang === 'pt') return SEED_CROPS;
+  return SEED_CROPS.map((crop) => {
+    switch (crop.id) {
+      case 'feijao-caupi':
+        return {
+          ...crop,
+          nome: 'Cowpea (Black-eyed Bean)',
+          observacao: 'Handles short dry spells well and fixes nitrogen in the soil.',
+        };
+      case 'mandioca':
+        return {
+          ...crop,
+          nome: 'Cassava / Yuca',
+          observacao: 'Reliable in-ground food reserve through dry months.',
+        };
+      case 'milho-crioulo':
+        return {
+          ...crop,
+          nome: 'Landrace / Dryland Maize',
+          observacao: 'Needs steady rain at tasseling; avoid sowing on a false rain start.',
+        };
+      case 'sorgo-forrageiro':
+        return {
+          ...crop,
+          nome: 'Grain / Forage Sorghum',
+          observacao: 'Withstands up to 40% less water than standard maize without crop failure.',
+        };
+      case 'palma-forrageira':
+        return {
+          ...crop,
+          nome: 'Sweet Forage Cactus Pear',
+          observacao: 'Living reserve of water and forage for livestock and edible shoots.',
+        };
+      default:
+        return crop;
+    }
+  });
+}
+
+export function getLocalizedPancs(lang: AppLanguage): EdiblePlantPANC[] {
+  if (lang === 'pt') return SEED_PANCS;
+  return SEED_PANCS.map((p) => {
+    switch (p.id) {
+      case 'panc-palma':
+        return {
+          ...p,
+          nomePopular: 'Cactus Pear (Nopalitos / Young Pads)',
+          parteComestivel: 'Tender young pads and fruits',
+          cultivoRapido:
+            'Plant the pad upright burying 1/3 in dry or moist soil; no watering needed for the first 10 days.',
+          preparoCulinario:
+            'Scrape off tiny spines, slice into strips and saute with onion, garlic, and egg or stew with beans.',
+        };
+      case 'panc-mandacaru-sem-espinho':
+        return {
+          ...p,
+          nomePopular: 'Spineless Mandacaru Cactus (Shoots & Fruit)',
+          parteComestivel: 'Soft inner core of young shoots and sweet fruit pulp',
+          cultivoRapido:
+            'Take a healthy cutting, let it callous 5 days in shade, and plant in drained backyard soil.',
+          preparoCulinario:
+            'Dice into cubes, boil for 8 minutes draining water, and use in stews or fruit preserves.',
+        };
+      case 'panc-umbu':
+        return {
+          ...p,
+          nomePopular: 'Umbu Tree (Fruit & Root Tuber)',
+          parteComestivel: 'Green or ripe fruit and water-storing tuber',
+          cultivoRapido:
+            'Plant thick cuttings at the onset of rains or protect native seedlings with living fences.',
+          preparoCulinario:
+            'Simmer umbu fruit with milk or water for umbuzada or prepare pulp preserves.',
+        };
+      case 'panc-beldroega':
+        return {
+          ...p,
+          nomePopular: 'Common Purslane',
+          parteComestivel: 'Leaves, tender stems, and seeds (rich in omega-3 & iron)',
+          cultivoRapido:
+            'Sprouts spontaneously after light dew; keep in lightly shaded beds under straw mulch.',
+          preparoCulinario:
+            'Wash well and eat fresh in lemon salad or quickly folded into cooked beans and couscous.',
+        };
+      case 'panc-ora-pro-nobis':
+        return {
+          ...p,
+          nomePopular: 'Barbados Gooseberry (Ora-pro-nóbis)',
+          parteComestivel: 'High-protein, iron-rich leaves (up to 25% dry weight)',
+          cultivoRapido:
+            'Cut a 20 cm woody stem, remove lower leaves, and plant along fences with minimal water.',
+          preparoCulinario:
+            'Chop leaves into bean broth, rice, omelets, or cornmeal porridge to boost family protein.',
+        };
+      case 'cultura-feijao-caupi':
+        return {
+          ...p,
+          nomePopular: 'Cowpea (Dry & Green Pods)',
+          parteComestivel: 'Dry beans, fresh green beans, and tender pods',
+          cultivoRapido:
+            'Sow in shallow holes (3 cm) right after rain wets topsoil at least a handspan deep.',
+          preparoCulinario:
+            'Simmer fresh green beans or pair with rice/cassava flour for balanced nutrition.',
+        };
+      case 'cultura-sorgo':
+        return {
+          ...p,
+          nomePopular: 'Food & Forage Sorghum',
+          parteComestivel: 'Grains for flour/porridge and green biomass for livestock',
+          cultivoRapido:
+            'Direct substitute for maize in dry years; ratoons after harvest with minimal moisture.',
+          preparoCulinario:
+            'Toast or mill grains for porridge, popped sorghum snacks, or flour blends.',
+        };
+      default:
+        return p;
+    }
+  });
+}
+
+export function getOfficialDataSources(lang: AppLanguage) {
+  if (lang === 'pt') return OFFICIAL_DATA_SOURCES;
+  return [
+    {
+      categoria: 'Satellites & Climate Models — NASA',
+      itens: [
+        'NASA GPM IMERG — High-resolution daily and weekly rainfall',
+        'NASA POWER — Max/min air temperature and solar radiation (ET₀)',
+        'NASA SMAP & GLDAS — Surface and root-zone soil moisture',
+        'NASA MODIS / VIIRS / HLS 30m — Vegetation vigor (NDVI) and ground cover',
+        'NASA MODIS LST / ECOSTRESS — Land surface temperature and thermal stress',
+        'NASA SRTM / NASADEM 30m — Terrain slope, relief, and drainage lines',
+        'NASA GRACE-FO — Regional aquifer groundwater recharge trends',
+        'NASA NEX-GDDP-CMIP6 — Regional 2030–2050 climate projections',
+      ],
+    },
+    {
+      categoria: 'Soil, Groundwater & Agronomy',
+      itens: [
+        'ISRIC SoilGrids — Soil pH, texture (sand/clay), and organic carbon',
+        'SIAGAS / CPRM — Groundwater well registry, depth, and salinity',
+        'Embrapa ZARC & Semiarid — Agricultural Climate Risk Zoning',
+      ],
+    },
+    {
+      categoria: 'Socioeconomics & Food Security (IBGE / MMA / INSA)',
+      itens: [
+        'IBGE (Ag Census, PNAD, POF/VigiSAN, ICT Survey) — Official Northeast rural baseline',
+        'MMA / MDS — Official Brazilian Sociobiodiversity List',
+        'INSA / Flora do Brasil / GBIF — Drought-tolerant native food plants',
+      ],
+    },
+  ];
+}
 
 export const OFFICIAL_DATA_SOURCES = [
   {

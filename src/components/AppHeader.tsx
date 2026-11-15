@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { LanguageTogglePill, pickLang } from '../i18n/locale';
 import { getAppTheme } from '../theme/tokens';
 
 interface AppHeaderProps {
@@ -14,6 +15,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onOpenTutorial,
 }) => {
   const {
+    language,
+    setAppLanguage,
     accessibility,
     activeFarmer,
     isOnline,
@@ -51,20 +54,35 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           >
             {isOnline
               ? pendingSyncCount > 0
-                ? `Sincronizando (${pendingSyncCount})`
-                : 'Sincronizado'
-              : `Modo Roça Offline${pendingSyncCount > 0 ? ` (${pendingSyncCount})` : ''}`}
+                ? pickLang(
+                    language,
+                    `Syncing (${pendingSyncCount})`,
+                    `Sincronizando (${pendingSyncCount})`
+                  )
+                : pickLang(language, 'Synced', 'Sincronizado')
+              : pickLang(
+                  language,
+                  `Offline Mode${pendingSyncCount > 0 ? ` (${pendingSyncCount})` : ''}`,
+                  `Modo Roça Offline${pendingSyncCount > 0 ? ` (${pendingSyncCount})` : ''}`
+                )}
           </Text>
         </View>
       </View>
 
       <View style={styles.rightGroup}>
+        <LanguageTogglePill
+          language={language}
+          onSelect={setAppLanguage}
+          theme={theme}
+          compact
+        />
+
         <Pressable
           onPress={toggleVoiceGuidance}
           accessibilityLabel={
             accessibility.voiceGuidanceEnabled
-              ? 'Desativar guia por voz'
-              : 'Ativar guia por voz'
+              ? pickLang(language, 'Disable voice guide', 'Desativar guia por voz')
+              : pickLang(language, 'Enable voice guide', 'Ativar guia por voz')
           }
           style={[
             styles.voiceBtn,
@@ -89,14 +107,20 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               },
             ]}
           >
-            {accessibility.voiceGuidanceEnabled ? 'Voz' : 'Mudo'}
+            {accessibility.voiceGuidanceEnabled
+              ? pickLang(language, 'Voice', 'Voz')
+              : pickLang(language, 'Mute', 'Mudo')}
           </Text>
         </Pressable>
 
         {onOpenTutorial && (
           <Pressable
             onPress={onOpenTutorial}
-            accessibilityLabel="Abrir tutorial de uso"
+            accessibilityLabel={pickLang(
+              language,
+              'Open app tutorial',
+              'Abrir tutorial de uso'
+            )}
             style={[
               styles.helpCircle,
               {
@@ -112,7 +136,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         {/* Círculo de USUÁRIO / configurações exatamente como no wireframe */}
         <Pressable
           onPress={onOpenSettings}
-          accessibilityLabel="Abrir perfil do usuário, alertas e configurações"
+          accessibilityLabel={pickLang(
+            language,
+            'Open user profile, alerts, and settings',
+            'Abrir perfil do usuário, alertas e configurações'
+          )}
           style={[
             styles.userCircle,
             {
@@ -127,7 +155,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             activeFarmer?.tratamento &&
             activeFarmer.tratamento !== 'Agricultor(a)'
               ? activeFarmer.tratamento.split(' ')[0]
-              : 'Perfil'}
+              : pickLang(language, 'Profile', 'Perfil')}
           </Text>
           {unreadAlertsCount > 0 && (
             <View style={styles.alertBadge}>

@@ -1,4 +1,4 @@
-import { LanguageLevel } from '../types/domain';
+import { AppLanguage, LanguageLevel } from '../types/domain';
 
 interface JargonEntry {
   pattern: RegExp;
@@ -71,11 +71,12 @@ const NORDESTE_JARGON_MAP: JargonEntry[] = [
 export function regionalizarTexto(
   texto: string,
   level: LanguageLevel = 'acessivel',
-  tratamento?: string
+  tratamento?: string,
+  lang: AppLanguage = 'en'
 ): string {
   let resultado = texto;
 
-  if (level === 'acessivel') {
+  if (lang === 'pt' && level === 'acessivel') {
     for (const item of NORDESTE_JARGON_MAP) {
       resultado = resultado.replace(item.pattern, item.popular);
     }
@@ -84,6 +85,7 @@ export function regionalizarTexto(
   if (
     tratamento &&
     tratamento !== 'Agricultor(a)' &&
+    tratamento !== 'Farmer' &&
     !resultado.toLowerCase().includes(tratamento.toLowerCase())
   ) {
     return `${tratamento}, ${resultado.charAt(0).toLowerCase()}${resultado.slice(1)}`;
@@ -92,10 +94,20 @@ export function regionalizarTexto(
   return resultado;
 }
 
-export function formatArea(hectares: number, tarefasBa: number): string {
-  return `${hectares.toFixed(2)} ha (${tarefasBa.toFixed(1)} tarefas)`;
+export function formatArea(
+  hectares: number,
+  tarefasBa: number,
+  lang: AppLanguage = 'en'
+): string {
+  return lang === 'pt'
+    ? `${hectares.toFixed(2)} ha (${tarefasBa.toFixed(1)} tarefas)`
+    : `${hectares.toFixed(2)} ha (${tarefasBa.toFixed(1)} tasks)`;
 }
 
-export function formatCurrencyBRL(value: number): string {
-  return `R$ ${value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+export function formatCurrencyBRL(value: number, lang: AppLanguage = 'en'): string {
+  const formatted =
+    lang === 'pt'
+      ? value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+      : value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `R$ ${formatted}`;
 }

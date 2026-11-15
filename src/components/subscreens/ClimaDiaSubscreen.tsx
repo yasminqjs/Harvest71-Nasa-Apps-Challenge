@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
+import { useAccessibility } from '../../context/AccessibilityContext';
+import { pickLang } from '../../i18n/locale';
 import { AppTheme } from '../../theme/tokens';
 import { FarmProperty } from '../../types/domain';
 import { buildSevenDayClimateSeries } from '../../utils/agronomyHelpers';
@@ -19,10 +21,11 @@ export const ClimaDiaSubscreen: React.FC<ClimaDiaSubscreenProps> = ({
   onSpeak,
   theme,
 }) => {
+  const { language } = useAccessibility();
   const diag = farm.diagnostico;
-  const series = buildSevenDayClimateSeries(diag);
+  const series = buildSevenDayClimateSeries(diag, language);
 
-  // Dimensões do gráfico SVG com os 3 aspectos (chuva, umidade, calor)
+  // Chart SVG dimensions covering all 3 aspects (rain, humidity, heat)
   const w = 310;
   const h = 170;
   const padL = 28;
@@ -50,9 +53,20 @@ export const ClimaDiaSubscreen: React.FC<ClimaDiaSubscreenProps> = ({
 
   const speakSummary = () => {
     onSpeak(
-      `Clima do dia em ${farm.regiaoNome}: previsão de chuva de ${diag.climaDia.chuvaHojeMm} milímetros, umidade em ${diag.climaDia.umidadeRelativaPct}% e calor máximo de ${diag.climaDia.tempMaxC} graus.`
+      pickLang(
+        language,
+        `Today's weather in ${farm.regiaoNome}: rain forecast ${diag.climaDia.chuvaHojeMm} millimeters, humidity ${diag.climaDia.umidadeRelativaPct}%, and max heat ${diag.climaDia.tempMaxC} degrees.`,
+        `Clima do dia em ${farm.regiaoNome}: previsão de chuva de ${diag.climaDia.chuvaHojeMm} milímetros, umidade em ${diag.climaDia.umidadeRelativaPct}% e calor máximo de ${diag.climaDia.tempMaxC} graus.`
+      )
     );
   };
+
+  const smapTrendLabel =
+    diag.modeloA.smapTendencia === 'caindo'
+      ? pickLang(language, 'falling', 'caindo')
+      : diag.modeloA.smapTendencia === 'subindo'
+      ? pickLang(language, 'rising', 'subindo')
+      : pickLang(language, 'stable', 'estável');
 
   return (
     <View style={styles.container}>
@@ -62,10 +76,12 @@ export const ClimaDiaSubscreen: React.FC<ClimaDiaSubscreenProps> = ({
           style={[styles.backBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
         >
           <Ionicons name="arrow-back" size={18} color={theme.text} />
-          <Text style={[styles.backText, { color: theme.text }]}>Voltar</Text>
+          <Text style={[styles.backText, { color: theme.text }]}>
+            {pickLang(language, 'Back', 'Voltar')}
+          </Text>
         </Pressable>
         <Text style={[styles.screenTitle, { color: theme.text, fontSize: 18 * theme.scale }]}>
-          Clima do dia
+          {pickLang(language, "Today's Weather", 'Clima do dia')}
         </Text>
         <Pressable
           onPress={speakSummary}
@@ -79,7 +95,7 @@ export const ClimaDiaSubscreen: React.FC<ClimaDiaSubscreenProps> = ({
         {farm.regiaoNome} • {farm.municipio} - {farm.estado} ({diag.climaDia.condicao})
       </Text>
 
-      {/* 3 blocos principais do diagrama: previsão de chuva, umidade, calor */}
+      {/* 3 core metrics: rain forecast, humidity, heat */}
       <View style={styles.metricGrid}>
         <View
           style={[
@@ -88,7 +104,9 @@ export const ClimaDiaSubscreen: React.FC<ClimaDiaSubscreenProps> = ({
           ]}
         >
           <Ionicons name="rainy-outline" size={24} color="#2563EB" />
-          <Text style={[styles.metricLabel, { color: theme.textMuted }]}>Previsão de chuva</Text>
+          <Text style={[styles.metricLabel, { color: theme.textMuted }]}>
+            {pickLang(language, 'Rain forecast', 'Previsão de chuva')}
+          </Text>
           <Text style={[styles.metricValue, { color: '#2563EB' }]}>
             {diag.climaDia.chuvaHojeMm} mm
           </Text>
@@ -104,12 +122,14 @@ export const ClimaDiaSubscreen: React.FC<ClimaDiaSubscreenProps> = ({
           ]}
         >
           <Ionicons name="water-outline" size={24} color="#0D9488" />
-          <Text style={[styles.metricLabel, { color: theme.textMuted }]}>Umidade</Text>
+          <Text style={[styles.metricLabel, { color: theme.textMuted }]}>
+            {pickLang(language, 'Humidity', 'Umidade')}
+          </Text>
           <Text style={[styles.metricValue, { color: '#0D9488' }]}>
             {diag.climaDia.umidadeRelativaPct}%
           </Text>
           <Text style={[styles.metricHint, { color: theme.textMuted }]}>
-            Solo SMAP: {diag.modeloA.smapTendencia}
+            {pickLang(language, 'SMAP soil:', 'Solo SMAP:')} {smapTrendLabel}
           </Text>
         </View>
 
@@ -120,17 +140,20 @@ export const ClimaDiaSubscreen: React.FC<ClimaDiaSubscreenProps> = ({
           ]}
         >
           <Ionicons name="sunny-outline" size={24} color="#D97706" />
-          <Text style={[styles.metricLabel, { color: theme.textMuted }]}>Calor</Text>
+          <Text style={[styles.metricLabel, { color: theme.textMuted }]}>
+            {pickLang(language, 'Heat', 'Calor')}
+          </Text>
           <Text style={[styles.metricValue, { color: '#D97706' }]}>
             {diag.climaDia.tempMaxC}°C
           </Text>
           <Text style={[styles.metricHint, { color: theme.textMuted }]}>
-            Mín: {diag.climaDia.tempMinC}°C • ET₀ {diag.modeloA.et0PowerMm} mm
+            {pickLang(language, 'Min:', 'Mín:')} {diag.climaDia.tempMinC}°C • ET₀{' '}
+            {diag.modeloA.et0PowerMm} mm
           </Text>
         </View>
       </View>
 
-      {/* Gráfico com os três aspectos */}
+      {/* Chart with all three aspects */}
       <View
         style={[
           styles.chartCard,
@@ -138,21 +161,31 @@ export const ClimaDiaSubscreen: React.FC<ClimaDiaSubscreenProps> = ({
         ]}
       >
         <Text style={[styles.chartTitle, { color: theme.text }]}>
-          Gráfico de 7 dias: Chuva, Umidade e Calor
+          {pickLang(
+            language,
+            '7-Day Chart: Rainfall, Humidity & Heat',
+            'Gráfico de 7 dias: Chuva, Umidade e Calor'
+          )}
         </Text>
 
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: '#60A5FA' }]} />
-            <Text style={[styles.legendText, { color: theme.textMuted }]}>Chuva (mm)</Text>
+            <Text style={[styles.legendText, { color: theme.textMuted }]}>
+              {pickLang(language, 'Rain (mm)', 'Chuva (mm)')}
+            </Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: '#0D9488' }]} />
-            <Text style={[styles.legendText, { color: theme.textMuted }]}>Umidade (%)</Text>
+            <Text style={[styles.legendText, { color: theme.textMuted }]}>
+              {pickLang(language, 'Humidity (%)', 'Umidade (%)')}
+            </Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: '#EA580C' }]} />
-            <Text style={[styles.legendText, { color: theme.textMuted }]}>Calor (°C)</Text>
+            <Text style={[styles.legendText, { color: theme.textMuted }]}>
+              {pickLang(language, 'Heat (°C)', 'Calor (°C)')}
+            </Text>
           </View>
         </View>
 
@@ -225,8 +258,16 @@ export const ClimaDiaSubscreen: React.FC<ClimaDiaSubscreenProps> = ({
 
         <Text style={[styles.modelNote, { color: theme.text }]}>
           {diag.modeloA.status === 'deficit_confirmado'
-            ? '⚠️ A terra está perdendo mais água do que recebe (GPM IMERG x POWER ET₀). Cubra as entrelinhas com palha.'
-            : '✓ Balanço hídrico positivo no solo esta semana. Aproveite a umidade.'}
+            ? pickLang(
+                language,
+                '⚠️ Soil is losing more water than it receives (GPM IMERG vs POWER ET₀). Cover inter-rows with straw mulch.',
+                '⚠️ A terra está perdendo mais água do que recebe (GPM IMERG x POWER ET₀). Cubra as entrelinhas com palha.'
+              )
+            : pickLang(
+                language,
+                '✓ Positive soil water balance this week. Make good use of available moisture.',
+                '✓ Balanço hídrico positivo no solo esta semana. Aproveite a umidade.'
+              )}
         </Text>
       </View>
     </View>

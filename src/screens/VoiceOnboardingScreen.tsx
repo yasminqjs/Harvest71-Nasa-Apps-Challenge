@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { LanguageTogglePill, pickLang } from '../i18n/locale';
 import {
   interpretYesNoVoiceReply,
   speakText,
@@ -10,12 +11,16 @@ import {
 } from '../services/voiceAssistant';
 import { getAppTheme } from '../theme/tokens';
 
-const ONBOARDING_SPEECH =
-  'Olá! Bem-vindo ao RoçaViva. Gostaria que o aplicativo faça a leitura e ajude com comandos de voz? Pode dizer Sim ou Não.';
-
 export const VoiceOnboardingScreen: React.FC = () => {
-  const { accessibility, completeVoiceOnboarding } = useAccessibility();
+  const { language, setAppLanguage, accessibility, completeVoiceOnboarding } =
+    useAccessibility();
   const theme = getAppTheme(accessibility);
+
+  const onboardingSpeech = pickLang(
+    language,
+    'Hello! Welcome to RoçaViva. Would you like the app to read screens aloud and assist you with voice commands? You can say Yes or No.',
+    'Olá! Bem-vindo ao RoçaViva. Gostaria que o aplicativo faça a leitura e ajude com comandos de voz? Pode dizer Sim ou Não.'
+  );
 
   const [listening, setListening] = useState(false);
   const [heardText, setHeardText] = useState<string | null>(null);
@@ -44,30 +49,53 @@ export const VoiceOnboardingScreen: React.FC = () => {
 
     const intent = interpretYesNoVoiceReply(trimmed);
     if (intent === 'sim') {
-      setVoiceFeedback('Entendido: "Sim". Ativando guia por voz...');
+      setVoiceFeedback(
+        pickLang(
+          language,
+          'Understood: “Yes”. Enabling voice guide...',
+          'Entendido: “Sim”. Ativando guia por voz...'
+        )
+      );
       completeVoiceOnboarding(true);
       return;
     }
     if (intent === 'nao') {
-      setVoiceFeedback('Entendido: "Não". Continuando apenas lendo...');
+      setVoiceFeedback(
+        pickLang(
+          language,
+          'Understood: “No”. Continuing in reading mode...',
+          'Entendido: “Não”. Continuando apenas lendo...'
+        )
+      );
       completeVoiceOnboarding(false);
       return;
     }
     if (intent === 'repetir') {
-      setVoiceFeedback('Repetindo a pergunta...');
+      setVoiceFeedback(
+        pickLang(language, 'Repeating the question...', 'Repetindo a pergunta...')
+      );
       playQuestion(true);
       return;
     }
 
     setVoiceFeedback(
-      'Não consegui identificar "Sim" ou "Não". Ouvindo novamente...'
+      pickLang(
+        language,
+        'Could not recognize “Yes” or “No”. Listening again...',
+        'Não consegui identificar “Sim” ou “Não”. Ouvindo novamente...'
+      )
     );
     speakText(
-      'Não entendi bem. Diga Sim para ativar a leitura por voz, ou Não para continuar apenas lendo.',
+      pickLang(
+        language,
+        'I did not quite catch that. Say Yes to enable voice reading, or No to continue in reading mode.',
+        'Não entendi bem. Diga Sim para ativar a leitura por voz, ou Não para continuar apenas lendo.'
+      ),
       {
         enabled: true,
         rate: accessibility.speechRate,
         languageLevel: 'acessivel',
+        lang: language,
         force: true,
         onDone: () => {
           if (!mountedRef.current) return;
@@ -82,13 +110,25 @@ export const VoiceOnboardingScreen: React.FC = () => {
   const beginVoiceReply = () => {
     if (listening) {
       stopListening();
-      setVoiceFeedback('Microfone pausado. Toque para tentar de novo ou escolha um botão.');
+      setVoiceFeedback(
+        pickLang(
+          language,
+          'Microphone paused. Tap to try again or choose a button.',
+          'Microfone pausado. Toque para tentar de novo ou escolha um botão.'
+        )
+      );
       return;
     }
 
     stopSpeaking();
     setHeardText(null);
-    setVoiceFeedback('Ouvindo... Fale "Sim" ou "Não" perto do microfone.');
+    setVoiceFeedback(
+      pickLang(
+        language,
+        'Listening... Say “Yes” or “No” near the microphone.',
+        'Ouvindo... Fale “Sim” ou “Não” perto do microfone.'
+      )
+    );
     setListening(true);
 
     const stopFn = startVoiceCapture(
@@ -105,13 +145,17 @@ export const VoiceOnboardingScreen: React.FC = () => {
         setVoiceFeedback(errMessage);
       },
       {
+        lang: language,
         onEnd: () => {
           if (!mountedRef.current) return;
           stopCaptureRef.current = null;
           setListening(false);
         },
-        unsupportedMessage:
-          'O Expo Go não inclui reconhecimento de fala automático em segundo plano (requer Development Build / APK). Você pode tocar em "Sim" ou "Não" abaixo.',
+        unsupportedMessage: pickLang(
+          language,
+          'Expo Go does not include background speech recognition (requires a Development Build / APK). You can tap “Yes” or “No” below.',
+          'O Expo Go não inclui reconhecimento de fala automático em segundo plano (requer Development Build / APK). Você pode tocar em “Sim” ou “Não” abaixo.'
+        ),
       }
     );
 
@@ -121,10 +165,11 @@ export const VoiceOnboardingScreen: React.FC = () => {
   const playQuestion = (listenAfter = true) => {
     stopListening();
     setVoiceFeedback(null);
-    speakText(ONBOARDING_SPEECH, {
+    speakText(onboardingSpeech, {
       enabled: true,
       rate: accessibility.speechRate,
       languageLevel: 'acessivel',
+      lang: language,
       force: true,
       onDone: listenAfter
         ? () => {
@@ -146,8 +191,8 @@ export const VoiceOnboardingScreen: React.FC = () => {
   useEffect(() => {
     mountedRef.current = true;
     const timer = setTimeout(() => {
-      // Na Web os navegadores bloqueiam microfone automático sem clique do usuário;
-      // no APK inicia a escuta logo após ler a pergunta.
+      // On Web browsers block auto microphone without user gesture;
+      // on APK start listening right after reading the question.
       playQuestion(Platform.OS !== 'web');
     }, 350);
     return () => {
@@ -169,6 +214,10 @@ export const VoiceOnboardingScreen: React.FC = () => {
     <ScrollView
       contentContainerStyle={[styles.container, { backgroundColor: theme.bg }]}
     >
+      <View style={styles.langRow}>
+        <LanguageTogglePill language={language} onSelect={setAppLanguage} theme={theme} />
+      </View>
+
       <View style={styles.brandBox}>
         <View style={[styles.logoCircle, { backgroundColor: theme.primary }]}>
           <Ionicons name="leaf" size={38} color={theme.primaryText} />
@@ -177,7 +226,11 @@ export const VoiceOnboardingScreen: React.FC = () => {
           RoçaViva
         </Text>
         <Text style={[styles.subtitle, { color: theme.textMuted, fontSize: 14 * theme.scale }]}>
-          Extensionista Rural Digital • Funciona sem internet
+          {pickLang(
+            language,
+            'Digital Rural Extension Agent • Works offline',
+            'Extensionista Rural Digital • Funciona sem internet'
+          )}
         </Text>
       </View>
 
@@ -189,7 +242,11 @@ export const VoiceOnboardingScreen: React.FC = () => {
       >
         <Ionicons name="volume-high" size={34} color={theme.primary} />
         <Text style={[styles.questionText, { color: theme.text, fontSize: 20 * theme.scale }]}>
-          Gostaria que o aplicativo faça a leitura e ajude com comandos de voz?
+          {pickLang(
+            language,
+            'Would you like the app to read screens aloud and help with voice commands?',
+            'Gostaria que o aplicativo faça a leitura e ajude com comandos de voz?'
+          )}
         </Text>
 
         <Pressable
@@ -216,7 +273,13 @@ export const VoiceOnboardingScreen: React.FC = () => {
               },
             ]}
           >
-            {listening ? 'Ouvindo... Diga "Sim" ou "Não"' : 'Responder falando (Sim ou Não)'}
+            {listening
+              ? pickLang(language, 'Listening... Say “Yes” or “No”', 'Ouvindo... Diga “Sim” ou “Não”')
+              : pickLang(
+                  language,
+                  'Reply by speaking (Yes or No)',
+                  'Responder falando (Sim ou Não)'
+                )}
           </Text>
         </Pressable>
 
@@ -229,7 +292,7 @@ export const VoiceOnboardingScreen: React.FC = () => {
           >
             {heardText && (
               <Text style={[styles.heardLabel, { color: theme.text, fontSize: 14 * theme.scale }]}>
-                Você disse: &ldquo;{heardText}&rdquo;
+                {pickLang(language, 'You said:', 'Você disse:')} &ldquo;{heardText}&rdquo;
               </Text>
             )}
             {voiceFeedback && (
@@ -251,7 +314,7 @@ export const VoiceOnboardingScreen: React.FC = () => {
         >
           <Ionicons name="refresh" size={20} color={theme.text} />
           <Text style={[styles.repeatText, { color: theme.text, fontSize: 15 * theme.scale }]}>
-            Ouvir pergunta novamente
+            {pickLang(language, 'Hear question again', 'Ouvir pergunta novamente')}
           </Text>
         </Pressable>
       </View>
@@ -272,10 +335,14 @@ export const VoiceOnboardingScreen: React.FC = () => {
                 { color: theme.primaryText, fontSize: 18 * theme.scale },
               ]}
             >
-              Sim, ativar guia por voz
+              {pickLang(language, 'Yes, enable voice guide', 'Sim, ativar guia por voz')}
             </Text>
             <Text style={[styles.choiceSub, { color: theme.primaryText }]}>
-              O app lê as telas, alertas e entende suas perguntas faladas
+              {pickLang(
+                language,
+                'The app reads screens, alerts, and understands your spoken questions',
+                'O app lê as telas, alertas e entende suas perguntas faladas'
+              )}
             </Text>
           </View>
         </Pressable>
@@ -295,10 +362,14 @@ export const VoiceOnboardingScreen: React.FC = () => {
                 { color: theme.text, fontSize: 18 * theme.scale },
               ]}
             >
-              Não, continuar apenas lendo
+              {pickLang(language, 'No, continue reading only', 'Não, continuar apenas lendo')}
             </Text>
             <Text style={[styles.choiceSub, { color: theme.textMuted }]}>
-              Você pode ligar ou desligar o som a qualquer hora no topo
+              {pickLang(
+                language,
+                'You can turn audio on or off anytime at the top',
+                'Você pode ligar ou desligar o som a qualquer hora no topo'
+              )}
             </Text>
           </View>
         </Pressable>
@@ -308,6 +379,9 @@ export const VoiceOnboardingScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  langRow: {
+    alignItems: 'flex-end',
+  },
   container: {
     flexGrow: 1,
     padding: 20,

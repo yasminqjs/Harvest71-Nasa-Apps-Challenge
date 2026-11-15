@@ -2,9 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G, Line, Rect, Text as SvgText } from 'react-native-svg';
+import { useAccessibility } from '../context/AccessibilityContext';
 import { TOPIC_META } from '../data/communityMockData';
+import { pickLang } from '../i18n/locale';
 import { AppTheme } from '../theme/tokens';
 import { CommunityGraphEdge, CommunityGraphNode } from '../types/domain';
+import { localizeBiome } from '../data/seedData';
 
 interface CommunityReportGraphProps {
   nodes: CommunityGraphNode[];
@@ -21,6 +24,7 @@ export const CommunityReportGraph: React.FC<CommunityReportGraphProps> = ({
   onSelectNode,
   theme,
 }) => {
+  const { language } = useAccessibility();
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
 
   return (
@@ -33,11 +37,18 @@ export const CommunityReportGraph: React.FC<CommunityReportGraphProps> = ({
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: theme.text, fontSize: 16 * theme.scale }]}>
-            Rede de Relatos (Grafo Regional)
+            {pickLang(
+              language,
+              'Regional Report Network (Graph)',
+              'Rede de Relatos (Grafo Regional)'
+            )}
           </Text>
           <Text style={{ fontSize: 11, color: theme.textMuted }}>
-            Toque em um ponto para filtrar relatos de outros agricultores e conexões por bioma ou
-            tema
+            {pickLang(
+              language,
+              'Tap a node to filter farmer reports and connections by biome or topic',
+              'Toque em um ponto para filtrar relatos de outros agricultores e conexões por bioma ou tema'
+            )}
           </Text>
         </View>
         {selectedNode && (
@@ -45,7 +56,9 @@ export const CommunityReportGraph: React.FC<CommunityReportGraphProps> = ({
             onPress={() => onSelectNode(null)}
             style={[styles.clearBtn, { backgroundColor: theme.surfaceMuted, borderColor: theme.border }]}
           >
-            <Text style={{ fontSize: 11, fontWeight: '800', color: theme.text }}>Ver todos</Text>
+            <Text style={{ fontSize: 11, fontWeight: '800', color: theme.text }}>
+              {pickLang(language, 'Show all', 'Ver todos')}
+            </Text>
           </Pressable>
         )}
       </View>
@@ -125,7 +138,9 @@ export const CommunityReportGraph: React.FC<CommunityReportGraphProps> = ({
                   fill="#FFFFFF"
                   textAnchor="middle"
                 >
-                  {node.isUserFarm ? 'EU' : String(node.reportCount)}
+                  {node.isUserFarm
+                    ? pickLang(language, 'ME', 'EU')
+                    : String(node.reportCount)}
                 </SvgText>
                 <SvgText
                   x={node.x}
@@ -136,7 +151,11 @@ export const CommunityReportGraph: React.FC<CommunityReportGraphProps> = ({
                   textAnchor="middle"
                 >
                   {node.isUserFarm
-                    ? `Sua Roça (${node.estado})`
+                    ? pickLang(
+                        language,
+                        `Your Farm (${node.estado})`,
+                        `Sua Roça (${node.estado})`
+                      )
                     : `${node.municipio} (${node.estado})`}
                 </SvgText>
               </G>
@@ -145,35 +164,47 @@ export const CommunityReportGraph: React.FC<CommunityReportGraphProps> = ({
         </Svg>
       </View>
 
-      {/* Legenda do Grafo */}
+      {/* Graph Legend */}
       <View style={styles.legendRow}>
         <View style={styles.legendItem}>
           <View style={[styles.dot, { backgroundColor: '#15803D' }]} />
-          <Text style={[styles.legendText, { color: theme.textMuted }]}>Sua Roça / Bioma</Text>
+          <Text style={[styles.legendText, { color: theme.textMuted }]}>
+            {pickLang(language, 'Your Farm / Biome', 'Sua Roça / Bioma')}
+          </Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.dot, { backgroundColor: '#DC2626' }]} />
-          <Text style={[styles.legendText, { color: theme.textMuted }]}>Seca</Text>
+          <Text style={[styles.legendText, { color: theme.textMuted }]}>
+            {pickLang(language, 'Drought / Disaster', 'Seca / Desastre')}
+          </Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.dot, { backgroundColor: '#D97706' }]} />
-          <Text style={[styles.legendText, { color: theme.textMuted }]}>Praga</Text>
+          <Text style={[styles.legendText, { color: theme.textMuted }]}>
+            {pickLang(language, 'Pests', 'Pragas')}
+          </Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: '#16A34A' }]} />
-          <Text style={[styles.legendText, { color: theme.textMuted }]}>Rotação</Text>
+          <View style={[styles.dot, { backgroundColor: '#0D9488' }]} />
+          <Text style={[styles.legendText, { color: theme.textMuted }]}>
+            {pickLang(language, 'Price', 'Preço')}
+          </Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.dot, { backgroundColor: '#7C3AED' }]} />
-          <Text style={[styles.legendText, { color: theme.textMuted }]}>Solo</Text>
+          <Text style={[styles.legendText, { color: theme.textMuted }]}>
+            {pickLang(language, 'Soil', 'Solo')}
+          </Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.dot, { backgroundColor: '#2563EB' }]} />
-          <Text style={[styles.legendText, { color: theme.textMuted }]}>Dúvida</Text>
+          <Text style={[styles.legendText, { color: theme.textMuted }]}>
+            {pickLang(language, 'Question', 'Dúvida')}
+          </Text>
         </View>
       </View>
 
-      {/* Chips rápidos dos polos para acessibilidade por toque */}
+      {/* Quick node chips for touch accessibility */}
       <View style={styles.nodeChipsRow}>
         {nodes.map((node) => {
           const active = node.id === selectedNodeId;
@@ -199,7 +230,10 @@ export const CommunityReportGraph: React.FC<CommunityReportGraphProps> = ({
                   color: active ? '#FFFFFF' : theme.text,
                 }}
               >
-                {node.isUserFarm ? 'Minha Região' : node.municipio} ({node.reportCount})
+                {node.isUserFarm
+                  ? pickLang(language, 'My Region', 'Minha Região')
+                  : node.municipio}{' '}
+                ({node.reportCount})
               </Text>
             </Pressable>
           );
@@ -219,11 +253,15 @@ export const CommunityReportGraph: React.FC<CommunityReportGraphProps> = ({
               {selectedNode.municipio} - {selectedNode.estado} ({selectedNode.regiaoNome})
             </Text>
             <Text style={{ fontSize: 11, color: theme.textMuted }}>
-              Bioma {selectedNode.bioma} •{' '}
+              {pickLang(language, 'Biome', 'Bioma')} {localizeBiome(selectedNode.bioma, language)} •{' '}
               {selectedNode.distanceKm === 0
-                ? 'Sua localização'
-                : `~${selectedNode.distanceKm} km da sua roça`}{' '}
-              • {selectedNode.reportCount} relato(s)
+                ? pickLang(language, 'Your location', 'Sua localização')
+                : pickLang(
+                    language,
+                    `~${selectedNode.distanceKm} km from your farm`,
+                    `~${selectedNode.distanceKm} km da sua roça`
+                  )}{' '}
+              • {selectedNode.reportCount} {pickLang(language, 'report(s)', 'relato(s)')}
             </Text>
           </View>
         </View>

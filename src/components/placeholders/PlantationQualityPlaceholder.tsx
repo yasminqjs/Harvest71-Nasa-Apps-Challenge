@@ -1,20 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useAccessibility } from '../../context/AccessibilityContext';
+import { pickLang } from '../../i18n/locale';
 import { FEATURE_COLOR_STYLES } from '../../models/farmArchitecture';
 import { AppTheme } from '../../theme/tokens';
 import { FarmArchitectureModel, PlantationArchitectureModel } from '../../types/domain';
 import { FeatureBadge } from '../FeatureBadge';
 
 /**
- * @featureColor ROXO
- * @featureModule Visualizador de qualidade da plantação atual
- * @userAction Ver qualidade da plantação atual (Aba Plantação)
- * @status PLACEHOLDER — Substituir em merge futuro pelo visualizador real de qualidade.
- *
- * Ponto de substituição no merge:
- * Renderizar aqui os indicadores de vigor, satélite (Landsat Collection 2 Level-2 TIRS — 30 m),
- * diagnóstico de qualidade da lavoura atual e recomendações de manejo por talhão/lote.
+ * @featureColor PURPLE (ROXO)
+ * @featureModule Current Plantation Quality Viewer
+ * @userAction View current plantation quality (Crop Tab)
+ * @status PLACEHOLDER — Replace in future merge with live crop quality dashboard.
  */
 export interface PlantationQualityPlaceholderProps {
   farmArchitecture: FarmArchitectureModel;
@@ -29,6 +27,7 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
   onBack,
   theme,
 }) => {
+  const { language } = useAccessibility();
   const palette = FEATURE_COLOR_STYLES.roxo;
   const lot = selectedPlantation ?? farmArchitecture.plantacoes[0];
 
@@ -41,10 +40,12 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
             style={[styles.backBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
             <Ionicons name="arrow-back" size={18} color={theme.text} />
-            <Text style={[styles.backText, { color: theme.text }]}>Voltar</Text>
+            <Text style={[styles.backText, { color: theme.text }]}>
+              {pickLang(language, 'Back', 'Voltar')}
+            </Text>
           </Pressable>
           <Text style={[styles.title, { color: theme.text, fontSize: 17 * theme.scale }]}>
-            Qualidade da Plantação Atual
+            {pickLang(language, 'Current Plantation Quality', 'Qualidade da Plantação Atual')}
           </Text>
           <View style={{ width: 64 }} />
         </View>
@@ -60,38 +61,56 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
         <View style={styles.headerRow}>
           <Ionicons name="pulse-outline" size={26} color={palette.text} />
           <Text style={[styles.cardTitle, { color: palette.text, fontSize: 16 * theme.scale }]}>
-            Ver qualidade da plantação atual
+            {pickLang(
+              language,
+              'View current plantation quality',
+              'Ver qualidade da plantação atual'
+            )}
           </Text>
         </View>
         <Text style={[styles.body, { color: palette.text }]}>
-          Placeholder da feature Roxa (Visualizador de qualidade da plantação atual). Em merges
-          futuros, este bloco receberá o painel completo de saúde vegetativa, vigor por satélite
-          (30 m) e inspeção da cultura atual.
+          {pickLang(
+            language,
+            'Purple feature placeholder (Current Plantation Quality Viewer). Future merges will populate vegetative health indicators, 30 m satellite vigor, and plot-level crop inspection here.',
+            'Placeholder da feature Roxa (Visualizador de qualidade da plantação atual). Em merges futuros, este bloco receberá o painel completo de saúde vegetativa, vigor por satélite (30 m) e inspeção da cultura atual.'
+          )}
         </Text>
 
         <View style={[styles.slotBox, { backgroundColor: theme.surface, borderColor: palette.border }]}>
           <Text style={[styles.slotTitle, { color: theme.text }]}>
-            Dados atuais prontos para o visualizador:
+            {pickLang(
+              language,
+              'Current data wired to the viewer:',
+              'Dados atuais prontos para o visualizador:'
+            )}
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Talhão / Plantação: {lot?.nome ?? 'Nenhum lote selecionado'} (
+            {pickLang(language, '• Plot / Plantation: ', '• Talhão / Plantação: ')}
+            {lot?.nome ?? pickLang(language, 'No plot selected', 'Nenhum lote selecionado')} (
             {lot?.areaHectares.toFixed(2) ?? '0.00'} ha)
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Cultura atual (usuário): {lot?.culturaAtual.culturaNome ?? '—'} (
-            {lot?.culturaAtual.tempoPlantadaDias ?? 0} dias plantada)
+            {pickLang(language, '• Current crop (user): ', '• Cultura atual (usuário): ')}
+            {lot?.culturaAtual.culturaNome ?? '—'} (
+            {lot?.culturaAtual.tempoPlantadaDias ?? 0}{' '}
+            {pickLang(language, 'days planted', 'dias plantada')})
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Especificação FAO GAEZ EcoCrop:{' '}
+            {pickLang(language, '• FAO GAEZ EcoCrop spec: ', '• Especificação FAO GAEZ EcoCrop: ')}
             {lot?.culturaAtual.especificacoesCultura.observacaoEcoCrop ?? '—'}
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Camada espacial: {lot?.historicoDaTerra.variaveisDoSolo.fonte ?? 'Landsat C2 L2 TIRS 30 m'}
+            {pickLang(language, '• Spatial layer: ', '• Camada espacial: ')}
+            {lot?.historicoDaTerra.variaveisDoSolo.fonte ?? 'Landsat C2 L2 TIRS 30 m'}
           </Text>
         </View>
 
         <Text style={[styles.mergeNote, { color: palette.text }]}>
-          Arquivo alvo para merge: src/components/placeholders/PlantationQualityPlaceholder.tsx
+          {pickLang(
+            language,
+            'Target merge file: src/components/placeholders/PlantationQualityPlaceholder.tsx',
+            'Arquivo alvo para merge: src/components/placeholders/PlantationQualityPlaceholder.tsx'
+          )}
         </Text>
       </View>
     </View>

@@ -1,4 +1,5 @@
-import { FarmProperty, NasaDiagnosticsPackage, SyncQueueItem } from '../types/domain';
+import { AppLanguage, FarmProperty, NasaDiagnosticsPackage, SyncQueueItem } from '../types/domain';
+import { pickLang } from '../i18n/locale';
 import { runLocalAgronomicEngine } from './localAgronomicEngine';
 
 export interface SyncResult {
@@ -9,9 +10,9 @@ export interface SyncResult {
 }
 
 /**
- * Camada de cliente HTTP pronta para sincronizar a fila local (`sync_queue`)
- * e receber pacotes JSON de um servidor futuro quando `NetInfo` detectar internet.
- * Opera 100% offline com fallback automático para o motor agronômico local.
+ * HTTP client layer ready to sync local queue (`sync_queue`)
+ * and receive JSON bundles from a remote backend when `NetInfo` detects internet.
+ * Operates 100% offline with automatic fallback to the local agronomic engine.
  */
 export async function syncPendingDataWithCloud(options: {
   isOnline: boolean;
@@ -19,14 +20,23 @@ export async function syncPendingDataWithCloud(options: {
   pendingQueue: SyncQueueItem[];
   remoteApiUrl?: string;
   dryStressBoost?: number;
+  language?: AppLanguage;
 }): Promise<SyncResult> {
-  const { isOnline, farm, pendingQueue, remoteApiUrl, dryStressBoost = 0 } = options;
+  const {
+    isOnline,
+    farm,
+    pendingQueue,
+    remoteApiUrl,
+    dryStressBoost = 0,
+    language = 'en',
+  } = options;
 
   const localUpdated = runLocalAgronomicEngine(
     farm.centroid,
     farm.culturaPrincipal,
     farm.raioBuscaKm,
-    { dryStressBoost }
+    { dryStressBoost },
+    language
   );
 
   if (!isOnline) {
@@ -34,11 +44,15 @@ export async function syncPendingDataWithCloud(options: {
       mode: 'offline',
       syncedItemIds: [],
       updatedDiagnostics: localUpdated,
-      message: 'Modo Roça Offline: registros guardados no aparelho.',
+      message: pickLang(
+        language,
+        'Offline Field Mode: records safely stored on this device.',
+        'Modo Roça Offline: registros guardados no aparelho.'
+      ),
     };
   }
 
-  // Tentativa opcional contra servidor remoto caso URL seja configurada pelo usuário/equipe
+  // Optional attempt against remote server when configured
   if (remoteApiUrl) {
     try {
       const controller = new AbortController();
@@ -66,11 +80,15 @@ export async function syncPendingDataWithCloud(options: {
           updatedDiagnostics: data?.diagnostico
             ? { ...data.diagnostico, fontePacote: 'api_remota' }
             : localUpdated,
-          message: `Sincronizado com servidor: ${pendingQueue.length} registro(s) enviados.`,
+          message: pickLang(
+            language,
+            `Synced with server: ${pendingQueue.length} record(s) uploaded.`,
+            `Sincronizado com servidor: ${pendingQueue.length} registro(s) enviados.`
+          ),
         };
       }
     } catch {
-      // Sem servidor remoto ativo — conclui sincronização local/pacote consolidado
+      // No active remote server — complete local sync bundle
     }
   }
 
@@ -80,7 +98,15 @@ export async function syncPendingDataWithCloud(options: {
     updatedDiagnostics: localUpdated,
     message:
       pendingQueue.length > 0
-        ? `Sincronizado: ${pendingQueue.length} registro(s) de campo processados.`
-        : 'Sincronizado: dados da roça e alertas atualizados.',
+        ? pickLang(
+            language,
+            `Synced: ${pendingQueue.length} field record(s) processed.`,
+            `Sincronizado: ${pendingQueue.length} registro(s) de campo processados.`
+          )
+        : pickLang(
+            language,
+            'Synced: farm data and alerts updated.',
+            'Sincronizado: dados da roça e alertas atualizados.'
+          ),
   };
 }

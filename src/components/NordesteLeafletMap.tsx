@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useAccessibility } from '../context/AccessibilityContext';
 import { BahiaRegionPreset, NORDESTE_REGIONS } from '../data/seedData';
+import { pickLang } from '../i18n/locale';
 import { AppTheme } from '../theme/tokens';
 import { GeoPoint } from '../types/domain';
 import { buildNordesteLeafletHtml } from '../utils/leafletHtml';
@@ -31,6 +33,7 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
   onFallbackOffline,
   theme,
 }) => {
+  const { language } = useAccessibility();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const onSelectRef = useRef(onSelectRegion);
   const [mapReady, setMapReady] = useState(false);
@@ -115,7 +118,7 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
     <View style={[styles.container, { borderColor: theme.border, backgroundColor: theme.surfaceMuted }]}>
       <iframe
         ref={iframeRef}
-        title="Mapa interativo do Nordeste"
+        title={pickLang(language, 'Interactive Northeast map', 'Mapa interativo do Nordeste')}
         srcDoc={html}
         onLoad={handleIframeLoad}
         onError={() => onFallbackOffline?.()}
@@ -150,7 +153,7 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
                 { color: basemap === 'streets' ? theme.primaryText : '#19221C' },
               ]}
             >
-              Cartográfico
+              {pickLang(language, 'Street Map', 'Cartográfico')}
             </Text>
           </Pressable>
 
@@ -172,7 +175,7 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
                 { color: basemap === 'satellite' ? theme.primaryText : '#19221C' },
               ]}
             >
-              Satélite
+              {pickLang(language, 'Satellite', 'Satélite')}
             </Text>
           </Pressable>
         </View>
@@ -226,7 +229,11 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="small" color={theme.primary} />
           <Text style={[styles.loadingText, { color: theme.text }]}>
-            Carregando mapa interativo (IBGE + Satélite)...
+            {pickLang(
+              language,
+              'Loading interactive map (IBGE + Satellite)...',
+              'Carregando mapa interativo (IBGE + Satélite)...'
+            )}
           </Text>
         </View>
       )}
@@ -234,13 +241,24 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
       <View style={styles.summaryBar}>
         <View style={[styles.summaryBadge, { backgroundColor: theme.primary }]}>
           <Text style={[styles.summaryBadgeText, { color: theme.primaryText }]}>
-            IBGE + {basemap === 'satellite' ? 'Satélite Esri' : 'Esri/OSM'}
+            IBGE +{' '}
+            {basemap === 'satellite'
+              ? pickLang(language, 'Esri Satellite', 'Satélite Esri')
+              : 'Esri/OSM'}
           </Text>
         </View>
         <Text style={styles.summaryText} numberOfLines={1}>
           {selectedReg
-            ? `${selectedReg.nome} (${selectedReg.estado}) · Risco veranico ${selectedReg.riscoVeranicoPct}%`
-            : '9 estados · Toque em um marcador'}
+            ? pickLang(
+                language,
+                `${selectedReg.nome} (${selectedReg.estado}) · Dry spell risk ${selectedReg.riscoVeranicoPct}%`,
+                `${selectedReg.nome} (${selectedReg.estado}) · Risco veranico ${selectedReg.riscoVeranicoPct}%`
+              )
+            : pickLang(
+                language,
+                '9 states · Tap a marker',
+                '9 estados · Toque em um marcador'
+              )}
         </Text>
       </View>
     </View>

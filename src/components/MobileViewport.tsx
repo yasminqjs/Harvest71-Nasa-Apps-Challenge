@@ -8,10 +8,13 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { LanguageTogglePill, pickLang } from '../i18n/locale';
 
 export const MobileViewport: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { width, height } = useWindowDimensions();
   const {
+    language,
+    setAppLanguage,
     simulatedOffline,
     setSimulatedOffline,
     dryStressBoost,
@@ -32,12 +35,25 @@ export const MobileViewport: React.FC<{ children: React.ReactNode }> = ({ childr
     <View style={styles.desktopBg}>
       {/* Painel lateral de testes em notebook (fora da tela do celular) */}
       <View style={styles.testPanel}>
-        <Text style={styles.testTitle}>Modo Teste (Notebook)</Text>
+        <Text style={styles.testTitle}>
+          {pickLang(language, 'Test Mode (Laptop)', 'Modo Teste (Notebook)')}
+        </Text>
         <Text style={styles.testSubtitle}>
-          Simulador de tela móvel para validar voz, offline SQLite, mapa, câmera foliar e alertas.
+          {pickLang(
+            language,
+            'Mobile screen simulator to validate voice, offline SQLite, map, leaf camera, and alerts.',
+            'Simulador de tela móvel para validar voz, offline SQLite, mapa, câmera foliar e alertas.'
+          )}
         </Text>
 
-        <Text style={styles.sectionLabel}>Conectividade (NetInfo)</Text>
+        <Text style={styles.sectionLabel}>
+          {pickLang(language, 'Language / Idioma', 'Idioma / Language')}
+        </Text>
+        <LanguageTogglePill language={language} onSelect={setAppLanguage} />
+
+        <Text style={styles.sectionLabel}>
+          {pickLang(language, 'Connectivity (NetInfo)', 'Conectividade (NetInfo)')}
+        </Text>
         <Pressable
           onPress={() => setSimulatedOffline(!simulatedOffline)}
           style={[
@@ -47,17 +63,35 @@ export const MobileViewport: React.FC<{ children: React.ReactNode }> = ({ childr
         >
           <Text style={styles.testBtnText}>
             {simulatedOffline
-              ? '✈️ Modo Roça Offline ATIVO'
-              : '📶 Sincronizado (Simular Offline)'}
+              ? pickLang(
+                  language,
+                  '✈️ Offline Farm Mode ACTIVE',
+                  '✈️ Modo Roça Offline ATIVO'
+                )
+              : pickLang(
+                  language,
+                  '📶 Synced (Simulate Offline)',
+                  '📶 Sincronizado (Simular Offline)'
+                )}
           </Text>
         </Pressable>
         {pendingSyncCount > 0 && (
           <Text style={styles.queueNote}>
-            {pendingSyncCount} item(ns) na fila `sync_queue` aguardando sinal.
+            {pickLang(
+              language,
+              `${pendingSyncCount} item(s) in \`sync_queue\` waiting for signal.`,
+              `${pendingSyncCount} item(ns) na fila \`sync_queue\` aguardando sinal.`
+            )}
           </Text>
         )}
 
-        <Text style={styles.sectionLabel}>Simular Alerta de Seca (Muda o Emoji)</Text>
+        <Text style={styles.sectionLabel}>
+          {pickLang(
+            language,
+            'Simulate Drought Alert (Changes Emoji)',
+            'Simular Alerta de Seca (Muda o Emoji)'
+          )}
+        </Text>
         <View style={styles.emojiRow}>
           {[
             { boost: 0, label: '😊 Normal' },
@@ -85,9 +119,17 @@ export const MobileViewport: React.FC<{ children: React.ReactNode }> = ({ childr
           ))}
         </View>
 
-        <Text style={styles.sectionLabel}>Fluxo Inicial</Text>
+        <Text style={styles.sectionLabel}>
+          {pickLang(language, 'Initial Flow', 'Fluxo Inicial')}
+        </Text>
         <Pressable onPress={resetDemoData} style={styles.resetBtn}>
-          <Text style={styles.resetBtnText}>↺ Reiniciar Onboarding & Mapa</Text>
+          <Text style={styles.resetBtnText}>
+            {pickLang(
+              language,
+              '↺ Restart Onboarding & Map',
+              '↺ Reiniciar Onboarding & Mapa'
+            )}
+          </Text>
         </Pressable>
       </View>
 

@@ -10,6 +10,7 @@ import { createDefaultLotsForFarm } from '../utils/agronomyHelpers';
 import {
   AccessibilityProfile,
   AppFeedbackItem,
+  AppLanguage,
   EdiblePlantPANC,
   FarmProperty,
   FarmerProfile,
@@ -37,6 +38,7 @@ export const DEFAULT_ACCESSIBILITY: AccessibilityProfile = {
   voiceOnboardingCompleted: false,
   registrationCompleted: false,
   tutorialCompleted: false,
+  appLanguage: 'en',
   voiceGuidanceEnabled: false,
   speechRate: 0.85,
   highContrast: false,
@@ -44,11 +46,11 @@ export const DEFAULT_ACCESSIBILITY: AccessibilityProfile = {
   languageLevel: 'acessivel',
 };
 
-export function buildSeedSnapshot(): LocalDatabaseSnapshot {
+export function buildSeedSnapshot(lang: AppLanguage = 'en'): LocalDatabaseSnapshot {
   const partialFarms = buildInitialSeedFarms();
   const fazendas: FarmProperty[] = partialFarms.map((pf) => {
     const centroid = pf.centroid ?? { latitude: -12.9714, longitude: -38.5014 };
-    const cultura = pf.culturaPrincipal ?? 'Feijão-Caupi + Mandioca';
+    const cultura = pf.culturaPrincipal ?? 'Cowpea + Cassava';
     const raio = pf.raioBuscaKm ?? 15;
     return {
       id: pf.id!,
@@ -65,12 +67,12 @@ export function buildSeedSnapshot(): LocalDatabaseSnapshot {
       raioBuscaKm: raio,
       culturaPrincipal: cultura,
       lotes: createDefaultLotsForFarm(centroid, pf.areaHectares ?? 3.8, cultura),
-      diagnostico: runLocalAgronomicEngine(centroid, cultura, raio),
+      diagnostico: runLocalAgronomicEngine(centroid, cultura, raio, {}, lang),
     };
   });
 
   return {
-    accessibility: { ...DEFAULT_ACCESSIBILITY },
+    accessibility: { ...DEFAULT_ACCESSIBILITY, appLanguage: lang },
     activeFarmerId: SEED_FARMERS[0].id,
     activeFarmId: fazendas[0].id,
     usuarios: [...SEED_FARMERS],

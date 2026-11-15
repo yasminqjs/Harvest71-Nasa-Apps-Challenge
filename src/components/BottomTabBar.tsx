@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { pickLang } from '../i18n/locale';
 import { getAppTheme } from '../theme/tokens';
 
 export type MainTabKey = 'resumo' | 'plantacao' | 'comunidade';
@@ -13,20 +14,39 @@ interface BottomTabBarProps {
 
 const TABS: {
   key: MainTabKey;
-  label: string;
+  labelEn: string;
+  labelPt: string;
   icon: keyof typeof Ionicons.glyphMap;
   iconInactive: keyof typeof Ionicons.glyphMap;
 }[] = [
-  { key: 'resumo', label: 'Resumo', icon: 'sunny', iconInactive: 'sunny-outline' },
-  { key: 'plantacao', label: 'Plantação', icon: 'leaf', iconInactive: 'leaf-outline' },
-  { key: 'comunidade', label: 'Comunidade', icon: 'people', iconInactive: 'people-outline' },
+  {
+    key: 'resumo',
+    labelEn: 'Overview',
+    labelPt: 'Resumo',
+    icon: 'sunny',
+    iconInactive: 'sunny-outline',
+  },
+  {
+    key: 'plantacao',
+    labelEn: 'Crops',
+    labelPt: 'Plantação',
+    icon: 'leaf',
+    iconInactive: 'leaf-outline',
+  },
+  {
+    key: 'comunidade',
+    labelEn: 'Community',
+    labelPt: 'Comunidade',
+    icon: 'people',
+    iconInactive: 'people-outline',
+  },
 ];
 
 export const BottomTabBar: React.FC<BottomTabBarProps> = ({
   activeTab,
   onChangeTab,
 }) => {
-  const { accessibility, activeFarm } = useAccessibility();
+  const { language, accessibility, activeFarm } = useAccessibility();
   const theme = getAppTheme(accessibility);
   const droughtLevel = activeFarm?.diagnostico.modeloB.nivel ?? 'normal';
   const foodAlertActive =
@@ -74,7 +94,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
                 },
               ]}
             >
-              {t.label}
+              {pickLang(language, t.labelEn, t.labelPt)}
             </Text>
           </Pressable>
         );

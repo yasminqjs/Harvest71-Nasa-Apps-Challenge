@@ -8,18 +8,25 @@ import React, {
   useState,
 } from 'react';
 import { AppState } from 'react-native';
-import { MOCK_COMMUNITY_POSTS } from '../data/communityMockData';
-import { NORDESTE_REGIONS } from '../data/seedData';
+import { buildCommunityPosts } from '../data/communityMockData';
+import { getLocalizedAlerts, NORDESTE_REGIONS } from '../data/seedData';
 import { DEFAULT_ACCESSIBILITY, buildSeedSnapshot } from '../database/seedBuilder';
 import { sqliteDb } from '../database/sqlite';
+import { pickLang } from '../i18n/locale';
 import { buildFarmArchitectureModel } from '../models/farmArchitecture';
 import { runLocalAgronomicEngine } from '../services/localAgronomicEngine';
 import { triggerLocalPreventiveAlert } from '../services/notificationService';
 import { syncPendingDataWithCloud } from '../services/syncService';
-import { initSpeechBackgroundSync, speakText, stopSpeaking } from '../services/voiceAssistant';
+import {
+  initSpeechBackgroundSync,
+  setVoiceLanguage,
+  speakText,
+  stopSpeaking,
+} from '../services/voiceAssistant';
 import {
   AccessibilityProfile,
   AppFeedbackItem,
+  AppLanguage,
   CommunityPost,
   CommunityTopic,
   CropHistoryRecord,
@@ -41,6 +48,7 @@ import { calculatePolygonMetrics, createMicroPlotAroundPoint } from '../utils/ge
 interface AccessibilityContextValue {
   ready: boolean;
   accessibility: AccessibilityProfile;
+  language: AppLanguage;
   farmers: FarmerProfile[];
   activeFarmer: FarmerProfile;
   farms: FarmProperty[];
@@ -65,6 +73,8 @@ interface AccessibilityContextValue {
 
   setSimulatedOffline: (offline: boolean) => void;
   setNordesteMapCompleted: (done: boolean) => void;
+  setAppLanguage: (lang: AppLanguage) => Promise<void>;
+  toggleAppLanguage: () => Promise<void>;
   openTutorial: () => void;
   closeTutorial: (markDone?: boolean) => Promise<void>;
   completeVoiceOnboarding: (enableVoice: boolean) => Promise<void>;
@@ -148,15 +158,46 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
   const [lastSyncMessage, setLastSyncMessage] = useState<string | null>(null);
   const [nordesteMapCompleted, setNordesteMapCompleted] = useState(false);
   const [tutorialVisible, setTutorialVisible] = useState(false);
-  const [communityPosts, setCommunityPosts] =
-    useState<CommunityPost[]>(MOCK_COMMUNITY_POSTS);
+  const [userCommunityPosts, setUserCommunityPosts] = useState<CommunityPost[]>([]);
+  const [postLikeOverrides, setPostLikeOverrides] = useState<
+    Record<string, { curtidas: number; curtidoPorMim: boolean }>
+  >({});
+  const [postReplyAdditions, setPostReplyAdditions] = useState<
+    Record<string, CommunityPost['respostas']>
+  >({});
+
+  const language: AppLanguage = accessibility.appLanguage ?? 'en';
+
+  useEffect(() => {
+    setVoiceLanguage(language);
+  }, [language]);
+
+  const communityPosts = useMemo<CommunityPost[]>(() => {
+    const baseMocks = buildCommunityPosts(language);
+    return [...userCommunityPosts, ...baseMocks].map((post) => {
+      const likePatch = postLikeOverrides[post.id];
+      const extraReplies = postReplyAdditions[post.id];
+      if (!likePatch && !extraReplies) return post;
+      return {
+        ...post,
+        curtidas: likePatch ? likePatch.curtidas : post.curtidas,
+        curtidoPorMim: likePatch ? likePatch.curtidoPorMim : post.curtidoPorMim,
+        respostas: extraReplies ? [...post.respostas, ...extraReplies] : post.respostas,
+      };
+    });
+  }, [language, userCommunityPosts, postLikeOverrides, postReplyAdditions]);
 
   const isOnline = realOnline && !simulatedOffline;
 
   useEffect(() => {
     let mounted = true;
     const applySnapshot = (snap: ReturnType<typeof buildSeedSnapshot>) => {
-      const fallback = buildSeedSnapshot();
+      const resolvedLang: AppLanguage = snap.accessibility.appLanguage ?? 'en';
+      const normalizedAcc: AccessibilityProfile = {
+        ...snap.accessibility,
+        appLanguage: resolvedLang,
+      };
+      const fallback = buildSeedSnapshot(resolvedLang);
       const safeFarmers = snap.usuarios.length > 0 ? snap.usuarios : fallback.usuarios;
       const rawFarms = snap.fazendas.length > 0 ? snap.fazendas : fallback.fazendas;
       const safeFarms = rawFarms.map((f) => ({
@@ -164,16 +205,26 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         lotes:
           f.lotes && f.lotes.length > 0
             ? f.lotes
-            : createDefaultLotsForFarm(f.centroid, f.areaHectares, f.culturaPrincipal),
+            : createDefaultLotsForFarm(f.centroid, f.areaHectares, f.culturaPrincipal, resolvedLang),
+        diagnostico: runLocalAgronomicEngine(
+          f.centroid,
+          f.culturaPrincipal,
+          f.raioBuscaKm,
+          { dryStressBoost: 0 },
+          resolvedLang
+        ),
       }));
-      setAccessibility(snap.accessibility);
+      setVoiceLanguage(resolvedLang);
+      setAccessibility(normalizedAcc);
       setFarmers(safeFarmers);
       setFarms(safeFarms);
       setPancs(
         snap.catalogoPancs.length > 0 ? snap.catalogoPancs : fallback.catalogoPancs
       );
       setWells(snap.pocosSiagas.length > 0 ? snap.pocosSiagas : fallback.pocosSiagas);
-      setAlerts(snap.alertas);
+      setAlerts(
+        snap.alertas.length > 0 ? getLocalizedAlerts(resolvedLang, snap.alertas) : getLocalizedAlerts(resolvedLang)
+      );
       setFieldLogs(snap.fieldLogs);
       setFeedbacks(snap.feedbacks ?? []);
       setSyncQueue(snap.syncQueue);
@@ -287,7 +338,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       const cadastrado =
         accessibility.registrationCompleted &&
         activeFarmer?.tratamento &&
-        activeFarmer.tratamento !== 'Agricultor(a)'
+        activeFarmer.tratamento !== 'Agricultor(a)' &&
+        activeFarmer.tratamento !== 'Farmer'
           ? activeFarmer.tratamento
           : undefined;
       speakText(text, {
@@ -295,10 +347,11 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         rate: accessibility.speechRate,
         languageLevel: accessibility.languageLevel,
         tratamento: cadastrado,
+        lang: language,
         force,
       });
     },
-    [accessibility, activeFarmer]
+    [accessibility, activeFarmer, language]
   );
 
   const stopVoice = useCallback(() => {
@@ -313,6 +366,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       farm: activeFarm,
       pendingQueue: pendingItems,
       dryStressBoost,
+      language,
     });
 
     if (result.mode === 'offline') {
@@ -337,7 +391,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       setFeedbacks((prev) => prev.map((fb) => ({ ...fb, sincronizado: true })));
     }
     setLastSyncMessage(result.message);
-  }, [activeFarm, syncQueue, isOnline, dryStressBoost]);
+  }, [activeFarm, syncQueue, isOnline, dryStressBoost, language]);
 
   useEffect(() => {
     if (ready && isOnline && pendingSyncCount > 0) {
@@ -355,20 +409,30 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         ...accessibility,
         voiceOnboardingCompleted: true,
         registrationCompleted: accessibility.registrationCompleted ?? false,
+        appLanguage: language,
         voiceGuidanceEnabled: enableVoice,
       };
       setAccessibility(next);
       await sqliteDb.saveAccessibility(next);
       if (enableVoice) {
         speakText(
-          'Guia por voz ativado. Escolha sua região na Bahia ou Nordeste no mapa.',
-          { enabled: true, rate: next.speechRate, languageLevel: next.languageLevel }
+          pickLang(
+            language,
+            'Voice guide enabled. Choose your farm region on the map.',
+            'Guia por voz ativado. Escolha sua região na Bahia ou Nordeste no mapa.'
+          ),
+          {
+            enabled: true,
+            rate: next.speechRate,
+            languageLevel: next.languageLevel,
+            lang: language,
+          }
         );
       } else {
         stopSpeaking();
       }
     },
-    [accessibility]
+    [accessibility, language]
   );
 
   const toggleVoiceGuidance = useCallback(async () => {
@@ -377,15 +441,19 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
     setAccessibility(next);
     await sqliteDb.saveAccessibility(next);
     if (nextEnabled) {
-      speakText('Leitura em voz alta ligada.', {
-        enabled: true,
-        rate: next.speechRate,
-        languageLevel: next.languageLevel,
-      });
+      speakText(
+        pickLang(language, 'Voice readout turned on.', 'Leitura em voz alta ligada.'),
+        {
+          enabled: true,
+          rate: next.speechRate,
+          languageLevel: next.languageLevel,
+          lang: language,
+        }
+      );
     } else {
       stopSpeaking();
     }
-  }, [accessibility]);
+  }, [accessibility, language]);
 
   const updateAccessibility = useCallback(
     async (partial: Partial<AccessibilityProfile>) => {
@@ -395,6 +463,38 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [accessibility]
   );
+
+  const setAppLanguage = useCallback(
+    async (nextLang: AppLanguage) => {
+      const next: AccessibilityProfile = { ...accessibility, appLanguage: nextLang };
+      setVoiceLanguage(nextLang);
+      setAccessibility(next);
+      await sqliteDb.saveAccessibility(next);
+
+      const rebuiltFarms = farms.map((farm) => ({
+        ...farm,
+        diagnostico: runLocalAgronomicEngine(
+          farm.centroid,
+          farm.culturaPrincipal,
+          farm.raioBuscaKm,
+          { dryStressBoost },
+          nextLang
+        ),
+      }));
+      setFarms(rebuiltFarms);
+      for (const farm of rebuiltFarms) {
+        await sqliteDb.upsertFazenda(farm);
+      }
+      setAlerts((prev) => getLocalizedAlerts(nextLang, prev));
+      setLastSyncMessage(null);
+      stopSpeaking();
+    },
+    [accessibility, farms, dryStressBoost]
+  );
+
+  const toggleAppLanguage = useCallback(async () => {
+    await setAppLanguage(language === 'en' ? 'pt' : 'en');
+  }, [language, setAppLanguage]);
 
   const selectFarmer = useCallback(
     async (farmerId: string) => {
@@ -481,7 +581,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
           metrics.centroid,
           primaryLotCrop,
           activeFarm.raioBuscaKm,
-          { dryStressBoost }
+          { dryStressBoost },
+          language
         );
         const updatedFarm: FarmProperty = {
           ...activeFarm,
@@ -509,7 +610,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         setTutorialVisible(true);
       }
     },
-    [activeFarm, dryStressBoost, accessibility]
+    [activeFarm, dryStressBoost, accessibility, language]
   );
 
   const openTutorial = useCallback(() => {
@@ -536,7 +637,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         metrics.centroid,
         activeFarm.culturaPrincipal,
         activeFarm.raioBuscaKm,
-        { dryStressBoost }
+        { dryStressBoost },
+        language
       );
       const updated: FarmProperty = {
         ...activeFarm,
@@ -550,7 +652,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       await sqliteDb.upsertFazenda(updated);
       setFarms((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
     },
-    [activeFarm, dryStressBoost]
+    [activeFarm, dryStressBoost, language]
   );
 
   const updateFarmLots = useCallback(
@@ -561,7 +663,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         activeFarm.centroid,
         primaryCrop,
         activeFarm.raioBuscaKm,
-        { dryStressBoost }
+        { dryStressBoost },
+        language
       );
       const updated: FarmProperty = {
         ...activeFarm,
@@ -572,7 +675,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       await sqliteDb.upsertFazenda(updated);
       setFarms((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
     },
-    [activeFarm, dryStressBoost]
+    [activeFarm, dryStressBoost, language]
   );
 
   const updateLotDetails = useCallback(
@@ -584,14 +687,15 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
           : createDefaultLotsForFarm(
               activeFarm.centroid,
               activeFarm.areaHectares,
-              activeFarm.culturaPrincipal
+              activeFarm.culturaPrincipal,
+              language
             );
       const nextLots = existingLots.map((lot) =>
         lot.id === lotId ? { ...lot, ...patch } : lot
       );
       await updateFarmLots(nextLots);
     },
-    [activeFarm, updateFarmLots]
+    [activeFarm, updateFarmLots, language]
   );
 
   const selectBahiaRegion = useCallback(
@@ -608,7 +712,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         metrics.centroid,
         activeFarm.culturaPrincipal,
         activeFarm.raioBuscaKm,
-        { dryStressBoost }
+        { dryStressBoost },
+        language
       );
       const updated: FarmProperty = {
         ...activeFarm,
@@ -623,14 +728,15 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         lotes: createDefaultLotsForFarm(
           metrics.centroid,
           metrics.areaHectares,
-          activeFarm.culturaPrincipal
+          activeFarm.culturaPrincipal,
+          language
         ),
         diagnostico: diag,
       };
       await sqliteDb.upsertFazenda(updated);
       setFarms((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
     },
-    [activeFarm, dryStressBoost]
+    [activeFarm, dryStressBoost, language]
   );
 
   const updateFarmRadius = useCallback(
@@ -640,13 +746,14 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         activeFarm.centroid,
         activeFarm.culturaPrincipal,
         raioKm,
-        { dryStressBoost }
+        { dryStressBoost },
+        language
       );
       const updated: FarmProperty = { ...activeFarm, raioBuscaKm: raioKm, diagnostico: diag };
       await sqliteDb.upsertFazenda(updated);
       setFarms((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
     },
-    [activeFarm, dryStressBoost]
+    [activeFarm, dryStressBoost, language]
   );
 
   const simulateDroughtLevel = useCallback(
@@ -657,7 +764,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         activeFarm.centroid,
         activeFarm.culturaPrincipal,
         activeFarm.raioBuscaKm,
-        { dryStressBoost: boost }
+        { dryStressBoost: boost },
+        language
       );
       const updated: FarmProperty = { ...activeFarm, diagnostico: diag };
       await sqliteDb.upsertFazenda(updated);
@@ -670,8 +778,16 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
           severidade: diag.modeloB.nivel === 'seca_confirmada' ? 'urgente' : 'atencao',
           titulo:
             diag.modeloB.nivel === 'seca_confirmada'
-              ? 'Seca confirmada: ative plantas resistentes (PANCs)'
-              : 'Alerta de seca na roça (2+ sinais)',
+              ? pickLang(
+                  language,
+                  'Confirmed drought: switch to resilient crops',
+                  'Seca confirmada: priorize culturas resistentes'
+                )
+              : pickLang(
+                  language,
+                  'Farm drought alert (2+ active signals)',
+                  'Alerta de seca na roça (2+ sinais)'
+                ),
           mensagemAcessivel: diag.modeloB.resumoAcessivel,
           mensagemTecnica: diag.modeloB.resumoTecnico,
           criadoEm: new Date().toISOString(),
@@ -685,7 +801,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
     },
-    [activeFarm, accessibility.voiceGuidanceEnabled, speak]
+    [activeFarm, accessibility.voiceGuidanceEnabled, speak, language]
   );
 
   const simulateRotation = useCallback(
@@ -695,7 +811,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         activeFarm.centroid,
         rotacao,
         activeFarm.raioBuscaKm,
-        { dryStressBoost, rotacaoSelecionada: rotacao }
+        { dryStressBoost, rotacaoSelecionada: rotacao },
+        language
       );
       const updated: FarmProperty = {
         ...activeFarm,
@@ -705,7 +822,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       await sqliteDb.upsertFazenda(updated);
       setFarms((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
     },
-    [activeFarm, dryStressBoost]
+    [activeFarm, dryStressBoost, language]
   );
 
   const saveLeafAnalysis = useCallback(
@@ -815,7 +932,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
             soloEncharcado,
             estressePlantaCampo,
             sinaisErosaoCampo,
-          }
+          },
+          language
         );
         const updated: FarmProperty = { ...activeFarm, diagnostico: diag };
         await sqliteDb.upsertFazenda(updated);
@@ -827,14 +945,38 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
             categoria: input.estadoLavoura === 'com_pragas' ? 'fitossanitario' : 'seca',
             severidade: 'atencao',
             titulo: sinaisErosaoCampo
-              ? 'Sinais de enxurrada/erosão no terreno'
-              : 'Praga ou doença observada na lavoura',
+              ? pickLang(
+                  language,
+                  'Runoff / erosion signs in the field',
+                  'Sinais de enxurrada/erosão no terreno'
+                )
+              : pickLang(
+                  language,
+                  'Pest or disease observed on crops',
+                  'Praga ou doença observada na lavoura'
+                ),
             mensagemAcessivel: sinaisErosaoCampo
-              ? 'Você marcou água levando terra no campo. Proteja o solo com palha ou barreiras vivas de palma.'
-              : `Atenção às plantas (${input.pragaOuDoenca || 'pragas/manchas'}). Use a câmera na aba Safra para examinar uma folha.`,
+              ? pickLang(
+                  language,
+                  'You marked runoff washing soil in the field. Protect topsoil with straw mulch or cactus barriers.',
+                  'Você marcou água levando terra no campo. Proteja o solo com palha ou barreiras vivas de palma.'
+                )
+              : pickLang(
+                  language,
+                  `Crop alert (${input.pragaOuDoenca || 'pests/spots'}). Inspect a leaf with the camera in the Crop tab.`,
+                  `Atenção às plantas (${input.pragaOuDoenca || 'pragas/manchas'}). Use a câmera na aba Plantação para examinar uma folha.`
+                ),
             mensagemTecnica: sinaisErosaoCampo
-              ? 'Validação de campo indicou escoamento superficial erosivo. Recomenda-se plantio em contorno e cobertura morta.'
-              : `Ocorrência fitossanitária registrada em campo: ${input.pragaOuDoenca || 'sintoma foliar'}.`,
+              ? pickLang(
+                  language,
+                  'Field check reported erosive surface runoff. Contour planting and straw mulching recommended.',
+                  'Validação de campo indicou escoamento superficial erosivo. Recomenda-se plantio em contorno e cobertura morta.'
+                )
+              : pickLang(
+                  language,
+                  `Phytosanitary field event logged: ${input.pragaOuDoenca || 'foliar symptom'}.`,
+                  `Ocorrência fitossanitária registrada em campo: ${input.pragaOuDoenca || 'sintoma foliar'}.`
+                ),
             criadoEm: now,
             lido: false,
           };
@@ -845,11 +987,19 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
 
       setLastSyncMessage(
         isOnline
-          ? 'Sincronizado: validação de campo salva e enviada.'
-          : 'Modo Roça Offline: validação salva no aparelho para enviar quando houver sinal.'
+          ? pickLang(
+              language,
+              'Synced: field check saved and uploaded.',
+              'Sincronizado: validação de campo salva e enviada.'
+            )
+          : pickLang(
+              language,
+              'Offline Field Mode: field check saved locally to sync when signal returns.',
+              'Modo Roça Offline: validação salva no aparelho para enviar quando houver sinal.'
+            )
       );
     },
-    [activeFarm, isOnline, dryStressBoost]
+    [activeFarm, isOnline, dryStressBoost, language]
   );
 
   const submitAppFeedback = useCallback(
@@ -882,21 +1032,31 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       setSyncQueue((prev) => [queueItem, ...prev]);
       setLastSyncMessage(
         isOnline
-          ? 'Obrigado! Sua opinião foi registrada e enviada.'
-          : 'Obrigado! Sua opinião foi salva offline e será enviada quando houver sinal.'
+          ? pickLang(
+              language,
+              'Thank you! Your feedback has been saved and submitted.',
+              'Obrigado! Sua opinião foi registrada e enviada.'
+            )
+          : pickLang(
+              language,
+              'Thank you! Your feedback was saved offline and will sync later.',
+              'Obrigado! Sua opinião foi salva offline e será enviada quando houver sinal.'
+            )
       );
     },
-    [activeFarm, activeFarmer, isOnline]
+    [activeFarm, activeFarmer, isOnline, language]
   );
 
   const resetDemoData = useCallback(async () => {
     const snap = await sqliteDb.resetDatabase();
-    setAccessibility(snap.accessibility);
+    const resolvedLang: AppLanguage = snap.accessibility.appLanguage ?? 'en';
+    setVoiceLanguage(resolvedLang);
+    setAccessibility({ ...snap.accessibility, appLanguage: resolvedLang });
     setFarmers(snap.usuarios);
     setFarms(snap.fazendas);
     setPancs(snap.catalogoPancs);
     setWells(snap.pocosSiagas);
-    setAlerts(snap.alertas);
+    setAlerts(getLocalizedAlerts(resolvedLang, snap.alertas));
     setFieldLogs(snap.fieldLogs);
     setFeedbacks(snap.feedbacks ?? []);
     setSyncQueue(snap.syncQueue);
@@ -906,7 +1066,9 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
     setLastLeafAnalysis(null);
     setNordesteMapCompleted(false);
     setTutorialVisible(false);
-    setCommunityPosts(MOCK_COMMUNITY_POSTS);
+    setUserCommunityPosts([]);
+    setPostLikeOverrides({});
+    setPostReplyAdditions({});
     setLastSyncMessage(null);
   }, []);
 
@@ -938,7 +1100,10 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!activeFarm || !activeFarmer) return null;
       const newPost: CommunityPost = {
         id: `post-${Date.now()}`,
-        autor: activeFarmer.tratamento || activeFarmer.nome || 'Agricultor(a)',
+        autor:
+          activeFarmer.tratamento ||
+          activeFarmer.nome ||
+          pickLang(language, 'Farmer', 'Agricultor(a)'),
         regiaoNome: activeFarm.regiaoNome,
         municipio: activeFarm.municipio,
         estado: activeFarm.estado,
@@ -950,65 +1115,61 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
         mensagem: input.mensagem,
         curtidas: 1,
         curtidoPorMim: true,
-        haQuantoTempo: 'agora mesmo',
+        haQuantoTempo: pickLang(language, 'just now', 'agora mesmo'),
         respostas: [],
       };
-      setCommunityPosts((prev) => [newPost, ...prev]);
+      setUserCommunityPosts((prev) => [newPost, ...prev]);
       return newPost;
     },
-    [activeFarm, activeFarmer]
+    [activeFarm, activeFarmer, language]
   );
 
-  const toggleCommunityLike = useCallback((postId: string) => {
-    setCommunityPosts((prev) =>
-      prev.map((p) => {
-        if (p.id !== postId) return p;
-        const liked = !p.curtidoPorMim;
-        return {
-          ...p,
-          curtidoPorMim: liked,
-          curtidas: Math.max(0, p.curtidas + (liked ? 1 : -1)),
-        };
-      })
-    );
-  }, []);
+  const toggleCommunityLike = useCallback(
+    (postId: string) => {
+      const target = communityPosts.find((p) => p.id === postId);
+      if (!target) return;
+      const liked = !target.curtidoPorMim;
+      const nextCount = Math.max(0, target.curtidas + (liked ? 1 : -1));
+      setPostLikeOverrides((prev) => ({
+        ...prev,
+        [postId]: { curtidas: nextCount, curtidoPorMim: liked },
+      }));
+    },
+    [communityPosts]
+  );
 
   const addCommunityReply = useCallback(
     (postId: string, texto: string) => {
       if (!activeFarm || !activeFarmer) return;
-      setCommunityPosts((prev) =>
-        prev.map((p) =>
-          p.id === postId
-            ? {
-                ...p,
-                respostas: [
-                  ...p.respostas,
-                  {
-                    id: `rep-${Date.now()}`,
-                    autor: activeFarmer.tratamento || activeFarmer.nome || 'Agricultor(a)',
-                    regiaoNome: activeFarm.regiaoNome,
-                    municipio: activeFarm.municipio,
-                    texto,
-                    criadoEm: 'agora mesmo',
-                  },
-                ],
-              }
-            : p
-        )
-      );
+      const reply = {
+        id: `rep-${Date.now()}`,
+        autor:
+          activeFarmer.tratamento ||
+          activeFarmer.nome ||
+          pickLang(language, 'Farmer', 'Agricultor(a)'),
+        regiaoNome: activeFarm.regiaoNome,
+        municipio: activeFarm.municipio,
+        texto,
+        criadoEm: pickLang(language, 'just now', 'agora mesmo'),
+      };
+      setPostReplyAdditions((prev) => ({
+        ...prev,
+        [postId]: [...(prev[postId] ?? []), reply],
+      }));
     },
-    [activeFarm, activeFarmer]
+    [activeFarm, activeFarmer, language]
   );
 
   const farmArchitecture = useMemo<FarmArchitectureModel | null>(() => {
     if (!activeFarm || !activeFarmer) return null;
-    return buildFarmArchitectureModel(activeFarm, activeFarmer, communityPosts);
-  }, [activeFarm, activeFarmer, communityPosts]);
+    return buildFarmArchitectureModel(activeFarm, activeFarmer, communityPosts, language);
+  }, [activeFarm, activeFarmer, communityPosts, language]);
 
   const value = useMemo<AccessibilityContextValue>(
     () => ({
       ready,
       accessibility,
+      language,
       farmers,
       activeFarmer,
       farms,
@@ -1032,6 +1193,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       farmArchitecture,
       setSimulatedOffline,
       setNordesteMapCompleted,
+      setAppLanguage,
+      toggleAppLanguage,
       openTutorial,
       closeTutorial,
       completeVoiceOnboarding,
@@ -1064,6 +1227,7 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
     [
       ready,
       accessibility,
+      language,
       farmers,
       activeFarmer,
       farms,
@@ -1085,6 +1249,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       tutorialVisible,
       communityPosts,
       farmArchitecture,
+      setAppLanguage,
+      toggleAppLanguage,
       openTutorial,
       closeTutorial,
       completeVoiceOnboarding,

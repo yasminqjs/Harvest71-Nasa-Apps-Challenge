@@ -1,4 +1,5 @@
 import {
+  AppLanguage,
   CommunityPost,
   FarmArchitectureModel,
   FarmProperty,
@@ -8,6 +9,7 @@ import {
   PlantationArchitectureModel,
   PlantingLot,
 } from '../types/domain';
+import { pickLang } from '../i18n/locale';
 
 export const FEATURE_COLOR_STYLES: Record<
   FeatureColorCode,
@@ -19,77 +21,150 @@ export const FEATURE_COLOR_STYLES: Record<
   }
 > = {
   verde: {
-    codeLabel: 'VERDE • Pegador de informações da fazenda',
+    codeLabel: 'GREEN • Farm data collector',
     bg: '#DCFCE7',
     border: '#16A34A',
     text: '#14532D',
   },
   azul: {
-    codeLabel: 'AZUL • Pegador de feedback de acontecimentos do usuário',
+    codeLabel: 'BLUE • User event feedback collector',
     bg: '#DBEAFE',
     border: '#2563EB',
     text: '#1E3A8A',
   },
   salmao: {
-    codeLabel: 'SALMÃO • Notificador de acontecimentos locais',
+    codeLabel: 'SALMON • Local event notifier',
     bg: '#FEE2E2',
     border: '#F87171',
     text: '#7F1D1D',
   },
   cinza: {
-    codeLabel: 'CINZA [PLACEHOLDER] • Previsão / Comparador / Otimizador DSSAT',
+    codeLabel: 'GRAY [PLACEHOLDER] • DSSAT Forecast / Comparator / Optimizer',
     bg: '#F3F4F6',
     border: '#9CA3AF',
     text: '#374151',
   },
   roxo: {
-    codeLabel: 'ROXO [PLACEHOLDER] • Visualizador de qualidade da plantação atual',
+    codeLabel: 'PURPLE [PLACEHOLDER] • Current plantation quality viewer',
     bg: '#F3E8FF',
     border: '#9333EA',
     text: '#581C87',
   },
   amarelo: {
-    codeLabel: 'AMARELO • Visualizador de informações locais',
+    codeLabel: 'YELLOW • Local info viewer',
     bg: '#FEF9C3',
     border: '#CA8A04',
     text: '#713F12',
   },
 };
 
+export function getFeatureColorStyles(lang: AppLanguage = 'en'): Record<
+  FeatureColorCode,
+  {
+    codeLabel: string;
+    bg: string;
+    border: string;
+    text: string;
+  }
+> {
+  return {
+    verde: {
+      codeLabel: pickLang(
+        lang,
+        'GREEN • Farm data collector',
+        'VERDE • Pegador de informações da fazenda'
+      ),
+      bg: '#DCFCE7',
+      border: '#16A34A',
+      text: '#14532D',
+    },
+    azul: {
+      codeLabel: pickLang(
+        lang,
+        'BLUE • User event feedback collector',
+        'AZUL • Pegador de feedback de acontecimentos do usuário'
+      ),
+      bg: '#DBEAFE',
+      border: '#2563EB',
+      text: '#1E3A8A',
+    },
+    salmao: {
+      codeLabel: pickLang(
+        lang,
+        'SALMON • Local event notifier',
+        'SALMÃO • Notificador de acontecimentos locais'
+      ),
+      bg: '#FEE2E2',
+      border: '#F87171',
+      text: '#7F1D1D',
+    },
+    cinza: {
+      codeLabel: pickLang(
+        lang,
+        'GRAY [PLACEHOLDER] • DSSAT Forecast / Comparator / Optimizer',
+        'CINZA [PLACEHOLDER] • Previsão / Comparador / Otimizador DSSAT'
+      ),
+      bg: '#F3F4F6',
+      border: '#9CA3AF',
+      text: '#374151',
+    },
+    roxo: {
+      codeLabel: pickLang(
+        lang,
+        'PURPLE [PLACEHOLDER] • Current plantation quality viewer',
+        'ROXO [PLACEHOLDER] • Visualizador de qualidade da plantação atual'
+      ),
+      bg: '#F3E8FF',
+      border: '#9333EA',
+      text: '#581C87',
+    },
+    amarelo: {
+      codeLabel: pickLang(
+        lang,
+        'YELLOW • Local info viewer',
+        'AMARELO • Visualizador de informações locais'
+      ),
+      bg: '#FEF9C3',
+      border: '#CA8A04',
+      text: '#713F12',
+    },
+  };
+}
+
 export const FEATURE_COLOR_ARCHITECTURE: FeatureArchitectureDescriptor[] = [
   {
     id: 'feat-verde-onboarding',
     color: 'verde',
-    featureName: 'Pegador de informações da fazenda',
+    featureName: 'Farm data collector',
     tab: 'onboarding',
-    userActionLabel: 'Onboarding (região, terreno, lotes e perfil)',
+    userActionLabel: 'Onboarding (region, land boundary, plots, and profile)',
     status: 'implementado',
     targetFile: 'src/screens/NordesteOnboardingScreen.tsx',
   },
   {
     id: 'feat-verde-plantacao',
     color: 'verde',
-    featureName: 'Pegador de informações da fazenda',
+    featureName: 'Farm data collector',
     tab: 'plantacao',
-    userActionLabel: 'Atualizar dados da plantação e da fazenda',
+    userActionLabel: 'Update plantation and farm data',
     status: 'implementado',
     targetFile: 'src/screens/DecisionScreen.tsx',
   },
   {
     id: 'feat-amarelo-resumo',
     color: 'amarelo',
-    featureName: 'Visualizador de informações locais (temperatura, etc)',
+    featureName: 'Local info viewer (temperature, etc.)',
     tab: 'resumo',
-    userActionLabel: 'Ver informações básicas',
+    userActionLabel: 'View basic information',
     status: 'implementado',
     targetFile: 'src/screens/HomeScreen.tsx',
   },
   {
     id: 'feat-cinza-comparador',
     color: 'cinza',
-    featureName: 'Previsão / Comparador / Otimizador DSSAT',
+    featureName: 'DSSAT Forecast / Comparator / Optimizer',
     tab: 'plantacao',
-    userActionLabel: 'Comparar rotação atual com outras rotações',
+    userActionLabel: 'Compare current rotation with other rotations',
     status: 'placeholder',
     targetFile: 'src/components/placeholders/DssatComparatorPlaceholder.tsx',
     placeholderComponent: 'DssatComparatorPlaceholder',
@@ -97,9 +172,9 @@ export const FEATURE_COLOR_ARCHITECTURE: FeatureArchitectureDescriptor[] = [
   {
     id: 'feat-cinza-otimizador',
     color: 'cinza',
-    featureName: 'Previsão / Comparador / Otimizador DSSAT',
+    featureName: 'DSSAT Forecast / Comparator / Optimizer',
     tab: 'plantacao',
-    userActionLabel: 'Encontrar rotação otimizada',
+    userActionLabel: 'Find optimized rotation',
     status: 'placeholder',
     targetFile: 'src/components/placeholders/DssatOptimizerPlaceholder.tsx',
     placeholderComponent: 'DssatOptimizerPlaceholder',
@@ -107,9 +182,9 @@ export const FEATURE_COLOR_ARCHITECTURE: FeatureArchitectureDescriptor[] = [
   {
     id: 'feat-roxo-qualidade',
     color: 'roxo',
-    featureName: 'Visualizador de qualidade da plantação atual',
+    featureName: 'Current plantation quality viewer',
     tab: 'plantacao',
-    userActionLabel: 'Ver qualidade da plantação atual',
+    userActionLabel: 'View current plantation quality',
     status: 'placeholder',
     targetFile: 'src/components/placeholders/PlantationQualityPlaceholder.tsx',
     placeholderComponent: 'PlantationQualityPlaceholder',
@@ -117,18 +192,18 @@ export const FEATURE_COLOR_ARCHITECTURE: FeatureArchitectureDescriptor[] = [
   {
     id: 'feat-salmao-relatos',
     color: 'salmao',
-    featureName: 'Notificador de acontecimentos locais',
+    featureName: 'Local event notifier',
     tab: 'comunidade',
-    userActionLabel: 'Receber relatos de outros usuários + Ver usuários próximos',
+    userActionLabel: 'Receive reports from other users + View nearby users',
     status: 'implementado',
     targetFile: 'src/screens/CommunityScreen.tsx',
   },
   {
     id: 'feat-azul-relatar',
     color: 'azul',
-    featureName: 'Pegador de feedback de acontecimentos do usuário',
+    featureName: 'User event feedback collector',
     tab: 'comunidade',
-    userActionLabel: 'Relatar acontecimentos (pragas, mudanças de preço, desastres naturais)',
+    userActionLabel: 'Report events (pests, price shifts, natural disasters)',
     status: 'implementado',
     targetFile: 'src/screens/CommunityScreen.tsx',
   },
@@ -136,7 +211,8 @@ export const FEATURE_COLOR_ARCHITECTURE: FeatureArchitectureDescriptor[] = [
 
 function buildPlantationNode(
   lot: PlantingLot,
-  farm: FarmProperty
+  farm: FarmProperty,
+  lang: AppLanguage = 'en'
 ): PlantationArchitectureModel {
   const d = farm.diagnostico;
   const cropToken = lot.culturaAtual.split('+')[0]?.trim().toLowerCase() ?? '';
@@ -194,26 +270,30 @@ function buildPlantationNode(
       fonteSelecao: 'usuario_ou_algoritmo_otimizacao',
       rotacaoPlanejada: lot.culturasFuturas ?? [],
       previsaoResultado: {
-        fonte: 'Software DSSAT',
+        fonte: pickLang(lang, 'DSSAT Software', 'Software DSSAT'),
         status: 'placeholder',
-        mensagemPlaceholder:
-          'Simulação DSSAT aguardando merge futuro (src/components/placeholders/DssatComparatorPlaceholder.tsx e DssatOptimizerPlaceholder.tsx).',
+        mensagemPlaceholder: pickLang(
+          lang,
+          'DSSAT simulation awaiting future merge (src/components/placeholders/DssatComparatorPlaceholder.tsx and DssatOptimizerPlaceholder.tsx).',
+          'Simulação DSSAT aguardando merge futuro (src/components/placeholders/DssatComparatorPlaceholder.tsx e DssatOptimizerPlaceholder.tsx).'
+        ),
       },
     },
   };
 }
 
 /**
- * Constrói o grafo completo de dados da propriedade conforme o diagrama "Modelagem da fazenda".
+ * Builds the complete property data graph following the "Farm Modeling" diagram.
  */
 export function buildFarmArchitectureModel(
   farm: FarmProperty,
   farmer: FarmerProfile,
-  communityPosts: CommunityPost[]
+  communityPosts: CommunityPost[],
+  lang: AppLanguage = 'en'
 ): FarmArchitectureModel {
   const lots = farm.lotes ?? [];
   const plantacoes: PlantationArchitectureModel[] = lots.map((lot) =>
-    buildPlantationNode(lot, farm)
+    buildPlantationNode(lot, farm, lang)
   );
 
   return {

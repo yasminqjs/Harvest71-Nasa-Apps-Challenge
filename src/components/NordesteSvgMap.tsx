@@ -13,6 +13,7 @@ import Svg, {
 import { useAccessibility } from '../context/AccessibilityContext';
 import { NORDESTE_IBGE_GEOJSON } from '../data/nordesteIbgeGeo';
 import { BahiaRegionPreset, NORDESTE_REGIONS } from '../data/seedData';
+import { pickLang } from '../i18n/locale';
 import { AppTheme } from '../theme/tokens';
 import { GeoPoint } from '../types/domain';
 import { NordesteLeafletMap } from './NordesteLeafletMap';
@@ -133,7 +134,7 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
   onSelectRegion,
   theme,
 }) => {
-  const { isOnline } = useAccessibility();
+  const { isOnline, language } = useAccessibility();
   const [preferOfflineSvg, setPreferOfflineSvg] = useState(false);
 
   const canUseInteractiveMap = isOnline && !preferOfflineSvg;
@@ -190,7 +191,11 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
                 color: !preferOfflineSvg ? theme.primaryText : theme.text,
               }}
             >
-              Mapa Realista (Satélite/OSM)
+              {pickLang(
+                language,
+                'Realistic Map (Satellite/OSM)',
+                'Mapa Realista (Satélite/OSM)'
+              )}
             </Text>
           </Pressable>
 
@@ -216,7 +221,7 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
                 color: preferOfflineSvg ? theme.primaryText : theme.text,
               }}
             >
-              Malha IBGE Offline
+              {pickLang(language, 'Offline IBGE Grid', 'Malha IBGE Offline')}
             </Text>
           </Pressable>
         </View>
@@ -302,7 +307,7 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
               letterSpacing={1}
               opacity={0.85}
             >
-              OCEANO
+              {pickLang(language, 'ATLANTIC', 'OCEANO')}
             </SvgText>
             <SvgText
               x="248"
@@ -313,7 +318,7 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
               letterSpacing={1}
               opacity={0.85}
             >
-              ATLÂNTICO
+              {pickLang(language, 'OCEAN', 'ATLÂNTICO')}
             </SvgText>
 
             <G transform="translate(292, 30)">
@@ -333,7 +338,11 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
             </G>
 
             <SvgText x="16" y="22" fill={theme.text} fontSize="9.5" fontWeight="900">
-              MALHA OFICIAL IBGE • NORDESTE
+              {pickLang(
+                language,
+                'OFFICIAL IBGE GRID • NORTHEAST',
+                'MALHA OFICIAL IBGE • NORDESTE'
+              )}
             </SvgText>
 
             {ibgePaths.map((st) => {
@@ -477,7 +486,11 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
       )}
 
       <Text style={[styles.hintLabel, { color: theme.textMuted }]}>
-        Toque no mapa ou escolha seu polo regional abaixo:
+        {pickLang(
+          language,
+          'Tap the map or choose your regional hub below:',
+          'Toque no mapa ou escolha seu polo regional abaixo:'
+        )}
       </Text>
 
       <ScrollView

@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Circle, MapPressEvent, Marker, Polygon } from 'react-native-maps';
 import { WebView, WebViewMessageEvent, WebViewProps } from 'react-native-webview';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { pickLang } from '../i18n/locale';
 import { sortPolygonPoints } from '../utils/geoprocessing';
 import { buildFarmLeafletHtml } from '../utils/leafletHtml';
 import {
@@ -44,10 +45,11 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
   onFallbackOffline,
   theme,
 }) => {
+  const { language } = useAccessibility();
   const webViewRef = useRef<WebViewHandle | null>(null);
   const [ready, setReady] = useState(false);
   const [basemap, setBasemap] = useState<'satellite' | 'streets'>('satellite');
-  const html = useMemo(() => buildFarmLeafletHtml(), []);
+  const html = useMemo(() => buildFarmLeafletHtml(language), [language]);
 
   useEffect(() => {
     if (!ready) return;
@@ -128,7 +130,7 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
                 { color: basemap === 'satellite' ? theme.primaryText : '#19221C' },
               ]}
             >
-              Satélite
+              {pickLang(language, 'Satellite', 'Satélite')}
             </Text>
           </Pressable>
           <Pressable
@@ -146,7 +148,7 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
                 { color: basemap === 'streets' ? theme.primaryText : '#19221C' },
               ]}
             >
-              Cartográfico
+              {pickLang(language, 'Street Map', 'Cartográfico')}
             </Text>
           </Pressable>
         </View>
@@ -164,12 +166,20 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
       <View style={[styles.badge, { elevation: 10 }]}>
         <Text style={styles.badgeText}>
           {drawingMode
-            ? 'Toque no mapa para demarcar os cantos'
+            ? pickLang(
+                language,
+                'Tap on the map to mark corners',
+                'Toque no mapa para demarcar os cantos'
+              )
             : showWells
-            ? `${basemap === 'streets' ? 'Cartográfico' : 'Satélite'} + Poços (SIAGAS)`
+            ? `${
+                basemap === 'streets'
+                  ? pickLang(language, 'Street Map', 'Cartográfico')
+                  : pickLang(language, 'Satellite', 'Satélite')
+              } + ${pickLang(language, 'Wells (SIAGAS)', 'Poços (SIAGAS)')}`
             : basemap === 'streets'
-            ? 'Mapa Cartográfico (Esri/OSM)'
-            : 'Satélite da Roça (Esri)'}
+            ? pickLang(language, 'Street Map (Esri/OSM)', 'Mapa Cartográfico (Esri/OSM)')
+            : pickLang(language, 'Farm Satellite (Esri)', 'Satélite da Roça (Esri)')}
         </Text>
       </View>
     </View>
@@ -177,7 +187,7 @@ const LeafletFarmCanvas: React.FC<FarmMapCanvasProps & { onFallbackOffline: () =
 };
 
 export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
-  const { isOnline } = useAccessibility();
+  const { isOnline, language } = useAccessibility();
   const [forceVectorOffline, setForceVectorOffline] = useState(false);
   const {
     centroid,
@@ -261,7 +271,7 @@ export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
                   <Marker
                     key={`${lot.id}-pt-${idx}-${pt.latitude}`}
                     coordinate={pt}
-                    title={`${lot.nome} • Ponto ${idx + 1}`}
+                    title={`${lot.nome} • ${pickLang(language, 'Point', 'Ponto')} ${idx + 1}`}
                     pinColor={lot.corHex}
                   />
                 ))
@@ -272,7 +282,7 @@ export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
               <Marker
                 key={`${idx}-${pt.latitude}`}
                 coordinate={pt}
-                title={`Ponto ${idx + 1}`}
+                title={`${pickLang(language, 'Point', 'Ponto')} ${idx + 1}`}
                 pinColor="#16A34A"
               />
             ))}
@@ -296,7 +306,7 @@ export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
                   <Marker
                     coordinate={{ latitude: w.latitude, longitude: w.longitude }}
                     title={`${w.codigoSiagas} • ${w.profundidadeM}m`}
-                    description={`Água ${w.salinidade} • ${w.vazaoLph} L/h • Sucesso ${w.sucessoHistoricoPct}%`}
+                    description={`${pickLang(language, 'Water', 'Água')} ${w.salinidade} • ${w.vazaoLph} L/h • ${pickLang(language, 'Success', 'Sucesso')} ${w.sucessoHistoricoPct}%`}
                     pinColor={w.salinidade === 'doce' ? 'blue' : 'orange'}
                   />
                 </React.Fragment>
@@ -307,10 +317,22 @@ export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
         <View style={styles.badge}>
           <Text style={styles.badgeText}>
             {drawingMode
-              ? 'Toque no mapa para demarcar vértices'
+              ? pickLang(
+                  language,
+                  'Tap map to mark vertices',
+                  'Toque no mapa para demarcar vértices'
+                )
               : showWells
-              ? 'Heatmap de Poços (SIAGAS + GRACE-FO)'
-              : 'Nordeste • Mapa Nativo'}
+              ? pickLang(
+                  language,
+                  'Wells Heatmap (SIAGAS + GRACE-FO)',
+                  'Heatmap de Poços (SIAGAS + GRACE-FO)'
+                )
+              : pickLang(
+                  language,
+                  'Northeast • Native Map',
+                  'Nordeste • Mapa Nativo'
+                )}
           </Text>
         </View>
       </View>
