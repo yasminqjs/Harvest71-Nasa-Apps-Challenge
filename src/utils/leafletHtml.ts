@@ -1,0 +1,523 @@
+import { LEAFLET_CSS, LEAFLET_JS } from '../data/leafletInline';
+import { NORDESTE_IBGE_GEOJSON } from '../data/nordesteIbgeGeo';
+import { NORDESTE_REGIONS } from '../data/seedData';
+
+const HOST_EMITTER_HELPER = `
+  function emitHostMessage(channel, payload) {
+    try {
+      var json = JSON.stringify(payload);
+      if (window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function') {
+        window.ReactNativeWebView.postMessage(json);
+      } else if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ source: 'rocaviva-leaflet', channel: channel, payload: payload }, '*');
+      }
+    } catch (e) {}
+  }
+`;
+
+export function buildNordesteLeafletHtml(): string {
+  const geoJsonStr = JSON.stringify(NORDESTE_IBGE_GEOJSON);
+  const regionsPayload = JSON.stringify(
+    NORDESTE_REGIONS.map((r) => ({
+      id: r.id,
+      nome: r.nome,
+      municipio: r.municipio,
+      estado: r.estado,
+      bioma: r.bioma,
+      lat: r.centroid.latitude,
+      lon: r.centroid.longitude,
+      risco: r.riscoVeranicoPct,
+    }))
+  );
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<style>
+${LEAFLET_CSS}
+html, body, #map {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #DCEEF8;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+}
+.leaflet-control-attribution {
+  font-size: 9px !important;
+  background: rgba(255,255,255,0.78) !important;
+  padding: 1px 4px !important;
+}
+.region-pill-icon {
+  background: transparent;
+  border: none;
+}
+.pill-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.95);
+  border: 1.5px solid #2A704A;
+  color: #163022;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.22);
+  transform: translate(-50%, -120%);
+  cursor: pointer;
+}
+.pill-wrap.is-selected {
+  background: #1B6B40;
+  color: #FFFFFF;
+  border-color: #FFFFFF;
+  transform: translate(-50%, -125%) scale(1.06);
+  z-index: 999;
+}
+.pill-wrap.is-gps:not(.is-selected) {
+  border-color: #1D6FA5;
+  color: #0F4C75;
+}
+.pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #D97706;
+  flex-shrink: 0;
+}
+.pill-wrap.is-selected .pill-dot {
+  background: #86EFAC;
+}
+.pill-wrap.is-gps .pill-dot {
+  background: #0EA5E9;
+}
+.uf-label {
+  background: transparent;
+  border: none;
+  font-size: 10px;
+  font-weight: 900;
+  color: rgba(25, 34, 28, 0.72);
+  text-shadow: 0 1px 2px rgba(255,255,255,0.9);
+  pointer-events: none;
+}
+.uf-label-sat {
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.85);
+}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+${LEAFLET_JS}
+</script>
+<script>
+(function() {
+${HOST_EMITTER_HELPER}
+  var IBGE_GEO = ${geoJsonStr};
+  var REGIONS = ${regionsPayload};
+  var state = {
+    selectedName: 'Recôncavo Baiano',
+    gpsRegionId: null,
+    gpsCoords: null,
+    basemap: 'streets',
+    showLabels: true
+  };
+
+  var map = L.map('map', {
+    center: [-9.8, -40.8],
+    zoom: 5,
+    minZoom: 4,
+    maxZoom: 14,
+    zoomControl: false,
+    attributionControl: true
+  });
+
+  var osmLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 18,
+    attribution: 'Esri Ruas · IBGE'
+  });
+
+  var osmFallbackApplied = false;
+  osmLayer.on('tileerror', function() {
+    if (osmFallbackApplied) return;
+    osmFallbackApplied = true;
+    osmLayer.setUrl('https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png');
+  });
+
+  var satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 18,
+    attribution: 'Esri Satélite · IBGE'
+  });
+
+  var satLabelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 18
+  });
+
+  osmLayer.addTo(map);
+
+  var geoLayer = null;
+  var markersLayer = L.layerGroup().addTo(map);
+  var ufLabelsLayer = L.layerGroup().addTo(map);
+  var gpsLayer = L.layerGroup().addTo(map);
+
+  function getSelectedStateUf() {
+    var found = REGIONS.find(function(r) { return r.nome === state.selectedName; });
+    return found ? found.estado : null;
+  }
+
+  function styleStateFeature(feature) {
+    var selectedUf = getSelectedStateUf();
+    var isSelectedUf = feature.properties && feature.properties.uf === selectedUf;
+    var isSat = state.basemap === 'satellite';
+    return {
+      color: isSelectedUf ? (isSat ? '#4ADE80' : '#1B6B40') : (isSat ? 'rgba(255,255,255,0.68)' : '#4A785E'),
+      weight: isSelectedUf ? 2.6 : 1.25,
+      opacity: 0.95,
+      fillColor: isSelectedUf ? '#22C55E' : '#1B6B40',
+      fillOpacity: isSelectedUf ? (isSat ? 0.22 : 0.16) : (isSat ? 0.04 : 0.06)
+    };
+  }
+
+  function selectNearestRegionForUf(uf) {
+    var match = REGIONS.find(function(r) { return r.estado === uf; });
+    if (match) {
+      emitHostMessage('nordeste', { type: 'selectRegion', id: match.id });
+    }
+  }
+
+  geoLayer = L.geoJSON(IBGE_GEO, {
+    style: styleStateFeature,
+    onEachFeature: function(feature, layer) {
+      layer.on('click', function() {
+        if (feature.properties && feature.properties.uf) {
+          selectNearestRegionForUf(feature.properties.uf);
+        }
+      });
+      if (state.showLabels && feature.properties && feature.properties.uf) {
+        try {
+          var center = layer.getBounds().getCenter();
+          L.marker(center, {
+            interactive: false,
+            icon: L.divIcon({
+              className: 'uf-label',
+              html: '<span>' + feature.properties.uf + '</span>',
+              iconSize: [24, 14],
+              iconAnchor: [12, 7]
+            })
+          }).addTo(ufLabelsLayer);
+        } catch (e) {}
+      }
+    }
+  }).addTo(map);
+
+  try {
+    map.fitBounds(geoLayer.getBounds(), { padding: [14, 14] });
+  } catch (e) {}
+
+  function renderMarkers() {
+    markersLayer.clearLayers();
+    REGIONS.forEach(function(reg) {
+      var isSel = reg.nome === state.selectedName;
+      var isGps = reg.id === state.gpsRegionId;
+
+      var circle = L.circleMarker([reg.lat, reg.lon], {
+        radius: isSel ? 8 : 5.5,
+        color: '#FFFFFF',
+        weight: isSel ? 2.5 : 1.5,
+        fillColor: isSel ? '#1B6B40' : (isGps ? '#0EA5E9' : '#D97706'),
+        fillOpacity: 0.96
+      });
+
+      circle.on('click', function() {
+        emitHostMessage('nordeste', { type: 'selectRegion', id: reg.id });
+      });
+      circle.addTo(markersLayer);
+
+      if (state.showLabels || isSel || isGps) {
+        var shortTitle = reg.estado + ' · ' + reg.municipio.split('/')[0].trim();
+        var pillMarker = L.marker([reg.lat, reg.lon], {
+          icon: L.divIcon({
+            className: 'region-pill-icon',
+            html: '<div class="pill-wrap ' + (isSel ? 'is-selected' : '') + ' ' + (isGps ? 'is-gps' : '') + '"><span class="pill-dot"></span><span>' + shortTitle + '</span></div>',
+            iconSize: [0, 0],
+            iconAnchor: [0, 0]
+          })
+        });
+        pillMarker.on('click', function() {
+          emitHostMessage('nordeste', { type: 'selectRegion', id: reg.id });
+        });
+        pillMarker.addTo(markersLayer);
+      }
+    });
+  }
+
+  function renderGpsPin() {
+    gpsLayer.clearLayers();
+    if (!state.gpsCoords) return;
+    L.circle([state.gpsCoords.latitude, state.gpsCoords.longitude], {
+      radius: 42000,
+      color: '#0284C7',
+      weight: 1.5,
+      fillColor: '#38BDF8',
+      fillOpacity: 0.2
+    }).addTo(gpsLayer);
+    L.circleMarker([state.gpsCoords.latitude, state.gpsCoords.longitude], {
+      radius: 6,
+      color: '#FFFFFF',
+      weight: 2,
+      fillColor: '#0284C7',
+      fillOpacity: 1
+    }).addTo(gpsLayer);
+  }
+
+  window.__updateMapState = function(next) {
+    var prevSelected = state.selectedName;
+    if (next.selectedName !== undefined) state.selectedName = next.selectedName;
+    if (next.gpsRegionId !== undefined) state.gpsRegionId = next.gpsRegionId;
+    if (next.gpsCoords !== undefined) state.gpsCoords = next.gpsCoords;
+    if (next.basemap !== undefined) state.basemap = next.basemap;
+    if (next.showLabels !== undefined) state.showLabels = next.showLabels;
+
+    if (state.basemap === 'satellite') {
+      if (map.hasLayer(osmLayer)) map.removeLayer(osmLayer);
+      if (!map.hasLayer(satLayer)) satLayer.addTo(map);
+      if (!map.hasLayer(satLabelsLayer)) satLabelsLayer.addTo(map);
+    } else {
+      if (map.hasLayer(satLayer)) map.removeLayer(satLayer);
+      if (map.hasLayer(satLabelsLayer)) map.removeLayer(satLabelsLayer);
+      if (!map.hasLayer(osmLayer)) osmLayer.addTo(map);
+      if (osmLayer.bringToBack) osmLayer.bringToBack();
+    }
+
+    if (geoLayer) geoLayer.setStyle(styleStateFeature);
+    renderMarkers();
+    renderGpsPin();
+
+    if (next.focusSelected || (prevSelected !== state.selectedName && next.panToSelected)) {
+      var target = REGIONS.find(function(r) { return r.nome === state.selectedName; });
+      if (target) {
+        map.flyTo([target.lat, target.lon], Math.max(map.getZoom(), 6), { duration: 0.45 });
+      }
+    }
+  };
+
+  window.__recenterNordeste = function() {
+    try {
+      map.fitBounds(geoLayer.getBounds(), { padding: [14, 14] });
+    } catch (e) {}
+  };
+
+  window.__zoomIn = function() { map.zoomIn(); };
+  window.__zoomOut = function() { map.zoomOut(); };
+
+  renderMarkers();
+  emitHostMessage('nordeste', { type: 'ready' });
+})();
+</script>
+</body>
+</html>`;
+}
+
+export function buildFarmLeafletHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<style>
+${LEAFLET_CSS}
+html, body, #map {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #DCEEF8;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+}
+.leaflet-control-attribution {
+  font-size: 9px !important;
+  background: rgba(255,255,255,0.78) !important;
+}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+${LEAFLET_JS}
+</script>
+<script>
+(function() {
+${HOST_EMITTER_HELPER}
+  var state = {
+    centroid: { latitude: -12.9714, longitude: -38.5014 },
+    polygon: [],
+    wells: [],
+    showWells: true,
+    drawingMode: false,
+    basemap: 'satellite'
+  };
+
+  var map = L.map('map', {
+    center: [-12.9714, -38.5014],
+    zoom: 16,
+    minZoom: 5,
+    maxZoom: 19,
+    zoomControl: false
+  });
+
+  var satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: 'Esri Satélite'
+  });
+  var satLabelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19
+  });
+  var osmLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: 'Esri Ruas'
+  });
+
+  var farmOsmFallbackApplied = false;
+  osmLayer.on('tileerror', function() {
+    if (farmOsmFallbackApplied) return;
+    farmOsmFallbackApplied = true;
+    osmLayer.setUrl('https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png');
+  });
+
+  satLayer.addTo(map);
+  satLabelsLayer.addTo(map);
+
+  var polyLayer = L.layerGroup().addTo(map);
+  var wellsLayer = L.layerGroup().addTo(map);
+
+  map.on('click', function(e) {
+    if (!state.drawingMode) return;
+    emitHostMessage('farm', {
+      type: 'addPoint',
+      latitude: Number(e.latlng.lat.toFixed(6)),
+      longitude: Number(e.latlng.lng.toFixed(6))
+    });
+  });
+
+  function sortPolygonVertices(points) {
+    if (!points || points.length < 3) return points || [];
+    var avgLat = 0;
+    var avgLon = 0;
+    for (var i = 0; i < points.length; i++) {
+      avgLat += points[i].latitude;
+      avgLon += points[i].longitude;
+    }
+    avgLat /= points.length;
+    avgLon /= points.length;
+    return points.slice().sort(function(a, b) {
+      var angA = Math.atan2(a.latitude - avgLat, a.longitude - avgLon);
+      var angB = Math.atan2(b.latitude - avgLat, b.longitude - avgLon);
+      return angB - angA;
+    });
+  }
+
+  function renderOverlays(shouldFit) {
+    polyLayer.clearLayers();
+    wellsLayer.clearLayers();
+
+    if (state.polygon && state.polygon.length >= 3) {
+      var ordered = sortPolygonVertices(state.polygon);
+      var latlngs = ordered.map(function(p) { return [p.latitude, p.longitude]; });
+      var poly = L.polygon(latlngs, {
+        color: '#22C55E',
+        weight: 3,
+        fillColor: '#1B6B40',
+        fillOpacity: 0.34
+      }).addTo(polyLayer);
+      if (shouldFit && !state.drawingMode) {
+        try {
+          if (state.showWells && state.wells.length > 0) {
+            map.setView([state.centroid.latitude, state.centroid.longitude], 12);
+          } else {
+            map.fitBounds(poly.getBounds(), { padding: [24, 24], maxZoom: 17 });
+          }
+        } catch (e) {}
+      }
+    } else if (shouldFit) {
+      map.setView([state.centroid.latitude, state.centroid.longitude], state.showWells ? 12 : 16);
+    }
+
+    (state.polygon || []).forEach(function(pt, idx) {
+      L.circleMarker([pt.latitude, pt.longitude], {
+        radius: 5.5,
+        color: '#FFFFFF',
+        weight: 2,
+        fillColor: '#16A34A',
+        fillOpacity: 1
+      }).bindTooltip('Ponto ' + (idx + 1)).addTo(polyLayer);
+    });
+
+    if (state.showWells) {
+      (state.wells || []).forEach(function(w) {
+        var fill = w.salinidade === 'doce' ? '#0EA5E9' : (w.salinidade === 'salobra' ? '#F59E0B' : '#EF4444');
+        L.circle([w.latitude, w.longitude], {
+          radius: 1400,
+          color: fill,
+          weight: 1.2,
+          fillColor: fill,
+          fillOpacity: 0.16
+        }).addTo(wellsLayer);
+        L.circleMarker([w.latitude, w.longitude], {
+          radius: 6,
+          color: '#FFFFFF',
+          weight: 1.8,
+          fillColor: fill,
+          fillOpacity: 0.95
+        }).bindPopup(
+          '<strong>' + w.codigoSiagas + '</strong><br/>' +
+          w.profundidadeM + ' m · ' + w.vazaoLph + ' L/h<br/>' +
+          'Água: ' + w.salinidade + ' (' + w.sucessoHistoricoPct + '% sucesso)'
+        ).addTo(wellsLayer);
+      });
+    }
+  }
+
+  window.__updateFarmMap = function(next) {
+    var prevCentroid = state.centroid;
+    var prevShowWells = state.showWells;
+    state = Object.assign({}, state, next);
+
+    if (state.basemap === 'satellite') {
+      if (map.hasLayer(osmLayer)) map.removeLayer(osmLayer);
+      if (!map.hasLayer(satLayer)) satLayer.addTo(map);
+      if (!map.hasLayer(satLabelsLayer)) satLabelsLayer.addTo(map);
+    } else {
+      if (map.hasLayer(satLayer)) map.removeLayer(satLayer);
+      if (map.hasLayer(satLabelsLayer)) map.removeLayer(satLabelsLayer);
+      if (!map.hasLayer(osmLayer)) osmLayer.addTo(map);
+      if (osmLayer.bringToBack) osmLayer.bringToBack();
+    }
+
+    var mapEl = document.getElementById('map');
+    if (mapEl) {
+      mapEl.style.cursor = state.drawingMode ? 'crosshair' : 'grab';
+    }
+
+    var moved =
+      Math.abs((prevCentroid.latitude || 0) - state.centroid.latitude) > 0.01 ||
+      Math.abs((prevCentroid.longitude || 0) - state.centroid.longitude) > 0.01 ||
+      prevShowWells !== state.showWells;
+    renderOverlays(moved || Boolean(next.forceFit));
+  };
+
+  window.__recenterFarm = function() {
+    renderOverlays(true);
+  };
+
+  emitHostMessage('farm', { type: 'ready' });
+})();
+</script>
+</body>
+</html>`;
+}

@@ -3,6 +3,23 @@ import { GeoPoint, WellPoint } from '../types/domain';
 
 const TAREFA_BAIANA_HECTARES = 0.4356;
 
+/**
+ * Ordena os vértices em sentido horário ao redor do centroide para evitar que
+ * o polígono cruze em X quando o produtor toca os cantos em ordem Z (1, 2, 3, 4).
+ */
+export function sortPolygonPoints(points: GeoPoint[]): GeoPoint[] {
+  if (points.length < 3) return [...points];
+
+  const avgLat = points.reduce((sum, p) => sum + p.latitude, 0) / points.length;
+  const avgLon = points.reduce((sum, p) => sum + p.longitude, 0) / points.length;
+
+  return [...points].sort((a, b) => {
+    const angleA = Math.atan2(a.latitude - avgLat, a.longitude - avgLon);
+    const angleB = Math.atan2(b.latitude - avgLat, b.longitude - avgLon);
+    return angleB - angleA;
+  });
+}
+
 export function calculatePolygonMetrics(points: GeoPoint[]): {
   areaHectares: number;
   areaTarefasBa: number;
@@ -26,7 +43,8 @@ export function calculatePolygonMetrics(points: GeoPoint[]): {
     };
   }
 
-  const ring = points.map((p) => [p.longitude, p.latitude]);
+  const orderedPoints = sortPolygonPoints(points);
+  const ring = orderedPoints.map((p) => [p.longitude, p.latitude]);
   const first = ring[0];
   const last = ring[ring.length - 1];
   if (first[0] !== last[0] || first[1] !== last[1]) {

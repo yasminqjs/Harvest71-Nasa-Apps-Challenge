@@ -30,6 +30,7 @@ export const FoodSecurityScreen: React.FC = () => {
     activeFarm,
     compatiblePancs,
     speak,
+    stopVoice,
   } = useAccessibility();
 
   const theme = getAppTheme(accessibility);
@@ -38,6 +39,14 @@ export const FoodSecurityScreen: React.FC = () => {
   const [voiceReply, setVoiceReply] = useState<VoiceReply | null>(null);
   const [micNote, setMicNote] = useState<string | null>(null);
   const questionInputRef = React.useRef<React.ComponentRef<typeof TextInput> | null>(null);
+  const stopCaptureRef = React.useRef<(() => void) | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      stopCaptureRef.current?.();
+      stopCaptureRef.current = null;
+    };
+  }, []);
 
   if (!activeFarm || !activeFarmer) return null;
 
@@ -47,7 +56,11 @@ export const FoodSecurityScreen: React.FC = () => {
 
   const runVoiceQuestion = (q: string) => {
     const trimmed = q.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      setMicNote('Digite ou toque no microfone para fazer sua pergunta.');
+      return;
+    }
+    setMicNote(null);
     setQuestionText(trimmed);
     const reply = answerFarmerVoiceQuery(
       trimmed,
@@ -62,22 +75,31 @@ export const FoodSecurityScreen: React.FC = () => {
 
   const handleToggleMic = () => {
     if (listening) {
+      stopCaptureRef.current?.();
+      stopCaptureRef.current = null;
       setListening(false);
+      setMicNote('Escuta encerrada. Toque no microfone para falar de novo.');
       return;
     }
-    setMicNote(null);
+    setMicNote('🎙️ Ouvindo... Fale sua pergunta agora.');
     setListening(true);
-    startVoiceCapture(
+    stopCaptureRef.current = startVoiceCapture(
       (transcript) => {
+        stopCaptureRef.current = null;
         setListening(false);
+        setMicNote(null);
         runVoiceQuestion(transcript);
       },
       (err) => {
+        stopCaptureRef.current = null;
         setListening(false);
         setMicNote(err);
       },
       {
-        onEnd: () => setListening(false),
+        onEnd: () => {
+          stopCaptureRef.current = null;
+          setListening(false);
+        },
         onExpoGoFallback: () => {
           setTimeout(() => questionInputRef.current?.focus(), 100);
         },
@@ -174,12 +196,17 @@ export const FoodSecurityScreen: React.FC = () => {
             ]}
           >
             <View style={styles.replyHeader}>
-              <Text style={{ fontSize: 13, fontWeight: '900', color: theme.successText }}>
+              <Text style={{ fontSize: 13, fontWeight: '900', color: theme.successText, flex: 1 }}>
                 {voiceReply.titulo}
               </Text>
-              <Pressable onPress={() => speak(voiceReply.texto, true)}>
-                <Ionicons name="volume-high" size={20} color={theme.successText} />
-              </Pressable>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Pressable onPress={() => speak(voiceReply.texto, true)}>
+                  <Ionicons name="volume-high" size={20} color={theme.successText} />
+                </Pressable>
+                <Pressable onPress={stopVoice}>
+                  <Ionicons name="stop-circle-outline" size={20} color={theme.successText} />
+                </Pressable>
+              </View>
             </View>
             <Text style={{ fontSize: 13, color: theme.successText, lineHeight: 19 }}>
               {voiceReply.texto}
