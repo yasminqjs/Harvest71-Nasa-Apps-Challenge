@@ -430,7 +430,14 @@ export interface SyncQueueItem {
   tentativas: number;
 }
 
-export type CommunityTopic = 'seca' | 'praga' | 'rotacao' | 'solo' | 'duvida';
+export type CommunityTopic =
+  | 'praga'
+  | 'mudanca_preco'
+  | 'desastre_natural'
+  | 'seca'
+  | 'rotacao'
+  | 'solo'
+  | 'duvida';
 
 export interface CommunityReply {
   id: string;
@@ -480,4 +487,131 @@ export interface CommunityGraphEdge {
   toId: string;
   relation: 'mesmo_bioma' | 'mesmo_tema' | 'vizinho';
   label: string;
+}
+
+/**
+ * Código de cor das 6 features principais na arquitetura do aplicativo:
+ * - verde:   Pegador de informações da fazenda (Onboarding + Aba Plantação)
+ * - azul:    Pegador de feedback de acontecimentos do usuário (Aba Comunidade)
+ * - salmao:  Notificador de acontecimentos locais (Aba Comunidade)
+ * - cinza:   Previsão / Comparador / Otimizador DSSAT (Aba Plantação — PLACEHOLDER)
+ * - roxo:    Visualizador de qualidade da plantação atual (Aba Plantação — PLACEHOLDER)
+ * - amarelo: Visualizador de informações locais (Aba Resumo)
+ */
+export type FeatureColorCode =
+  | 'verde'
+  | 'azul'
+  | 'salmao'
+  | 'cinza'
+  | 'roxo'
+  | 'amarelo';
+
+export interface FeatureArchitectureDescriptor {
+  id: string;
+  color: FeatureColorCode;
+  featureName: string;
+  tab: 'onboarding' | 'resumo' | 'plantacao' | 'comunidade';
+  userActionLabel: string;
+  status: 'implementado' | 'placeholder';
+  targetFile: string;
+  placeholderComponent?: string;
+}
+
+export interface RegionalEventRecord {
+  id: string;
+  categoria: CommunityTopic;
+  autor: string;
+  regiaoNome: string;
+  municipio: string;
+  estado: string;
+  titulo: string;
+  descricao: string;
+  haQuantoTempo: string;
+  fonte: 'feedback_da_comunidade';
+}
+
+export interface PlantationArchitectureModel {
+  id: string;
+  nome: string;
+  corHex: string;
+  areaHectares: number;
+  areaTarefasBa: number;
+  polygon: GeoPoint[];
+  historicoDaTerra: {
+    variaveisClimaticas: {
+      fonte: 'NASA POWER';
+      tempMaxC: number;
+      tempMinC: number;
+      chuvaHojeMm: number;
+      umidadeRelativaPct: number;
+      et0PowerMm: number;
+      chuvaImergMm: number;
+      saldoHidricoMm: number;
+    };
+    variaveisDoSolo: {
+      fonte: 'SRTM + Landsat Collection 2 Level-2 TIRS (NASA / USGS — 30 m)';
+      declividadePct: number;
+      erodibilidade: ErosionRiskLevel;
+      resolucaoEspacialM: 30;
+      phSolo: number;
+      texturaSolo: string;
+      carbonoOrganicoGKg: number;
+      registrosHistoricos: string[];
+    };
+  };
+  culturaAtual: {
+    fonteSelecao: 'usuario';
+    culturaNome: string;
+    sistema: 'monocultura' | 'rotacao';
+    plantas: string[];
+    tempoPlantadaDias: number;
+    dataColheitaPrevista?: string;
+    cronogramaPlantacao: string;
+    especificacoesCultura: {
+      fonte: 'NASA / FAO GAEZ EcoCrop';
+      variedadeRegional: string;
+      kcMedio: number;
+      diasColheitaTipico: number;
+      resilienciaSeca: 'alta' | 'media' | 'baixa';
+      observacaoEcoCrop: string;
+    };
+  };
+  culturasFuturas: {
+    fonteSelecao: 'usuario_ou_algoritmo_otimizacao';
+    rotacaoPlanejada: string[];
+    previsaoResultado: {
+      fonte: 'Software DSSAT';
+      status: 'placeholder';
+      mensagemPlaceholder: string;
+    };
+  };
+}
+
+/**
+ * Visão canônica dos dados da propriedade conforme diagrama "Modelagem da fazenda".
+ */
+export interface FarmArchitectureModel {
+  fazendaId: string;
+  nomeFazenda: string;
+  acontecimentosDaRegiao: {
+    fonte: 'feedback_da_comunidade';
+    eventos: RegionalEventRecord[];
+  };
+  variaveisDaFazenda: {
+    fonte: 'usuario';
+    regiaoNome: string;
+    municipio: string;
+    estado: string;
+    bioma: 'Caatinga' | 'Mata Atlântica' | 'Cerrado';
+    centroid: GeoPoint;
+    polygon: GeoPoint[];
+    areaHectares: number;
+    areaTarefasBa: number;
+    waterAccess: WaterAccess;
+    armazenamentoAgua?: WaterStorageType;
+    laborType: LaborType;
+    financialTier: FinancialTier;
+    objective: FarmObjective;
+  };
+  plantacoes: PlantationArchitectureModel[];
 }

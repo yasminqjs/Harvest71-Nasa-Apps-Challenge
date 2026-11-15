@@ -11,12 +11,13 @@ import {
   View,
 } from 'react-native';
 import { MainTabKey } from '../components/BottomTabBar';
+import { FeatureBadge } from '../components/FeatureBadge';
 import { ClimaDiaSubscreen } from '../components/subscreens/ClimaDiaSubscreen';
 import { HistoricoPlantioSubscreen } from '../components/subscreens/HistoricoPlantioSubscreen';
 import { PrevisaoTrimestreSubscreen } from '../components/subscreens/PrevisaoTrimestreSubscreen';
-import { ReportarProblemaSubscreen } from '../components/subscreens/ReportarProblemaSubscreen';
 import { RotacaoAtualSubscreen } from '../components/subscreens/RotacaoAtualSubscreen';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { FEATURE_COLOR_STYLES } from '../models/farmArchitecture';
 import { getAppTheme } from '../theme/tokens';
 import { formatArea } from '../utils/regionalize';
 
@@ -26,15 +27,22 @@ interface HomeScreenProps {
   onOpenTutorial?: () => void;
 }
 
-type HomeSubscreen = 'clima' | 'historico' | 'trimestre' | 'rotacao' | 'reportar' | null;
+type HomeSubscreen = 'clima' | 'historico' | 'trimestre' | 'rotacao' | null;
 
+/**
+ * @featureColor AMARELO
+ * @featureModule Visualizador de informações locais (temperatura, etc)
+ * @userAction Ver informações básicas (Aba Resumo)
+ */
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigateTab,
   onOpenFeedback,
   onOpenTutorial,
 }) => {
-  const { accessibility, activeFarmer, activeFarm, alerts, speak } = useAccessibility();
+  const { accessibility, activeFarmer, activeFarm, farmArchitecture, speak } =
+    useAccessibility();
   const theme = getAppTheme(accessibility);
+  const yellow = FEATURE_COLOR_STYLES.amarelo;
   const [subscreen, setSubscreen] = useState<HomeSubscreen>(null);
   const [reportStatus, setReportStatus] = useState<string | null>(null);
 
@@ -58,7 +66,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const historyCount =
     (activeFarmer.historicoCultivoDetalhado?.length ?? 0) ||
     (activeFarmer.historicoCultivo?.length ?? 0);
-  const unreadAlerts = alerts.filter((a) => !a.lido).length;
+  const regionalEventsCount =
+    farmArchitecture?.acontecimentosDaRegiao.eventos.length ?? 0;
 
   const buildWhatsappReportText = (): string => {
     const lotsSummary = lots
@@ -122,62 +131,55 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         />
       ) : subscreen === 'rotacao' ? (
         <RotacaoAtualSubscreen onBack={() => setSubscreen(null)} />
-      ) : subscreen === 'reportar' ? (
-        <ReportarProblemaSubscreen onBack={() => setSubscreen(null)} />
       ) : (
         <>
-          {/* Grade 2x2 de caixas azuis do diagrama */}
+          <View
+            style={[
+              styles.summaryBanner,
+              { backgroundColor: theme.surface, borderColor: yellow.border },
+            ]}
+          >
+            <FeatureBadge color="amarelo" />
+            <Text style={[styles.summaryTitle, { color: theme.text, fontSize: 18 * theme.scale }]}>
+              Resumo Local da Roça
+            </Text>
+            <Text style={{ fontSize: 12, color: theme.textMuted }}>
+              {activeFarm.nome} • {activeFarm.regiaoNome} ({activeFarm.municipio} -{' '}
+              {activeFarm.estado}) • {formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)}
+            </Text>
+          </View>
+
+          {/* Grade 2x2: Ver informações básicas (Visualizador de informações locais) */}
           <View style={styles.gridRow}>
             <Pressable
               onPress={() => setSubscreen('clima')}
               style={[
                 styles.blueBox,
-                { backgroundColor: theme.surface, borderColor: '#2563EB' },
+                { backgroundColor: theme.surface, borderColor: yellow.border },
               ]}
             >
               <Text style={[styles.boxTitle, { color: theme.text }]}>Clima do dia</Text>
-              <Ionicons name="sunny" size={34} color="#F59E0B" />
-              <Text style={[styles.boxValue, { color: '#2563EB' }]}>
+              <Ionicons name="sunny" size={34} color="#CA8A04" />
+              <Text style={[styles.boxValue, { color: '#92400E' }]}>
                 {diag.climaDia.tempMaxC}° / {diag.climaDia.tempMinC}°C
               </Text>
               <Text style={[styles.boxSub, { color: theme.textMuted }]} numberOfLines={2}>
-                {activeFarm.regiaoNome}
+                Chuva {diag.climaDia.chuvaHojeMm} mm • Umidade {diag.climaDia.umidadeRelativaPct}%
               </Text>
             </Pressable>
 
-            <Pressable
-              onPress={() => setSubscreen('historico')}
-              style={[
-                styles.blueBox,
-                { backgroundColor: theme.surface, borderColor: '#2563EB' },
-              ]}
-            >
-              <Text style={[styles.boxTitle, { color: theme.text }]}>
-                Histórico de plantação
-              </Text>
-              <Ionicons name="trending-up" size={34} color="#2563EB" />
-              <Text style={[styles.boxValue, { color: theme.text }]}>
-                {historyCount} {historyCount === 1 ? 'registro' : 'registros'}
-              </Text>
-              <Text style={[styles.boxSub, { color: theme.textMuted }]} numberOfLines={2}>
-                Ver e cadastrar rotações
-              </Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.gridRow}>
             <Pressable
               onPress={() => setSubscreen('trimestre')}
               style={[
                 styles.blueBox,
-                { backgroundColor: theme.surface, borderColor: '#2563EB' },
+                { backgroundColor: theme.surface, borderColor: yellow.border },
               ]}
             >
               <Text style={[styles.boxTitle, { color: theme.text }]}>
                 Previsão do trimestre
               </Text>
               <View style={styles.trimestreIconRow}>
-                <Ionicons name="calendar-outline" size={28} color="#2563EB" />
+                <Ionicons name="calendar-outline" size={28} color="#CA8A04" />
                 <Text style={{ fontSize: 28 }}>{diag.modeloB.emoji}</Text>
               </View>
               <Text
@@ -196,12 +198,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 {diag.modeloC.titulo}
               </Text>
             </Pressable>
+          </View>
 
+          <View style={styles.gridRow}>
             <Pressable
               onPress={() => setSubscreen('rotacao')}
               style={[
                 styles.blueBox,
-                { backgroundColor: theme.surface, borderColor: '#2563EB' },
+                { backgroundColor: theme.surface, borderColor: theme.border },
               ]}
             >
               <Text style={[styles.boxTitle, { color: theme.text }]}>Rotação atual</Text>
@@ -216,31 +220,79 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   />
                 </View>
                 <Text style={{ fontSize: 11, fontWeight: '900', color: theme.primary }}>
-                  {primaryProgress}% progresso ({lots.length || 1} lote{lots.length === 1 ? '' : 's'})
+                  {primaryProgress}% progresso ({lots.length} plantação
+                  {lots.length === 1 ? '' : 'ões'})
                 </Text>
               </View>
             </Pressable>
+
+            <Pressable
+              onPress={() => setSubscreen('historico')}
+              style={[
+                styles.blueBox,
+                { backgroundColor: theme.surface, borderColor: theme.border },
+              ]}
+            >
+              <Text style={[styles.boxTitle, { color: theme.text }]}>
+                Histórico da terra
+              </Text>
+              <Ionicons name="layers-outline" size={32} color="#2563EB" />
+              <Text style={[styles.boxValue, { color: theme.text }]}>
+                pH {diag.soloSoilGrids.ph} • {historyCount} reg.
+              </Text>
+              <Text style={[styles.boxSub, { color: theme.textMuted }]} numberOfLines={2}>
+                NASA POWER + SRTM/Landsat 30 m
+              </Text>
+            </Pressable>
           </View>
 
-          {/* Caixa "Reportar problemas" */}
-          <Pressable
-            onPress={() => setSubscreen('reportar')}
+          {/* Resumo da Modelagem da Fazenda + atalhos para Plantação e Comunidade */}
+          <View
             style={[
-              styles.reportBtn,
-              { backgroundColor: theme.surface, borderColor: '#DC2626' },
+              styles.modelBox,
+              { backgroundColor: theme.surface, borderColor: theme.border },
             ]}
           >
-            <Ionicons name="warning-outline" size={22} color="#DC2626" />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: '900', color: '#DC2626' }}>
-                Reportar problemas
-              </Text>
-              <Text style={{ fontSize: 11, color: theme.textMuted }}>
-                Registrar foto, problema no lote e ler casos parecidos na região
-              </Text>
+            <Text style={{ fontSize: 13, fontWeight: '900', color: theme.text }}>
+              Visão Geral da Fazenda (Dados Atuais)
+            </Text>
+            <Text style={{ fontSize: 11, color: theme.textMuted }}>
+              • Variáveis da fazenda (usuário): água ({activeFarmer.waterAccess}) • objetivo (
+              {activeFarmer.objective})
+            </Text>
+            <Text style={{ fontSize: 11, color: theme.textMuted }}>
+              • Plantações ({lots.length}): {activeFarm.culturaPrincipal} • EcoCrop + NASA POWER
+            </Text>
+            <Text style={{ fontSize: 11, color: theme.textMuted }}>
+              • Acontecimentos da região (comunidade): {regionalEventsCount} relatos locais
+            </Text>
+            <View style={styles.quickNavRow}>
+              <Pressable
+                onPress={() => onNavigateTab('plantacao')}
+                style={[
+                  styles.quickNavBtn,
+                  { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
+                ]}
+              >
+                <Ionicons name="leaf" size={16} color="#14532D" />
+                <Text style={{ fontSize: 12, fontWeight: '900', color: '#14532D' }}>
+                  Ir para Plantação
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => onNavigateTab('comunidade')}
+                style={[
+                  styles.quickNavBtn,
+                  { backgroundColor: '#FEE2E2', borderColor: '#F87171' },
+                ]}
+              >
+                <Ionicons name="people" size={16} color="#7F1D1D" />
+                <Text style={{ fontSize: 12, fontWeight: '900', color: '#7F1D1D' }}>
+                  Ir para Comunidade
+                </Text>
+              </Pressable>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#DC2626" />
-          </Pressable>
+          </View>
 
           {/* Barra verde: GERAR RELATÓRIO: zap ... */}
           <Pressable
@@ -275,23 +327,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 ✓ {reportStatus}
               </Text>
             </View>
-          )}
-
-          {/* Atalho discreto para Comunidade se houver alerta de seca ativo */}
-          {unreadAlerts > 0 && diag.modeloB.sinaisAtivos >= 2 && (
-            <Pressable
-              onPress={() => onNavigateTab('comunidade')}
-              style={[
-                styles.pancsQuickBtn,
-                { backgroundColor: theme.warningBg, borderColor: theme.warningBorder },
-              ]}
-            >
-              <Ionicons name="people" size={20} color={theme.warningText} />
-              <Text style={{ flex: 1, fontSize: 12, fontWeight: '800', color: theme.warningText }}>
-                Ver perguntas e relatos de outros agricultores na Comunidade
-              </Text>
-              <Ionicons name="chevron-forward" size={18} color={theme.warningText} />
-            </Pressable>
           )}
 
           <View style={styles.supportRow}>
@@ -335,6 +370,37 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 12,
     paddingBottom: 26,
+  },
+  summaryBanner: {
+    borderRadius: 18,
+    borderWidth: 2,
+    padding: 12,
+    gap: 6,
+  },
+  summaryTitle: {
+    fontWeight: '900',
+  },
+  modelBox: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 12,
+    gap: 6,
+  },
+  quickNavRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  quickNavBtn: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
   },
   gridRow: {
     flexDirection: 'row',
