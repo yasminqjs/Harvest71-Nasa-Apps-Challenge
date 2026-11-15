@@ -1,0 +1,77 @@
+{
+  "expo": {
+    "name": "RoçaViva",
+    "slug": "rocaviva-nasa-field-shift",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Para demarcar o perímetro da sua roça caminhando sem internet.",
+        "NSCameraUsageDescription": "Para examinar folhas da lavoura com a câmera offline.",
+        "NSMicrophoneUsageDescription": "Permita o microfone para responder e fazer perguntas por voz.",
+        "NSSpeechRecognitionUsageDescription": "Permita o reconhecimento de fala para entender suas perguntas no campo."
+      }
+    },
+    "android": {
+      "package": "com.rocaviva.nasafieldshift",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permita o GPS para demarcar sua roça caminhando offline."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Permita a câmera para analisar a saúde das folhas offline."
+        }
+      ],
+      "expo-notifications",
+      "expo-font",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Permita o microfone para responder e fazer perguntas por voz.",
+          "speechRecognitionPermission": "Permita o reconhecimento de fala para entender suas perguntas no campo."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": false,
+            "extraProguardRules": "-keep class * extends androidx.room.RoomDatabase { <init>(); }\n-keep class androidx.work.impl.WorkDatabase_Impl { *; }\n-keep class * extends androidx.work.InputMerger { <init>(); }\n-keep class * extends androidx.work.ListenableWorker { *; }"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "95c66826-3d94-45c1-a29a-33512b6b8f68"
+      }
+    },
+    "owner": "johnsson"
+  }
+}

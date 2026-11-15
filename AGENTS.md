@@ -102,3 +102,40 @@ da `main` deste repositório. Forks e outras branches não conseguem publicar.
 - Janelas de plantio automáticas = suposição pelo clima; validar com o ZARC (MAPA).
 - Sem calibração local; N, P e K não entram no cálculo do milho como está configurado.
 - Acesso livre temporário; depois ligar a chave e, para produção, login de usuário.
+
+## 7. App Roça Viva (Expo/React Native, na raiz do repositório)
+
+O app mobile fica na raiz (`App.tsx`, `index.ts`, `src/`, `assets/`, `app.json`, `eas.json`), ao lado do
+backend em `apps/`. Ele fala com o DSSAT **só pela API** (HTTPS + JSON), nunca pelo bucket.
+
+**Expo mudou: não confie na memória.** Antes de mexer em API do Expo, EAS ou React Native:
+1. Veja a versão de `expo` no `package.json` (hoje SDK 58).
+2. Leia a documentação da versão: `https://docs.expo.dev/versions/v<major>.0.0/`.
+3. Índice com correções de erros comuns de IA: https://docs.expo.dev/llms.txt.
+
+```bash
+npm ci                      # dependências (mantenha o package-lock.json)
+npx expo install <pacote>   # sempre use para adicionar dependência (versão compatível com o SDK)
+npx expo start              # servidor de desenvolvimento (npm run web para o navegador)
+npx expo lint               # lint
+npx tsc --noEmit            # typecheck
+npx expo-doctor             # diagnóstico de dependências e configuração
+```
+Rode lint e typecheck antes de dar uma tarefa por concluída.
+
+**Navegação real:** `App.tsx` escolhe a aba com estado local (`safra`, mapa, comunidade etc.). Não há
+Expo Router neste código; migrar para ele é um PR separado.
+
+**Integração com o DSSAT** (aba Safra):
+- `src/services/dssatApi.ts` — cliente HTTP (catálogo, capacidades, criação do Job, `poll`, erros, timeout).
+  Base em `EXPO_PUBLIC_DSSAT_API_URL` (vai para o bundle: nada secreto aí).
+- `src/types/dssat.ts` — contratos com campos opcionais.
+- `src/hooks/useDssatJob.ts` — envio, polling a cada ~5 s, retomada, bloqueio de clique duplo e vínculo com o
+  talhão (resposta atrasada de outro talhão é ignorada).
+- Telas em `src/components/dssat/`. Resultado DSSAT é sempre rotulado como DSSAT; o diagnóstico local
+  (`localAgronomicEngine.ts`) continua separado e rotulado como local.
+- Não envie nome, histórico bruto, polígono ou análise de folha para rotas que só precisam de coordenadas.
+- Plano completo: `docs/PLANO_INTEGRACAO_FRONT_MAIN_DSSAT.md`; contrato: `docs/API.md`; guia: `docs/GUIA_FRONT_DSSAT.md`.
+
+**EAS:** `npx eas-cli@latest build|submit|update`. Pastas `ios/` e `android/` são geradas (CNG): não edite à
+mão; configure em `app.json` e plugins. Biblioteca com código nativo exige development build (não roda no Expo Go).

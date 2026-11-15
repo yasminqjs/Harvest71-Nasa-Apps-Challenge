@@ -1,13 +1,18 @@
 # Segredos e credenciais — NUNCA versionar
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 *-key.json
 service-account*.json
 credentials*.json
+*.jks
+*.p8
+*.p12
+*.mobileprovision
 
-# Python
+# Python (backend: apps/api, apps/dssat)
 __pycache__/
 *.pyc
 .venv/
@@ -29,6 +34,22 @@ data/private/
 *.tfstate
 *.tfstate.*
 *.tfvars
+
+# Node / Expo (app Roça Viva na raiz)
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.kotlin/
+*.orig.*
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.tsbuildinfo
+/ios
+/android
 
 # Editor / SO
 .DS_Store
