@@ -455,7 +455,8 @@ def _yyddd(d: date) -> str:
 
 def write_filex(path: Path, site: str, title: str, soil: SoilProfile, scen: list[Scenario],
                 n_years: int, crop: dict | None = None, cultivar: dict | None = None,
-                init_frac: float = 0.25, *, daily_water_output: bool = False) -> None:
+                init_frac: float = 0.25, *, daily_water_output: bool = False,
+                rotation_number: int = 1) -> None:
     """FileX genérico (qualquer cultura do catálogo), análise sazonal: NYERS anos, reinício a cada ano.
 
     Plantio, colheita e métodos vêm do experimento de referência da cultura; local, clima, solo,
@@ -480,7 +481,7 @@ def write_filex(path: Path, site: str, title: str, soil: SoilProfile, scen: list
     L.append("@N R O C TNAME.................... CU FL SA IC MP MI MF MR MC MT ME MH SM")
     for s in scen:
         mh = s.trno if by_days else 0
-        L.append(f"{s.trno:2d} 1 0 0 {s.name[:25]:<25} 1  1  0 {s.trno:2d} {s.trno:2d}  0  0  0  0  0  0 {mh:2d} {s.trno:2d}")
+        L.append(f"{s.trno:2d} {rotation_number:1d} 0 0 {s.name[:25]:<25} 1  1  0 {s.trno:2d} {s.trno:2d}  0  0  0  0  0  0 {mh:2d} {s.trno:2d}")
     L += ["", "*CULTIVARS", "@C CR INGENO CNAME", f" 1 {code} {cultivar['id']} {ascii_text(cultivar['name'])}", ""]
     L += ["*FIELDS",
           "@L ID_FIELD WSTA....  FLSA  FLOB  FLDT  FLDD  FLDS  FLST SLTX  SLDP  ID_SOIL    FLNAME",

@@ -54,7 +54,7 @@ jobs:
       - name: Teste de fumaça local (experimento de referência)
         run: docker run --rm "$IMAGE_REPO:$SHORT"
 
-      - name: Experimento de sequência milho–caupi
+      - name: Comparar milho–caupi e caupi–milho
         continue-on-error: true
         run: |
           mkdir -p sequence-probe
@@ -69,10 +69,11 @@ jobs:
         with:
           name: dssat-sequence-probe
           path: |
-            sequence-probe/*.OUT
-            sequence-probe/*.log
-            sequence-probe/*.v48
-            sequence-probe/*.*X
+            sequence-probe/**/*.OUT
+            sequence-probe/**/*.log
+            sequence-probe/**/*.v48
+            sequence-probe/**/*.*X
+            sequence-probe/comparison.json
           if-no-files-found: ignore
 
       # Roda a suíte completa DENTRO da imagem: todas as culturas do catálogo precisam simular todas as safras
