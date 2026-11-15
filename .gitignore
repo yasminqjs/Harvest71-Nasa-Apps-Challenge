@@ -38,6 +38,7 @@ data/private/
 # Node / Expo (app Roça Viva na raiz)
 node_modules/
 .expo/
+.vercel/
 dist/
 web-build/
 expo-env.d.ts
