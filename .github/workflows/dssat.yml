@@ -1,0 +1,84 @@
+name: dssat
+
+# Compila o DSSAT-CSM em contêiner, valida com o experimento oficial BRPI0202,
+# publica a imagem e atualiza o Cloud Run Job fieldshift-dssat (sem chave: WIF).
+# Por fim executa o Job na nuvem (modo reference), que também grava a saída no bucket.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/dssat/**"
+      - ".github/workflows/dssat.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dssat
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: fieldshift-harvest71-2026
+  REGION: us-central1
+  JOB: fieldshift-dssat
+  IMAGE_REPO: us-central1-docker.pkg.dev/fieldshift-harvest71-2026/fieldshift/fieldshift-dssat
+  WIF_PROVIDER: projects/475766990512/locations/global/workloadIdentityPools/github/providers/github-oidc
+  DEPLOY_SA: fieldshift-deploy-sa@fieldshift-harvest71-2026.iam.gserviceaccount.com
+  RUNTIME_SA: fieldshift-dssat-sa@fieldshift-harvest71-2026.iam.gserviceaccount.com
+  BUCKET: fieldshift-data-fieldshift-harvest71-2026
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Testes do runner
+        working-directory: apps/dssat
+        run: |
+          pip install -q pytest
+          pytest -q
+
+      - name: Build da imagem (compila o DSSAT)
+        run: |
+          SHORT="${GITHUB_SHA::7}"
+          echo "SHORT=$SHORT" >> "$GITHUB_ENV"
+          docker build --build-arg GIT_COMMIT="$SHORT" -t "$IMAGE_REPO:$SHORT" apps/dssat
+
+      - name: Teste de fumaça local (experimento de referência)
+        run: docker run --rm "$IMAGE_REPO:$SHORT"
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Push da imagem
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          docker push "$IMAGE_REPO:$SHORT"
+
+      # 1 tarefa, paralelismo 1, sem retentativas (conforme o handoff)
+      - name: Criar/atualizar o Cloud Run Job
+        run: |
+          gcloud run jobs deploy "$JOB" \
+            --project="$PROJECT_ID" --region="$REGION" \
+            --image="$IMAGE_REPO:$SHORT" \
+            --service-account="$RUNTIME_SA" \
+            --tasks=1 --parallelism=1 --max-retries=0 \
+            --task-timeout=900s --cpu=1 --memory=1Gi \
+            --set-env-vars="MODE=reference,OUTPUT_PREFIX=gs://$BUCKET/runs/reference/$SHORT/"
+
+      - name: Executar o Job na nuvem (referência + gravação no bucket)
+        run: |
+          gcloud run jobs execute "$JOB" --project="$PROJECT_ID" --region="$REGION" --wait
+          echo "Saída: gs://$BUCKET/runs/reference/$SHORT/"

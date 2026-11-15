@@ -84,30 +84,41 @@ done; wait; }   # espera todos os downloads dentro do mesmo subshell do pipe
 echo "[3/3] SoilGrids"
 command -v gdallocationinfo >/dev/null || { echo "  instalando GDAL"; (sudo apt-get -qq update && sudo apt-get -qq install -y gdal-bin) >/dev/null; }
 export GDAL_HTTP_MAX_RETRY=4 GDAL_HTTP_RETRY_DELAY=2 GDAL_DISABLE_READDIR_ON_OPEN=EMPTY_DIR \
-       CPL_VSIL_CURL_ALLOWED_EXTENSIONS=".vrt,.tif,.ovr" VSI_CACHE=TRUE
+       CPL_VSIL_CURL_ALLOWED_EXTENSIONS=".vrt,.tif,.ovr" VSI_CACHE=TRUE GDAL_HTTP_TIMEOUT=60
 
-sg_value() {  # sg_value ID LAT LON PROP DEPTH STAT  -> "ID,PROP,DEPTH,STAT,VALOR"
-  local id=$1 lat=$2 lon=$3 p=$4 d=$5 s=$6 v="" name
+# Cada mapa (propriedade x profundidade x estatistica) e aberto UMA vez e lido para
+# todos os pontos de uma vez (coordenadas pela entrada padrao do gdallocationinfo).
+sg_layer() {  # sg_layer PROP DEPTH STAT  -> linhas "ID,PROP,DEPTH,STAT,VALOR"
+  local p=$1 d=$2 s=$3 name vals=""
   # o nome do quantil varia entre "Q0.05" e "Q05" nos arquivos do ISRIC: tenta os dois
   for name in "${p}_${d}_${s}" "${p}_${d}_${s/0./}"; do
-    v="$(gdallocationinfo -valonly -wgs84 "/vsicurl/$SG_URL/$p/$name.vrt" "$lon" "$lat" 2>/dev/null | head -1 || true)"
-    [ -n "$v" ] && break
+    vals="$(timeout 300 gdallocationinfo -valonly -wgs84 "/vsicurl/$SG_URL/$p/$name.vrt" < "$SG_LL" 2>/dev/null || true)"
+    [ -n "$(echo "$vals" | tr -d '[:space:]')" ] && break
   done
-  echo "$id,$p,$d,$s,$v"
+  paste -d, "$SG_IDS" <(printf '%s\n' "$vals" | head -n "$(wc -l < "$SG_IDS")") \
+    | awk -F, -v p="$p" -v d="$d" -v s="$s" 'NF>=1 && $1!="" {print $1","p","d","s","$2}'
 }
-export -f sg_value; export SG_URL
+export -f sg_layer; export SG_URL
 
+# Pontos que ainda nao tem solo no bucket
+: > "$WORK/sg_ids.txt"; : > "$WORK/sg_ll.txt"
 tail -n +2 "$POINTS" | while IFS=, read -r id name lat lon note; do
   [ -z "$id" ] && continue
-  rel="soilgrids/v2/$id.csv"
-  if have "$rel"; then echo "  $id: ja no bucket" >&2; continue; fi
+  if have "soilgrids/v2/$id.csv"; then echo "  $id: ja no bucket" >&2; continue; fi
+  echo "$id" >> "$WORK/sg_ids.txt"; echo "$lon $lat" >> "$WORK/sg_ll.txt"
+done
+export SG_IDS="$WORK/sg_ids.txt" SG_LL="$WORK/sg_ll.txt"
+
+: > "$WORK/sg_tasks.txt"
+if [ -s "$SG_IDS" ]; then
   for p in $SOIL_PROPS; do for d in $SOIL_DEPTHS; do for s in $SOIL_STATS; do
-    echo "$id $lat $lon $p $d $s"
-  done; done; done
-done > "$WORK/sg_tasks.txt"
+    echo "$p $d $s"
+  done; done; done > "$WORK/sg_tasks.txt"
+fi
 
 if [ -s "$WORK/sg_tasks.txt" ]; then
-  xargs -P "$JOBS" -L 1 bash -c 'sg_value "$@"' _ < "$WORK/sg_tasks.txt" > "$WORK/sg_values.csv"
+  echo "  $(wc -l < "$SG_IDS") pontos x $(wc -l < "$WORK/sg_tasks.txt") mapas"
+  xargs -P "$JOBS" -L 1 bash -c 'sg_layer "$@"' _ < "$WORK/sg_tasks.txt" > "$WORK/sg_values.csv"
   mkdir -p "$OUT/soilgrids/v2"
   for id in $(cut -d, -f1 "$WORK/sg_values.csv" | sort -u); do
     f="$OUT/soilgrids/v2/$id.csv"
