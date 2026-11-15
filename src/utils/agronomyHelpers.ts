@@ -8,6 +8,8 @@ import {
   RotationComparisonStrategy,
 } from '../types/domain';
 import { calculatePolygonMetrics, createMicroPlotAroundPoint } from './geoprocessing';
+import { cropCodeFromName } from './dssatLogic';
+import dssatCatalog from '../../apps/api/app/crops.json';
 
 export const LOT_PALETTE = [
   '#16A34A', // Verde safra
@@ -18,7 +20,7 @@ export const LOT_PALETTE = [
   '#DB2777', // Rosa cobertura
 ];
 
-export const PLANT_CATALOG_CHIPS = [
+const LOCAL_PLANT_CHIPS = [
   'Feijão-Caupi',
   'Mandioca',
   'Milho',
@@ -28,6 +30,13 @@ export const PLANT_CATALOG_CHIPS = [
   'Feijão-de-Porco',
   'Crotalária',
   'Hortaliças / PANCs',
+];
+
+// O catálogo versionado mantém o cadastro e o histórico disponíveis offline.
+const localCropCodes = new Set(LOCAL_PLANT_CHIPS.map((plant) => cropCodeFromName(plant, dssatCatalog.crops)));
+export const PLANT_CATALOG_CHIPS = [
+  ...LOCAL_PLANT_CHIPS,
+  ...dssatCatalog.crops.filter(({ code }) => !localCropCodes.has(code)).map(({ name }) => name),
 ];
 
 export function createDefaultLotsForFarm(

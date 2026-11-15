@@ -9,32 +9,48 @@ import {
   View,
 } from 'react-native';
 import { CommunityReportGraph } from '../components/CommunityReportGraph';
+import { FeatureBadge } from '../components/FeatureBadge';
 import { useAccessibility } from '../context/AccessibilityContext';
 import {
-  MOCK_COMMUNITY_POSTS,
   TOPIC_META,
   buildCommunityReportGraph,
 } from '../data/communityMockData';
+import { FEATURE_COLOR_STYLES } from '../models/farmArchitecture';
 import { getAppTheme } from '../theme/tokens';
-import { CommunityPost, CommunityTopic } from '../types/domain';
+import { CommunityTopic } from '../types/domain';
 
+/**
+ * Aba Comunidade ("O que o usuário vê" -> aba comunidade):
+ * - AZUL:   Relatar acontecimentos (pragas, mudanças de preço, desastres naturais)
+ * - SALMÃO: Ver usuários próximos + Receber relatos de outros usuários
+ */
 export const CommunityScreen: React.FC = () => {
-  const { accessibility, activeFarmer, activeFarm, speak } = useAccessibility();
+  const {
+    accessibility,
+    activeFarmer,
+    activeFarm,
+    communityPosts: posts,
+    addCommunityPost,
+    toggleCommunityLike,
+    addCommunityReply,
+    speak,
+  } = useAccessibility();
   const theme = getAppTheme(accessibility);
+  const blue = FEATURE_COLOR_STYLES.azul;
+  const salmon = FEATURE_COLOR_STYLES.salmao;
 
-  const [posts, setPosts] = useState<CommunityPost[]>(MOCK_COMMUNITY_POSTS);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [topicFilter, setTopicFilter] = useState<CommunityTopic | 'todos'>('todos');
 
-  // Novo post (pergunta / relato)
+  // Feature AZUL: relatar acontecimentos (pragas, mudanças de preço, desastres naturais)
   const [composerOpen, setComposerOpen] = useState(false);
-  const [postTipo, setPostTipo] = useState<'pergunta' | 'relato'>('pergunta');
-  const [postTopico, setPostTopico] = useState<CommunityTopic>('duvida');
+  const [postTipo, setPostTipo] = useState<'pergunta' | 'relato'>('relato');
+  const [postTopico, setPostTopico] = useState<CommunityTopic>('praga');
   const [postTitulo, setPostTitulo] = useState('');
   const [postMensagem, setPostMensagem] = useState('');
 
   // Respostas inline
-  const [openThreadId, setOpenThreadId] = useState<string | null>(MOCK_COMMUNITY_POSTS[0]?.id ?? null);
+  const [openThreadId, setOpenThreadId] = useState<string | null>(posts[0]?.id ?? null);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
 
   const graph = useMemo(
@@ -63,71 +79,31 @@ export const CommunityScreen: React.FC = () => {
     const cleanMsg = postMensagem.trim();
     if (!cleanTitle || !cleanMsg) return;
 
-    const newPost: CommunityPost = {
-      id: `post-${Date.now()}`,
-      autor: activeFarmer.tratamento || activeFarmer.nome || 'Agricultor(a)',
-      regiaoNome: activeFarm.regiaoNome,
-      municipio: activeFarm.municipio,
-      estado: activeFarm.estado,
-      bioma: activeFarm.bioma,
-      centroid: activeFarm.centroid,
-      topico: postTopico,
+    const created = addCommunityPost({
       tipo: postTipo,
+      topico: postTopico,
       titulo: cleanTitle,
       mensagem: cleanMsg,
-      curtidas: 1,
-      curtidoPorMim: true,
-      haQuantoTempo: 'agora mesmo',
-      respostas: [],
-    };
+    });
+    if (!created) return;
 
-    setPosts((prev) => [newPost, ...prev]);
     setPostTitulo('');
     setPostMensagem('');
     setComposerOpen(false);
     setSelectedNodeId(null);
     setTopicFilter('todos');
-    setOpenThreadId(newPost.id);
-    speak(`Sua ${postTipo} foi publicada na comunidade de ${activeFarm.regiaoNome}.`, true);
+    setOpenThreadId(created.id);
+    speak(`Seu relato de acontecimento foi salvo na comunidade de ${activeFarm.regiaoNome}.`, true);
   };
 
   const handleToggleLike = (postId: string) => {
-    setPosts((prev) =>
-      prev.map((p) => {
-        if (p.id !== postId) return p;
-        const liked = !p.curtidoPorMim;
-        return {
-          ...p,
-          curtidoPorMim: liked,
-          curtidas: Math.max(0, p.curtidas + (liked ? 1 : -1)),
-        };
-      })
-    );
+    toggleCommunityLike(postId);
   };
 
   const handleSendReply = (postId: string) => {
     const text = (replyDrafts[postId] ?? '').trim();
     if (!text) return;
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId
-          ? {
-              ...p,
-              respostas: [
-                ...p.respostas,
-                {
-                  id: `rep-${Date.now()}`,
-                  autor: activeFarmer.tratamento || activeFarmer.nome || 'Agricultor(a)',
-                  regiaoNome: activeFarm.regiaoNome,
-                  municipio: activeFarm.municipio,
-                  texto: text,
-                  criadoEm: 'agora mesmo',
-                },
-              ],
-            }
-          : p
-      )
-    );
+    addCommunityReply(postId, text);
     setReplyDrafts((prev) => ({ ...prev, [postId]: '' }));
     speak('Resposta enviada para a comunidade.', true);
   };
@@ -137,27 +113,28 @@ export const CommunityScreen: React.FC = () => {
       style={{ flex: 1, backgroundColor: theme.bg }}
       contentContainerStyle={styles.container}
     >
-      {/* Cabeçalho Comunidade */}
+      {/* Cabeçalho Comunidade + Ação AZUL */}
       <View
         style={[
           styles.heroCard,
-          { backgroundColor: theme.surface, borderColor: theme.primary },
+          { backgroundColor: theme.surface, borderColor: blue.border },
         ]}
       >
         <View style={styles.heroTop}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, gap: 4 }}>
+            <FeatureBadge color="azul" />
             <Text style={[styles.heroTitle, { color: theme.text, fontSize: 19 * theme.scale }]}>
               Comunidade da Roça
             </Text>
             <Text style={{ fontSize: 12, color: theme.textMuted }}>
-              Tire dúvidas, troque experiências sobre manejo e veja no grafo de onde agricultores
-              estão reportando.
+              Relate acontecimentos locais (pragas, mudanças de preço, desastres naturais) e veja
+              usuários próximos no grafo.
             </Text>
           </View>
           <Pressable
             onPress={() =>
               speak(
-                `Comunidade da Roça. Existem ${posts.length} publicações e ${graph.nodes.length - 1} regiões vizinhas conectadas no grafo de relatos.`,
+                `Comunidade da Roça. Existem ${posts.length} acontecimentos e relatos publicados entre ${graph.nodes.length - 1} regiões próximas no grafo.`,
                 true
               )
             }
@@ -169,20 +146,22 @@ export const CommunityScreen: React.FC = () => {
 
         <Pressable
           onPress={() => setComposerOpen((v) => !v)}
-          style={[styles.askBtn, { backgroundColor: theme.primary }]}
+          style={[styles.askBtn, { backgroundColor: blue.border }]}
         >
           <Ionicons
-            name={composerOpen ? 'close-circle-outline' : 'chatbubble-ellipses-outline'}
+            name={composerOpen ? 'close-circle-outline' : 'megaphone-outline'}
             size={20}
-            color={theme.primaryText}
+            color="#FFFFFF"
           />
-          <Text style={{ fontWeight: '900', color: theme.primaryText, fontSize: 14 }}>
-            {composerOpen ? 'Fechar formulário' : '+ Fazer pergunta ou compartilhar relato'}
+          <Text style={{ fontWeight: '900', color: '#FFFFFF', fontSize: 13 }}>
+            {composerOpen
+              ? 'Fechar formulário'
+              : '+ Relatar acontecimento (pragas, preço, desastre)'}
           </Text>
         </Pressable>
       </View>
 
-      {/* Formulário para criar pergunta ou relato */}
+      {/* Formulário AZUL: relatar acontecimentos */}
       {composerOpen && (
         <View
           style={[
@@ -190,13 +169,15 @@ export const CommunityScreen: React.FC = () => {
             { backgroundColor: theme.surface, borderColor: '#2563EB' },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Nova interação</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            Relatar acontecimento ou fazer pergunta
+          </Text>
 
           <View style={styles.rowBtns}>
             {(
               [
+                { id: 'relato', label: 'Relato de acontecimento' },
                 { id: 'pergunta', label: 'Pergunta para agricultores' },
-                { id: 'relato', label: 'Relato da minha roça' },
               ] as const
             ).map((opt) => (
               <Pressable
@@ -292,7 +273,21 @@ export const CommunityScreen: React.FC = () => {
         </View>
       )}
 
-      {/* Sistema de Grafo de Relatos Regionais */}
+      {/* Seção SALMÃO: Ver usuários próximos + Receber relatos de outros usuários */}
+      <View
+        style={[
+          styles.heroCard,
+          { backgroundColor: salmon.bg, borderColor: salmon.border, paddingVertical: 10 },
+        ]}
+      >
+        <FeatureBadge color="salmao" />
+        <Text style={{ fontSize: 12, fontWeight: '800', color: salmon.text }}>
+          Ver usuários próximos ({graph.nodes.filter((n) => !n.isUserFarm).length} polos) e receber
+          relatos de outros usuários na sua região
+        </Text>
+      </View>
+
+      {/* Sistema de Grafo de Relatos Regionais (Ver usuários próximos) */}
       <CommunityReportGraph
         nodes={graph.nodes}
         edges={graph.edges}

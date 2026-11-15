@@ -21,7 +21,6 @@ import {
 import { CommunityScreen } from './src/screens/CommunityScreen';
 import { DecisionScreen } from './src/screens/DecisionScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
-import { MapScreen } from './src/screens/MapScreen';
 import { NordesteOnboardingScreen } from './src/screens/NordesteOnboardingScreen';
 import { SettingsModal, SettingsTabKey } from './src/screens/SettingsModal';
 import { VoiceOnboardingScreen } from './src/screens/VoiceOnboardingScreen';
@@ -36,7 +35,7 @@ const RoçaVivaRoot: React.FC = () => {
     openTutorial,
     closeTutorial,
   } = useAccessibility();
-  const [activeTab, setActiveTab] = useState<MainTabKey>('inicio');
+  const [activeTab, setActiveTab] = useState<MainTabKey>('resumo');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTabKey>('perfil');
 
@@ -63,9 +62,9 @@ const RoçaVivaRoot: React.FC = () => {
       if (
         accessibility.voiceOnboardingCompleted &&
         nordesteMapCompleted &&
-        activeTab !== 'inicio'
+        activeTab !== 'resumo'
       ) {
-        setActiveTab('inicio');
+        setActiveTab('resumo');
         return true;
       }
       return false;
@@ -114,15 +113,14 @@ const RoçaVivaRoot: React.FC = () => {
           />
           <AlertTopBanner onOpenAllAlerts={() => openSettingsAt('alertas')} />
           <View style={styles.body}>
-            {activeTab === 'inicio' && (
+            {activeTab === 'resumo' && (
               <HomeScreen
                 onNavigateTab={setActiveTab}
                 onOpenFeedback={() => openSettingsAt('feedback')}
                 onOpenTutorial={openTutorial}
               />
             )}
-            {activeTab === 'mapa' && <MapScreen />}
-            {activeTab === 'safra' && <DecisionScreen />}
+            {activeTab === 'plantacao' && <DecisionScreen />}
             {activeTab === 'comunidade' && <CommunityScreen />}
           </View>
           <BottomTabBar activeTab={activeTab} onChangeTab={setActiveTab} />

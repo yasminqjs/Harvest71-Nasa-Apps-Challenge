@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { getAppTheme } from '../theme/tokens';
 
-export type MainTabKey = 'inicio' | 'mapa' | 'safra' | 'comunidade';
+export type MainTabKey = 'resumo' | 'plantacao' | 'comunidade';
 
 interface BottomTabBarProps {
   activeTab: MainTabKey;
@@ -17,9 +17,8 @@ const TABS: {
   icon: keyof typeof Ionicons.glyphMap;
   iconInactive: keyof typeof Ionicons.glyphMap;
 }[] = [
-  { key: 'inicio', label: 'Início', icon: 'home', iconInactive: 'home-outline' },
-  { key: 'mapa', label: 'Mapa', icon: 'map', iconInactive: 'map-outline' },
-  { key: 'safra', label: 'Safra', icon: 'leaf', iconInactive: 'leaf-outline' },
+  { key: 'resumo', label: 'Resumo', icon: 'sunny', iconInactive: 'sunny-outline' },
+  { key: 'plantacao', label: 'Plantação', icon: 'leaf', iconInactive: 'leaf-outline' },
   { key: 'comunidade', label: 'Comunidade', icon: 'people', iconInactive: 'people-outline' },
 ];
 

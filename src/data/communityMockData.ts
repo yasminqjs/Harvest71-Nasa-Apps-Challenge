@@ -11,8 +11,10 @@ export const TOPIC_META: Record<
   CommunityTopic,
   { label: string; color: string; bg: string }
 > = {
-  seca: { label: 'Seca / Chuva', color: '#DC2626', bg: '#FEE2E2' },
-  praga: { label: 'Praga / Folha', color: '#D97706', bg: '#FEF3C7' },
+  praga: { label: 'Pragas', color: '#D97706', bg: '#FEF3C7' },
+  mudanca_preco: { label: 'Mudança de Preço', color: '#0D9488', bg: '#CCFBF1' },
+  desastre_natural: { label: 'Desastre Natural', color: '#DC2626', bg: '#FEE2E2' },
+  seca: { label: 'Seca / Chuva', color: '#B45309', bg: '#FFEDD5' },
   rotacao: { label: 'Rotação', color: '#16A34A', bg: '#DCFCE7' },
   solo: { label: 'Solo / Erosão', color: '#7C3AED', bg: '#F3E8FF' },
   duvida: { label: 'Dúvida Geral', color: '#2563EB', bg: '#DBEAFE' },
@@ -176,6 +178,40 @@ export const MOCK_COMMUNITY_POSTS: CommunityPost[] = [
         criadoEm: 'há 2 dias',
       },
     ],
+  },
+  {
+    id: 'post-7',
+    autor: 'Comadre Socorro',
+    regiaoNome: 'Portal do Sertão',
+    municipio: 'Feira de Santana',
+    estado: 'BA',
+    bioma: 'Caatinga',
+    centroid: { latitude: -12.266, longitude: -38.966 },
+    topico: 'mudanca_preco',
+    tipo: 'relato',
+    titulo: 'Saca de feijão-caupi subiu 18% na feira regional essa semana',
+    mensagem:
+      'Na feira livre e na cooperativa de Feira, o preço da saca de 60 kg subiu por causa da estiagem em regiões vizinhas. Quem colheu cedo está segurando parte para venda melhor.',
+    curtidas: 28,
+    haQuantoTempo: 'há 4 horas',
+    respostas: [],
+  },
+  {
+    id: 'post-8',
+    autor: 'Seu Pedro Rocha',
+    regiaoNome: 'Agreste Alagoano',
+    municipio: 'Arapiraca',
+    estado: 'AL',
+    bioma: 'Caatinga',
+    centroid: { latitude: -9.7525, longitude: -36.6611 },
+    topico: 'desastre_natural',
+    tipo: 'relato',
+    titulo: 'Vendaval com enxurrada rápida derrubou cobertura na baixada',
+    mensagem:
+      'Ontem à noite deu uma rajada forte com 55 mm em 40 minutos. Quem tem terreno inclinado precisa reforçar os cordões de contenção e drenagem antes do próximo pico.',
+    curtidas: 21,
+    haQuantoTempo: 'há 6 horas',
+    respostas: [],
   },
 ];
 

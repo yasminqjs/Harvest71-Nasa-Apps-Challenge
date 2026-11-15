@@ -164,6 +164,21 @@ export function createSimulation(req: SimulationRequest): Promise<JobAccepted> {
   return post<JobAccepted>('/simulations', req);
 }
 
+export type RotationCalendarResult = {
+  candidates: { cycles: { crop: string; planting_date: string; end_date: string }[] }[];
+  truncated: boolean;
+};
+
+export function planRotationCalendar(payload: {
+  horizon_start: string;
+  horizon_end: string;
+  known_crops: string[];
+  windows: { crop: string; planting_date: string }[];
+  max_cycles: number;
+}): Promise<RotationCalendarResult> {
+  return post<RotationCalendarResult>('/planning/calendar', payload);
+}
+
 export function createRotationSearch(req: RotationSearchRequest): Promise<JobAccepted> {
   return post<JobAccepted>('/rotations/search', req);
 }

@@ -14,56 +14,44 @@ interface TutorialStep {
 
 const TUTORIAL_STEPS: TutorialStep[] = [
   {
-    icon: 'home',
-    title: '1. Tela Início: Sua roça em 3 cartões',
-    subtitle: 'Resumo diário traduzido sem termos difíceis',
+    icon: 'sunny',
+    title: '1. Aba Resumo: Informações locais da roça',
+    subtitle: 'Visualizador de temperatura, chuva, umidade e estado básico',
     bullets: [
-      'Clima do dia: mostra calor, chuva e se a terra está perdendo água.',
-      'Previsão trimestre: a carinha muda de cor se houver risco de seca.',
-      'Validação de campo: registre chuva, umidade da terra, pragas ou enxurrada sem precisar de internet.',
+      'Clima do dia e previsão do trimestre com dados climáticos locais (NASA POWER).',
+      'Resumo geral das suas plantações, histórico da terra (SRTM + Landsat 30 m) e acontecimentos da região.',
+      'Botão rápido para gerar relatório da roça pelo WhatsApp.',
     ],
     voiceText:
-      'Passo 1 do tutorial. Na tela Início, você vê o clima do dia, a previsão do trimestre e o andamento da colheita. Abaixo, pode registrar o que vê na roça mesmo sem internet.',
+      'Passo 1 do tutorial. Na aba Resumo, você acompanha informações básicas da roça: clima do dia, previsão do trimestre e resumo das plantações.',
   },
   {
-    icon: 'map',
-    title: '2. Aba Mapa: Demarcar roça e Poços',
-    subtitle: 'Desenho fino no mapa ou caminhando pelo perímetro',
+    icon: 'leaf',
+    title: '2. Aba Plantação: Atualizar dados e simulações',
+    subtitle: 'Gerencie sua fazenda e planeje as próximas safras',
     bullets: [
-      'Toque nos cantos da sua roça ou ative Caminhar com GPS para medir hectares e tarefas.',
-      'Veja os poços da região (SIAGAS) com profundidade média, chance de água e salinidade.',
-      'Use o seletor de raio (1 a 30 km) para ajustar a busca ao redor da sua terra.',
+      'Atualizar dados da plantação e da fazenda: edite terreno no mapa, lotes, cultura atual, variáveis da fazenda e histórico.',
+      'Planejamento por datas futuras, comparação histórica de rotações e simulação do talhão com DSSAT.',
+      'Qualidade da plantação atual (espaço reservado para próximos merges).',
     ],
     voiceText:
-      'Passo 2 do tutorial. Na aba Mapa, demarque sua roça tocando na tela ou caminhando com o GPS sem internet, e veja os poços mais próximos.',
-  },
-  {
-    icon: 'camera',
-    title: '3. Aba Safra: Quando plantar & Folha',
-    subtitle: 'Janela segura de plantio e câmera offline',
-    bullets: [
-      'Descubra se já pode plantar ou se há risco de veranico (falso início de chuva).',
-      'Tire foto de uma folha para identificar folha saudável, seca, amarelada ou com manchas pretas.',
-      'Gere resumo pronto para WhatsApp ou crédito PRONAF em 1 toque.',
-    ],
-    voiceText:
-      'Passo 3 do tutorial. Na aba Safra, confira se já é hora de plantar, fotografe folhas com a câmera offline e gere seu resumo para o PRONAF.',
+      'Passo 2 do tutorial. Na aba Plantação, você atualiza dados da fazenda, lotes e culturas, e acessa as áreas de comparação DSSAT e qualidade da plantação.',
   },
   {
     icon: 'people',
-    title: '4. Aba Comunidade: Grafo e Troca de Ideias',
-    subtitle: 'Perguntas, relatos e rede regional de agricultores',
+    title: '3. Aba Comunidade: Usuários próximos e Relatos',
+    subtitle: 'Receba relatos locais e registre acontecimentos da região',
     bullets: [
-      'Veja no grafo regional de onde outros agricultores estão reportando secas, pragas e rotações.',
-      'Toque em um polo do grafo para filtrar experiências perto de você ou no mesmo bioma.',
-      'Publique dúvidas, responda outros produtores e ouça os relatos em voz alta.',
+      'Ver usuários próximos no grafo regional conectado por bioma e tema.',
+      'Receber relatos de outros agricultores na sua região.',
+      'Relatar acontecimentos (pragas, mudanças de preço, desastres naturais) para ajudar a comunidade.',
     ],
     voiceText:
-      'Passo 4 do tutorial. Na aba Comunidade, veja o grafo de relatos de outras regiões, faça perguntas e troque experiências com outros agricultores.',
+      'Passo 3 do tutorial. Na aba Comunidade, veja agricultores próximos no grafo, leia relatos e registre acontecimentos como pragas, preços ou desastres naturais.',
   },
   {
     icon: 'chatbox-ellipses',
-    title: '5. Sua opinião melhora o RoçaViva',
+    title: '4. Sua opinião melhora o RoçaViva',
     subtitle: 'Sistema de feedback offline + perfil compartilhado',
     bullets: [
       'Avalie se a previsão bateu com a chuva ou seca na sua propriedade.',
@@ -71,7 +59,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
       'No ícone de usuário no topo, você também troca de agricultor no mesmo aparelho e ajusta letras grandes ou alto contraste.',
     ],
     voiceText:
-      'Passo 5 do tutorial. Você pode enviar sua opinião dizendo se a previsão funcionou na roça. Tudo funciona offline e sincroniza quando tiver sinal. Bom trabalho!',
+      'Passo 4 do tutorial. Você pode enviar sua opinião dizendo se a previsão funcionou na roça. Tudo funciona offline e sincroniza quando tiver sinal. Bom trabalho!',
   },
 ];
 

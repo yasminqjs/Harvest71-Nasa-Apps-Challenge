@@ -8,7 +8,7 @@ import {
 import type { Capabilities, CatalogCrop, ClimateProjectionOptions } from '../types/dssat';
 
 /** Catálogo de culturas, capacidades de rotação e opções de clima futuro (cache em memória no cliente). */
-export function useDssatCatalog() {
+export function useDssatCatalog({ includeCapabilities = true } = {}) {
   const [crops, setCrops] = useState<CatalogCrop[]>([]);
   const [caps, setCaps] = useState<Capabilities | null>(null);
   const [projection, setProjection] = useState<ClimateProjectionOptions | null>(null);
@@ -18,14 +18,12 @@ export function useDssatCatalog() {
 
   useEffect(() => {
     let alive = true;
-    Promise.all([getCrops(), getCapabilities()])
-      .then(([c, k]) => {
-        if (!alive) return;
-        setCrops(c);
-        setCaps(k);
-      })
-      .catch((e) => alive && setError(friendlyMessage(e)))
-      .finally(() => alive && setLoading(false));
+    const reportError = (e: unknown) => { if (alive) setError(friendlyMessage(e)); };
+    const catalog = getCrops().then((c) => { if (alive) setCrops(c); }).catch(reportError);
+    const capabilities = includeCapabilities
+      ? getCapabilities().then((k) => { if (alive) setCaps(k); }).catch(reportError)
+      : Promise.resolve();
+    void Promise.all([catalog, capabilities]).finally(() => { if (alive) setLoading(false); });
     // Clima futuro é opcional: falha aqui não bloqueia o resto.
     getClimateProjectionOptions()
       .then((p) => alive && setProjection(p))
@@ -33,7 +31,7 @@ export function useDssatCatalog() {
     return () => {
       alive = false;
     };
-  }, [attempt]);
+  }, [attempt, includeCapabilities]);
 
   const reload = useCallback(() => {
     setLoading(true);

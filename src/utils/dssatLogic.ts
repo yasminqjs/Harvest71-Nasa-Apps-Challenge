@@ -19,7 +19,7 @@ const ALIASES: Record<string, string> = {
 };
 
 /** Código do catálogo para um nome livre ("Feijão de corda", "Milho crioulo"), ou null (ex.: palma). */
-export function cropCodeFromName(name: string, catalog: CatalogCrop[]): string | null {
+export function cropCodeFromName(name: string, catalog: readonly Pick<CatalogCrop, 'code' | 'name'>[]): string | null {
   const n = normalize(name);
   if (!n) return null;
   const byCode = catalog.find((c) => c.code.toLowerCase() === n);

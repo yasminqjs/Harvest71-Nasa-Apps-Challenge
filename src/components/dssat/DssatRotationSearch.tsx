@@ -10,6 +10,7 @@ import { useDssatCatalog } from '../../hooks/useDssatCatalog';
 import { useDssatJob } from '../../hooks/useDssatJob';
 import { createRotationCompare, createRotationSearch } from '../../services/dssatApi';
 import { getAppTheme } from '../../theme/tokens';
+import { RotationCalendar } from './RotationCalendar';
 import type {
   RotationCompareResult,
   RotationOption,
@@ -39,11 +40,11 @@ import {
   dssatStyles,
 } from './DssatShared';
 
-type Mode = 'search' | 'compare';
+type Mode = 'calendar' | 'search' | 'compare';
 const DEFAULT_DATES: [string, string, string] = ['1992-01-15', '1992-06-15', '1993-01-15'];
 const YEAR_CHOICES = [1995, 2000, 2005, 2010, 2015, 2020];
 
-export const DssatRotationSearch: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+export const DssatRotationSearch: React.FC<{ onBack: () => void; initialMode?: Mode }> = ({ onBack, initialMode = 'calendar' }) => {
   const { accessibility, activeFarm, activeFarmer, speak } = useAccessibility();
   const theme = getAppTheme(accessibility);
   const { crops, caps, loading, error: catalogError, reload, cropName } = useDssatCatalog();
@@ -51,7 +52,7 @@ export const DssatRotationSearch: React.FC<{ onBack: () => void }> = ({ onBack }
   const search = useDssatJob<RotationSearchResult>(farmId, 'rotation_search');
   const compare = useDssatJob<RotationCompareResult>(farmId, 'rotation');
 
-  const [mode, setMode] = useState<Mode>('search');
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [selected, setSelected] = useState<string[]>([]);
   const [dates, setDates] = useState<string[]>([...DEFAULT_DATES]);
   const [years, setYears] = useState<number[]>([2015, 2020]);
@@ -79,7 +80,7 @@ export const DssatRotationSearch: React.FC<{ onBack: () => void }> = ({ onBack }
   const eligible = useMemo(() => (caps ? eligibleInSelection(selected, caps) : new Set<string>()), [selected, caps]);
   const errors = validateSearchForm({ selected, eligible, dates, years, targets });
   const compareCrops = selected.slice(0, 3);
-  const compareOk = !!caps && allPairsEnabled(compareCrops, caps);
+  const compareOk = selected.length <= 3 && !!caps && allPairsEnabled(compareCrops, caps);
 
   const searchResult = search.state.phase === 'done' ? search.state.result : undefined;
   const compareResult = compare.state.phase === 'done' ? compare.state.result : undefined;
@@ -134,9 +135,10 @@ export const DssatRotationSearch: React.FC<{ onBack: () => void }> = ({ onBack }
       <DssatHeader theme={theme} title="Rotações para meu talhão" onBack={onBack} />
       <PointInfo theme={theme} farm={activeFarm} />
 
-      <View style={{ flexDirection: 'row', gap: 6 }}>
-        <Chip theme={theme} label="Buscar rotações" selected={mode === 'search'} onPress={() => setMode('search')} />
-        <Chip theme={theme} label="Comparar ordens escolhidas" selected={mode === 'compare'} onPress={() => setMode('compare')} />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+        <Chip theme={theme} label="Planejar datas futuras" selected={mode === 'calendar'} onPress={() => setMode('calendar')} />
+        <Chip theme={theme} label="Buscar com clima histórico" selected={mode === 'search'} onPress={() => setMode('search')} />
+        <Chip theme={theme} label="Comparar ordens com clima histórico" selected={mode === 'compare'} onPress={() => setMode('compare')} />
       </View>
 
       {catalogError ? (
@@ -148,6 +150,9 @@ export const DssatRotationSearch: React.FC<{ onBack: () => void }> = ({ onBack }
         </Card>
       ) : null}
 
+      {mode === 'calendar' ? (
+        <RotationCalendar crops={crops} theme={theme} />
+      ) : <>
       <Card theme={theme}>
         <H theme={theme}>1. Culturas que você sabe plantar</H>
         <P theme={theme} muted>
@@ -299,6 +304,7 @@ export const DssatRotationSearch: React.FC<{ onBack: () => void }> = ({ onBack }
       {mode === 'compare' && compareResult ? (
         <CompareResultView result={compareResult} theme={theme} cropName={cropName} metricFor={(c) => targetMetric(c, caps)} />
       ) : null}
+      </>}
     </View>
   );
 };

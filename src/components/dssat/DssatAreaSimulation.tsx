@@ -37,14 +37,9 @@ type FutureChoice = 'none' | string;
 export const DssatAreaSimulation: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const { accessibility, activeFarm, speak } = useAccessibility();
   const theme = getAppTheme(accessibility);
-  const { crops, caps, projection, loading, error: catalogError, reload } = useDssatCatalog();
+  const { crops, projection, loading, error: catalogError, reload } = useDssatCatalog({ includeCapabilities: false });
   const farmId = activeFarm?.id ?? 'sem-talhao';
   const { state, busy, submit, retry, reset } = useDssatJob<SimulationResult>(farmId, 'simulation');
-
-  const singleCrops = useMemo(() => {
-    const ok = new Set((caps?.crops ?? []).filter((c) => c.single_crop !== false).map((c) => c.code));
-    return crops.filter((c) => ok.size === 0 || ok.has(c.code));
-  }, [crops, caps]);
 
   const [chosenCrop, setCrop] = useState<string | null>(null);
   const [autoWindows, setAutoWindows] = useState(true);
@@ -119,7 +114,7 @@ export const DssatAreaSimulation: React.FC<{ onBack: () => void }> = ({ onBack }
           {loading ? 'Carregando o catálogo do simulador…' : 'Escolha uma cultura do simulador (variedade padrão do catálogo).'}
         </P>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-          {singleCrops.map((c) => (
+          {crops.map((c) => (
             <Chip key={c.code} theme={theme} label={c.name} selected={crop === c.code} onPress={() => setCrop(c.code)} disabled={busy} />
           ))}
         </View>

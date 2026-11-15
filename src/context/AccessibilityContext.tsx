@@ -8,9 +8,11 @@ import React, {
   useState,
 } from 'react';
 import { AppState } from 'react-native';
+import { MOCK_COMMUNITY_POSTS } from '../data/communityMockData';
 import { NORDESTE_REGIONS } from '../data/seedData';
 import { DEFAULT_ACCESSIBILITY, buildSeedSnapshot } from '../database/seedBuilder';
 import { sqliteDb } from '../database/sqlite';
+import { buildFarmArchitectureModel } from '../models/farmArchitecture';
 import { runLocalAgronomicEngine } from '../services/localAgronomicEngine';
 import { triggerLocalPreventiveAlert } from '../services/notificationService';
 import { syncPendingDataWithCloud } from '../services/syncService';
@@ -18,8 +20,11 @@ import { initSpeechBackgroundSync, speakText, stopSpeaking } from '../services/v
 import {
   AccessibilityProfile,
   AppFeedbackItem,
+  CommunityPost,
+  CommunityTopic,
   CropHistoryRecord,
   EdiblePlantPANC,
+  FarmArchitectureModel,
   FarmProperty,
   FarmerProfile,
   FieldValidationLog,
@@ -55,6 +60,8 @@ interface AccessibilityContextValue {
   lastSyncMessage: string | null;
   nordesteMapCompleted: boolean;
   tutorialVisible: boolean;
+  communityPosts: CommunityPost[];
+  farmArchitecture: FarmArchitectureModel | null;
 
   setSimulatedOffline: (offline: boolean) => void;
   setNordesteMapCompleted: (done: boolean) => void;
@@ -65,6 +72,22 @@ interface AccessibilityContextValue {
   updateAccessibility: (partial: Partial<AccessibilityProfile>) => Promise<void>;
   selectFarmer: (farmerId: string) => Promise<void>;
   saveFarmerProfile: (farmer: FarmerProfile) => Promise<void>;
+  updateFarmVariables: (
+    patch: Partial<
+      Pick<
+        FarmerProfile,
+        'waterAccess' | 'armazenamentoAgua' | 'laborType' | 'financialTier' | 'objective'
+      >
+    >
+  ) => Promise<void>;
+  addCommunityPost: (input: {
+    tipo: 'pergunta' | 'relato';
+    topico: CommunityTopic;
+    titulo: string;
+    mensagem: string;
+  }) => CommunityPost | null;
+  toggleCommunityLike: (postId: string) => void;
+  addCommunityReply: (postId: string, texto: string) => void;
   recordCropHistory: (
     input: Omit<CropHistoryRecord, 'id' | 'farmerId' | 'registradaEm'>
   ) => Promise<void>;
@@ -125,6 +148,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
   const [lastSyncMessage, setLastSyncMessage] = useState<string | null>(null);
   const [nordesteMapCompleted, setNordesteMapCompleted] = useState(false);
   const [tutorialVisible, setTutorialVisible] = useState(false);
+  const [communityPosts, setCommunityPosts] =
+    useState<CommunityPost[]>(MOCK_COMMUNITY_POSTS);
 
   const isOnline = realOnline && !simulatedOffline;
 
@@ -881,8 +906,104 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
     setLastLeafAnalysis(null);
     setNordesteMapCompleted(false);
     setTutorialVisible(false);
+    setCommunityPosts(MOCK_COMMUNITY_POSTS);
     setLastSyncMessage(null);
   }, []);
+
+  const updateFarmVariables = useCallback(
+    async (
+      patch: Partial<
+        Pick<
+          FarmerProfile,
+          'waterAccess' | 'armazenamentoAgua' | 'laborType' | 'financialTier' | 'objective'
+        >
+      >
+    ) => {
+      if (!activeFarmer) return;
+      await saveFarmerProfile({
+        ...activeFarmer,
+        ...patch,
+      });
+    },
+    [activeFarmer, saveFarmerProfile]
+  );
+
+  const addCommunityPost = useCallback(
+    (input: {
+      tipo: 'pergunta' | 'relato';
+      topico: CommunityTopic;
+      titulo: string;
+      mensagem: string;
+    }): CommunityPost | null => {
+      if (!activeFarm || !activeFarmer) return null;
+      const newPost: CommunityPost = {
+        id: `post-${Date.now()}`,
+        autor: activeFarmer.tratamento || activeFarmer.nome || 'Agricultor(a)',
+        regiaoNome: activeFarm.regiaoNome,
+        municipio: activeFarm.municipio,
+        estado: activeFarm.estado,
+        bioma: activeFarm.bioma,
+        centroid: activeFarm.centroid,
+        topico: input.topico,
+        tipo: input.tipo,
+        titulo: input.titulo,
+        mensagem: input.mensagem,
+        curtidas: 1,
+        curtidoPorMim: true,
+        haQuantoTempo: 'agora mesmo',
+        respostas: [],
+      };
+      setCommunityPosts((prev) => [newPost, ...prev]);
+      return newPost;
+    },
+    [activeFarm, activeFarmer]
+  );
+
+  const toggleCommunityLike = useCallback((postId: string) => {
+    setCommunityPosts((prev) =>
+      prev.map((p) => {
+        if (p.id !== postId) return p;
+        const liked = !p.curtidoPorMim;
+        return {
+          ...p,
+          curtidoPorMim: liked,
+          curtidas: Math.max(0, p.curtidas + (liked ? 1 : -1)),
+        };
+      })
+    );
+  }, []);
+
+  const addCommunityReply = useCallback(
+    (postId: string, texto: string) => {
+      if (!activeFarm || !activeFarmer) return;
+      setCommunityPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                respostas: [
+                  ...p.respostas,
+                  {
+                    id: `rep-${Date.now()}`,
+                    autor: activeFarmer.tratamento || activeFarmer.nome || 'Agricultor(a)',
+                    regiaoNome: activeFarm.regiaoNome,
+                    municipio: activeFarm.municipio,
+                    texto,
+                    criadoEm: 'agora mesmo',
+                  },
+                ],
+              }
+            : p
+        )
+      );
+    },
+    [activeFarm, activeFarmer]
+  );
+
+  const farmArchitecture = useMemo<FarmArchitectureModel | null>(() => {
+    if (!activeFarm || !activeFarmer) return null;
+    return buildFarmArchitectureModel(activeFarm, activeFarmer, communityPosts);
+  }, [activeFarm, activeFarmer, communityPosts]);
 
   const value = useMemo<AccessibilityContextValue>(
     () => ({
@@ -907,6 +1028,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       lastSyncMessage,
       nordesteMapCompleted,
       tutorialVisible,
+      communityPosts,
+      farmArchitecture,
       setSimulatedOffline,
       setNordesteMapCompleted,
       openTutorial,
@@ -916,6 +1039,10 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       updateAccessibility,
       selectFarmer,
       saveFarmerProfile,
+      updateFarmVariables,
+      addCommunityPost,
+      toggleCommunityLike,
+      addCommunityReply,
       recordCropHistory,
       applyRegistrationSetup,
       updateFarmPolygon,
@@ -956,6 +1083,8 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       lastSyncMessage,
       nordesteMapCompleted,
       tutorialVisible,
+      communityPosts,
+      farmArchitecture,
       openTutorial,
       closeTutorial,
       completeVoiceOnboarding,
@@ -963,6 +1092,10 @@ export const AccessibilityProvider: React.FC<{ children: React.ReactNode }> = ({
       updateAccessibility,
       selectFarmer,
       saveFarmerProfile,
+      updateFarmVariables,
+      addCommunityPost,
+      toggleCommunityLike,
+      addCommunityReply,
       recordCropHistory,
       applyRegistrationSetup,
       updateFarmPolygon,
