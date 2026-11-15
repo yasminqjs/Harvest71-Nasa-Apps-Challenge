@@ -35,10 +35,12 @@ instituição ou dado de origem chinesa, inclusive vínculos indiretos. A regra 
 - **Limites:** a sequência de anos e a variabilidade diária continuam as observadas (secas mais longas ou
   chuvas mais concentradas não aparecem); o CO₂ fica no nível observado (sem efeito de fertilização, conservador);
   resolução de 25 km.
-- **Velocidade:** o servidor da NASA leva de 5 a 20 s por arquivo anual. Para o Nordeste, o workflow
-  `nex-gddp` pré-processa uma vez (recorte regional por arquivo) e grava as médias mensais por célula no bucket
-  (`nex-gddp-cmip6/v2/nordeste/`), o que deixa a simulação com clima futuro quase instantânea. Fora do recorte
-  ou de cenários não pré-processados, o Job baixa só a célula do ponto (de 10 a 30 min na 1ª vez, depois cache).
+- **Velocidade:** o servidor da NASA leva de 5 a 40 s por arquivo anual, então o app nunca baixa durante um
+  pedido. O workflow `nex-gddp` pré-processa em segundo plano um recorte por arquivo (Nordeste, ~6 MB, e depois
+  o Brasil inteiro, ~43 MB) e grava as médias mensais por célula no bucket (`nex-gddp-cmip6/v2/<recorte>/`).
+  A simulação com clima futuro só lê esses arquivos (segundos). Ponto ou cenário ainda não pré-processado:
+  `climate_projection.status = "unavailable"`, sem atrasar o resultado atual. A API só aceita os cenários,
+  períodos e modelos de `data/nex_gddp.json` (teste garante).
 - **Verificado com dado real (GISS-E2-1-G, SSP2-4.5, 2041–2060, célula de Cruz das Almas-BA):** TMAX +1,4 °C,
   TMIN +1,5 °C, chuva −7 %, radiação +0,6 % em relação a 1995–2014.
 - **Não usado (por ora):** previsão sazonal GEOS-S2S (NASA GMAO). Dá anomalias e probabilidades para os

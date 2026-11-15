@@ -77,7 +77,11 @@ VARS = {
 }
 # Pré-processamento regional (Nordeste): um recorte por arquivo cobre todas as células da região,
 # e o resultado (médias mensais por célula) fica no bucket. Ponto fora da região: baixa só a célula.
-REGION = {"name": "nordeste", "north": -0.75, "south": -18.5, "west": -48.75, "east": -34.5}
+REGIONS = [
+    {"name": "nordeste", "north": -0.75, "south": -18.5, "west": -48.75, "east": -34.5},
+    {"name": "brasil", "north": 5.5, "south": -34.0, "west": -74.5, "east": -28.5},
+]
+REGION = REGIONS[0]
 REGIONAL_PREFIX = "nex-gddp-cmip6/v2"
 
 RAIN_FACTOR_LIMITS = (0.25, 4.0)
@@ -227,6 +231,22 @@ def regional_blob(model: str, experiment: str, years: tuple[int, int], region: s
 
 def in_region(lat: float, lon: float, r: dict = REGION) -> bool:
     return r["south"] <= lat <= r["north"] and r["west"] <= lon <= r["east"]
+
+
+def regions_for(lat: float, lon: float) -> list[dict]:
+    """Recortes pré-processados que cobrem o ponto, do menor (mais rápido de ler) para o maior."""
+    return [r for r in REGIONS if in_region(lat, lon, r)]
+
+
+def region_by_name(name: str) -> dict:
+    for r in REGIONS:
+        if r["name"] == name:
+            return r
+    raise ValueError(f"recorte desconhecido: {name}")
+
+
+class NotReady(RuntimeError):
+    """Projeção ainda não pré-processada para este ponto/cenário (o app não espera download da NASA)."""
 
 
 def from_regional(doc: dict, lat: float, lon: float) -> dict | None:

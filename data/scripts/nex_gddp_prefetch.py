@@ -2,7 +2,8 @@
 
 Para cada modelo × (histórico 1995–2014 e cada cenário/período de data/nex_gddp.json) × variável × ano,
 baixa UM recorte da região (NCSS, netCDF3, ~6 MB) e acumula a média mensal de cada célula de 0,25°.
-Resultado: gs://$BUCKET/nex-gddp-cmip6/v2/nordeste/<modelo>/<experimento>_<anos>.json
+Resultado: gs://$BUCKET/nex-gddp-cmip6/v2/<recorte>/<modelo>/<experimento>_<anos>.json
+(recortes em data/nex_gddp.json: "nordeste" primeiro, rápido; depois "brasil", o país inteiro)
 (médias mensais por célula: TMAX/TMIN °C, RAIN mm/dia, SRAD MJ/m²/dia).
 O Job do DSSAT lê esses arquivos e a simulação com clima futuro fica instantânea para qualquer
 ponto do Nordeste. Arquivos já existentes no bucket são pulados (a conta de ingestão não sobrescreve).
@@ -75,8 +76,8 @@ def read_year(blob: bytes, var: str, year: int):
     return lat, lon, sums, cnt
 
 
-def build(model: str, experiment: str, years: tuple[int, int], workers: int) -> dict:
-    region = nx.REGION
+def build(model: str, experiment: str, years: tuple[int, int], workers: int, region: dict | None = None) -> dict:
+    region = region or nx.REGION
     jobs = []
     for var in nx.VARS:
         files = nx.list_files(model, experiment, var)
@@ -142,27 +143,29 @@ def main() -> int:
     nx.validate(cfg["scenarios"][0], cfg["periods"][0], models)   # política: nenhum modelo chinês
     tasks = [("historical", nx.HIST_YEARS)]
     tasks += [(s, nx.PERIODS[p]) for s in cfg["scenarios"] for p in cfg["periods"]]
+    regions = [nx.region_by_name(r) for r in cfg.get("regions", [nx.REGION["name"]])]
     failures = []
-    for model in models:
-        for exp, yrs in tasks:
-            rel = nx.regional_blob(model, exp, yrs)
-            dest = f"gs://{a.bucket}/{rel}" if a.bucket else str(Path(a.out) / rel)
-            if (a.bucket and gcs_exists(dest)) or (a.out and Path(dest).exists()):
-                print(f"já existe: {rel}")
-                continue
-            print(f"gerando {rel}", flush=True)
-            try:
-                doc = build(model, exp, yrs, a.workers)
-            except Exception as e:
-                print(f"  ERRO {rel}: {e}", flush=True)
-                failures.append(rel)
-                continue
-            if a.bucket:
-                gcs_put(doc, dest)
-            else:
-                Path(dest).parent.mkdir(parents=True, exist_ok=True)
-                Path(dest).write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")))
-            print(f"  ok: {dest}", flush=True)
+    for region in regions:
+        for model in models:
+            for exp, yrs in tasks:
+                rel = nx.regional_blob(model, exp, yrs, region["name"])
+                dest = f"gs://{a.bucket}/{rel}" if a.bucket else str(Path(a.out) / rel)
+                if (a.bucket and gcs_exists(dest)) or (a.out and Path(dest).exists()):
+                    print(f"já existe: {rel}")
+                    continue
+                print(f"gerando {rel}", flush=True)
+                try:
+                    doc = build(model, exp, yrs, a.workers, region)
+                except Exception as e:
+                    print(f"  ERRO {rel}: {e}", flush=True)
+                    failures.append(rel)
+                    continue
+                if a.bucket:
+                    gcs_put(doc, dest)
+                else:
+                    Path(dest).parent.mkdir(parents=True, exist_ok=True)
+                    Path(dest).write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")))
+                print(f"  ok: {dest}", flush=True)
     if failures:
         print("falharam:", *failures, sep="\n  ")
     return 1 if failures else 0

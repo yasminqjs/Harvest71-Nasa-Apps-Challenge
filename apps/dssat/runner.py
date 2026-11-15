@@ -492,7 +492,7 @@ def run_point() -> int:
                          "local_calibration_available": False, "is_actual_forecast": False,
                          "note": "Comparação relativa entre janelas e manejo hídrico; não é previsão de produtividade."},
         }
-        if req.get("climate_projection"):
+        if req.get("climate_projection") is not None:
             gcs_put_json(bucket, result_name, result | {"status": "running",
                                                         "note": "resultado atual pronto; calculando o clima futuro"})
             result["climate_projection"] = run_projection(bucket, rid, req, lat, lon, power, ps_doc, meta,
@@ -542,15 +542,17 @@ def run_projection(bucket: str, rid: str, req: dict, lat: float, lon: float, pow
         windows = nx.windows_from_meta(meta)
 
         def clim(model, experiment, yrs):
-            # 1) recorte regional pré-processado (instantâneo); 2) senão, baixa só a célula (lento, fica em cache)
-            if nx.in_region(lat, lon):
-                reg = gcs_read_json(bucket, nx.regional_blob(model, experiment, yrs))
+            # Só lê o que já foi pré-processado (workflow nex-gddp): a simulação nunca espera download da NASA.
+            for region in nx.regions_for(lat, lon):
+                reg = gcs_read_json(bucket, nx.regional_blob(model, experiment, yrs, region["name"]))
                 doc = nx.from_regional(reg, lat, lon) if reg else None
                 if doc:
                     return doc
-            name = f"cache/nex-gddp-cmip6/v2/{model}/{experiment}_{yrs[0]}-{yrs[1]}/{key}.json"
-            doc, _ = cached(bucket, name, lambda: nx.climatology(model, experiment, yrs, lat, lon, workers=8))
-            return doc
+            if os.environ.get("NEX_ALLOW_DOWNLOAD") == "true":   # uso manual/teste: baixa só a célula (lento)
+                name = f"cache/nex-gddp-cmip6/v2/{model}/{experiment}_{yrs[0]}-{yrs[1]}/{key}.json"
+                doc, _ = cached(bucket, name, lambda: nx.climatology(model, experiment, yrs, lat, lon, workers=8))
+                return doc
+            raise nx.NotReady(f"{model} {experiment} {yrs[0]}-{yrs[1]} ainda não pré-processado para este ponto")
 
         def one(model):
             hist = clim(model, "historical", nx.HIST_YEARS)
@@ -581,6 +583,8 @@ def run_projection(bucket: str, rid: str, req: dict, lat: float, lon: float, pow
         def safe(model):
             try:
                 return one(model)
+            except nx.NotReady as e:
+                return {"model": model, "error": str(e), "not_ready": True}
             except Exception as e:
                 return {"model": model, "error": f"{type(e).__name__}: {e}"}
 
@@ -588,6 +592,11 @@ def run_projection(bucket: str, rid: str, req: dict, lat: float, lon: float, pow
             res = list(ex.map(safe, models))
         out["models"] = [r for r in res if "error" not in r]
         out["failures"] = [r for r in res if "error" in r]
+        if not out["models"] and all(f.get("not_ready") for f in out["failures"]):
+            out["status"] = "unavailable"
+            out["error"] = ("clima futuro ainda não disponível para este ponto ou cenário: os dados da NASA "
+                            "estão sendo pré-processados (consulte GET /climate-projections)")
+            return out
         if not out["models"]:
             raise RuntimeError("nenhum modelo climático concluiu: " + "; ".join(f["error"] for f in out["failures"]))
         out["ensemble"] = nx.ensemble(baseline_summary, out["models"])

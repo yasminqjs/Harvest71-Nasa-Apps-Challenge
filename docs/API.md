@@ -291,14 +291,15 @@ Opções: `GET /climate-projections`.
 
 | Campo | Valores | Padrão |
 |---|---|---|
-| `scenario` | `ssp126`, `ssp245`, `ssp370`, `ssp585` | `ssp245` |
-| `period` | `2021-2040`, `2041-2060`, `2061-2080`, `2081-2100` | `2041-2060` |
-| `models` | até 5 de `GET /climate-projections` | GISS-E2-1-G (NASA), GFDL-ESM4, MPI-ESM1-2-HR |
+| `scenario` | `ssp245` (intermediário), `ssp585` (emissões muito altas) | `ssp245` |
+| `period` | `2041-2060` | `2041-2060` |
+| `models` | `GISS-E2-1-G` (NASA), `GFDL-ESM4`, `MPI-ESM1-2-HR` | os três |
 
-- **Tempo:** no Nordeste, para os cenários pré-processados (`ssp245` e `ssp585` em `2041-2060`), cerca de 1 min.
-  Em outras áreas ou combinações, a 1ª vez pode levar de 10 a 30 min (download da NASA); depois fica em cache
-  para a mesma célula de 25 km. Continue consultando `GET /simulations/{id}`. Enquanto o futuro é calculado,
-  a resposta vem com `status: "running"` e o resultado atual já preenchido.
+- **Tempo:** cerca de 30 a 90 s, igual a uma simulação comum. O pedido nunca espera download da NASA: os dados
+  são pré-processados uma vez, em segundo plano, pelo workflow `nex-gddp` (Nordeste primeiro, depois o Brasil inteiro).
+- **Antes de ficar pronto** (ou fora do Brasil): o resultado atual vem normal e `climate_projection.status` vem
+  `"unavailable"`. Mostre "projeção futura ainda indisponível para esta área".
+- Enquanto o futuro é calculado, a resposta vem com `status: "running"` e o resultado atual já preenchido.
 - **Resultado:** o mesmo JSON de sempre, mais o bloco `climate_projection`:
 
 ```json

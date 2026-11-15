@@ -313,7 +313,7 @@ def test_simulation_with_climate_projection(sim):
     assert r.status_code == 202 and "clima futuro" in r.json()["note"]
     req = store[f"requests/{r.json()['id']}.json"]
     assert req["climate_projection"] == {"scenario": "ssp245", "period": "2041-2060"}
-    r = client.post("/simulations", json={**GOOD, "climate_projection": {"scenario": "ssp585", "period": "2081-2100",
+    r = client.post("/simulations", json={**GOOD, "climate_projection": {"scenario": "ssp585", "period": "2041-2060",
                                                                           "models": ["GISS-E2-1-G"]}},
                     headers={"X-API-Key": "chave-teste"})
     assert r.status_code == 202
@@ -321,19 +321,17 @@ def test_simulation_with_climate_projection(sim):
 
 @pytest.mark.parametrize("cp", [
     {"scenario": "ssp999"}, {"period": "2030-2050"}, {"models": ["BCC-CSM2-MR"]}, {"models": ["FGOALS-g3"]},
-    {"models": []},
+    {"models": []}, {"scenario": "ssp126"}, {"period": "2081-2100"}, {"models": ["MIROC6"]},   # não pré-processados
 ])
 def test_climate_projection_validation(sim, cp):
     r = client.post("/simulations", json={**GOOD, "climate_projection": cp}, headers={"X-API-Key": "chave-teste"})
     assert r.status_code == 422
 
 
-def test_projection_requests_get_longer_timeout(sim):
-    from datetime import datetime, timedelta, timezone
-    m, store, _ = sim
-    old = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat(timespec="seconds")
-    store["requests/aaaaaaaaaaaaaaaa.json"] = {"created_utc": old, "climate_projection": {"scenario": "ssp245"}}
-    store["requests/bbbbbbbbbbbbbbbb.json"] = {"created_utc": old}
-    h = {"X-API-Key": "chave-teste"}
-    assert client.get("/simulations/aaaaaaaaaaaaaaaa", headers=h).json()["status"] == "queued"
-    assert client.get("/simulations/bbbbbbbbbbbbbbbb", headers=h).json()["status"] == "failed"
+def test_api_accepts_exactly_what_is_preprocessed():
+    from pathlib import Path
+    import app.main as m
+    cfg = json.loads((Path(__file__).resolve().parents[3] / "data" / "nex_gddp.json").read_text())
+    p = m.NEX_PREPROCESSED
+    assert p["scenarios"] == cfg["scenarios"] and p["periods"] == cfg["periods"]
+    assert p["models"] == cfg["models"] and p["regions"] == cfg["regions"]

@@ -155,6 +155,7 @@ def test_ensemble_math():
 @pytest.mark.skipif(not DSSAT.exists(), reason="DSSAT não instalado")
 def test_point_with_projection_end_to_end(fake_bucket, monkeypatch):  # noqa: F811
     root, put_json, _ = fake_bucket
+    monkeypatch.setenv("NEX_ALLOW_DOWNLOAD", "true")   # download pontual só em uso manual
     get, calls = fake_server({"tasmax": 2.5, "tasmin": 2.0, "pr": 0.7, "rsds": 1.0})
     monkeypatch.setattr(nx, "http_text", get)
     orig = nx.climatology
@@ -188,6 +189,8 @@ def test_point_with_projection_end_to_end(fake_bucket, monkeypatch):  # noqa: F8
 @pytest.mark.skipif(not DSSAT.exists(), reason="DSSAT não instalado")
 def test_projection_failure_keeps_current_result(fake_bucket, monkeypatch):  # noqa: F811
     root, put_json, _ = fake_bucket
+
+    monkeypatch.setenv("NEX_ALLOW_DOWNLOAD", "true")
 
     def boom(*a, **k):
         raise RuntimeError("NCCS fora do ar")
@@ -225,3 +228,41 @@ def test_point_uses_regional_files_without_download(fake_bucket, monkeypatch):  
     assert cp["status"] == "done", cp
     assert cp["scenario"] == "ssp245" and cp["period"] == "2041-2060"     # padrões
     assert cp["models"][0]["climate_change"]["tmax_change_c"] == pytest.approx(2.0)
+
+
+@pytest.mark.skipif(not DSSAT.exists(), reason="DSSAT não instalado")
+def test_not_preprocessed_returns_fast_unavailable(fake_bucket, monkeypatch):  # noqa: F811
+    """Sem recorte pré-processado: nada de download da NASA durante o pedido; responde 'unavailable'."""
+    root, put_json, _ = fake_bucket
+    monkeypatch.delenv("NEX_ALLOW_DOWNLOAD", raising=False)
+
+    def no_download(*a, **k):
+        raise AssertionError("o app não pode esperar download da NASA")
+    monkeypatch.setattr(nx, "climatology", no_download)
+    put_json("b", "requests/u1.json", {"lat": -23.5, "lon": -46.6, "crop": "MZ", "climate_projection": {}})
+    monkeypatch.setenv("REQUEST_ID", "u1")
+    assert runner.run_point() == 0
+    res = json.loads((root / "results/u1.json").read_text())
+    assert res["status"] == "done" and res["scenario_summary"]
+    assert res["climate_projection"]["status"] == "unavailable"
+
+
+def test_regions_order_and_coverage():
+    assert [r["name"] for r in nx.regions_for(-12.67, -39.10)] == ["nordeste", "brasil"]
+    assert [r["name"] for r in nx.regions_for(-23.5, -46.6)] == ["brasil"]      # São Paulo: só o recorte Brasil
+    assert nx.regions_for(40.7, -74.0) == []
+
+
+@pytest.mark.skipif(not DSSAT.exists(), reason="DSSAT não instalado")
+def test_point_outside_northeast_uses_brazil_file(fake_bucket, monkeypatch):  # noqa: F811
+    root, put_json, _ = fake_bucket
+    for exp, yrs, t in (("historical", nx.HIST_YEARS, 25.0), ("ssp585", nx.PERIODS["2041-2060"], 28.0)):
+        doc = regional_doc("GFDL-ESM4", exp, yrs, t)
+        doc["lat"], doc["lon"] = [-23.625], [-46.625, -46.375]
+        put_json("b", nx.regional_blob("GFDL-ESM4", exp, yrs, "brasil"), doc)
+    put_json("b", "requests/b1.json", {"lat": -23.6, "lon": -46.6, "crop": "MZ",
+                                        "climate_projection": {"scenario": "ssp585", "models": ["GFDL-ESM4"]}})
+    monkeypatch.setenv("REQUEST_ID", "b1")
+    assert runner.run_point() == 0
+    cp = json.loads((root / "results/b1.json").read_text())["climate_projection"]
+    assert cp["status"] == "done" and cp["models"][0]["climate_change"]["tmax_change_c"] == pytest.approx(3.0)

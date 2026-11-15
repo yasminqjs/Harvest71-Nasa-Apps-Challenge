@@ -39,7 +39,7 @@ RATE_PER_MINUTE = int(os.environ.get("RATE_PER_MINUTE", "6"))
 RATE_PER_DAY = int(os.environ.get("RATE_PER_DAY", "200"))
 GLOBAL_PER_DAY = int(os.environ.get("GLOBAL_PER_DAY", "500"))   # teto por instância (máx. 2 instâncias)
 RESULT_TIMEOUT_S = 15 * 60
-PROJECTION_TIMEOUT_S = 60 * 60   # 1ª projeção fora do Nordeste pré-processado baixa da NASA (lento)
+PROJECTION_TIMEOUT_S = RESULT_TIMEOUT_S   # clima futuro só usa dados já pré-processados: mesmo prazo
 
 # Projeções climáticas (espelho de apps/dssat/nex_gddp.py; teste garante que estão iguais)
 NEX_SCENARIOS = {"ssp126": "SSP1-2.6 (emissões baixas)", "ssp245": "SSP2-4.5 (emissões intermediárias)",
@@ -48,7 +48,8 @@ NEX_PERIODS = ["2021-2040", "2041-2060", "2061-2080", "2081-2100"]
 NEX_MODELS = ["GISS-E2-1-G", "GFDL-ESM4", "MPI-ESM1-2-HR", "MRI-ESM2-0", "ACCESS-CM2", "CNRM-CM6-1",
               "IPSL-CM6A-LR", "NorESM2-MM", "MIROC6", "EC-Earth3", "UKESM1-0-LL", "CanESM5"]
 NEX_DEFAULT_MODELS = ["GISS-E2-1-G", "GFDL-ESM4", "MPI-ESM1-2-HR"]
-NEX_PREPROCESSED = {"region": "Nordeste (lat −18,5 a −0,75; lon −48,75 a −34,5)",
+# O que a API aceita = o que o workflow nex-gddp pré-processa (data/nex_gddp.json); teste garante que batem.
+NEX_PREPROCESSED = {"regions": ["nordeste", "brasil"],
                     "scenarios": ["ssp245", "ssp585"], "periods": ["2041-2060"], "models": NEX_DEFAULT_MODELS}
 BRAZIL_BBOX = (-34.0, 5.5, -74.5, -28.5)
 CROPS = json.loads((__import__("pathlib").Path(__file__).with_name("crops.json")).read_text())["crops"]
@@ -274,31 +275,31 @@ class WeatherEvent(BaseModel):
 
 
 class ClimateProjection(BaseModel):
-    scenario: str = Field(default="ssp245", description="ssp126 | ssp245 | ssp370 | ssp585")
-    period: str = Field(default="2041-2060", description="2021-2040 | 2041-2060 | 2061-2080 | 2081-2100")
+    scenario: str = Field(default="ssp245", description="ssp245 | ssp585 (GET /climate-projections)")
+    period: str = Field(default="2041-2060", description="2041-2060 (GET /climate-projections)")
     models: Optional[list[str]] = Field(default=None, min_length=1, max_length=5,
                                         description="modelos NEX-GDDP-CMIP6 (GET /climate-projections); vazio = padrão")
 
     @field_validator("scenario")
     @classmethod
     def _scenario(cls, v):
-        if v not in NEX_SCENARIOS:
-            raise ValueError(f"cenário desconhecido: {v}")
+        if v not in NEX_PREPROCESSED["scenarios"]:
+            raise ValueError(f"cenário indisponível: {v} (disponíveis: {', '.join(NEX_PREPROCESSED['scenarios'])})")
         return v
 
     @field_validator("period")
     @classmethod
     def _period(cls, v):
-        if v not in NEX_PERIODS:
-            raise ValueError(f"período desconhecido: {v}")
+        if v not in NEX_PREPROCESSED["periods"]:
+            raise ValueError(f"período indisponível: {v} (disponíveis: {', '.join(NEX_PREPROCESSED['periods'])})")
         return v
 
     @field_validator("models")
     @classmethod
     def _models(cls, v):
         for m in v or []:
-            if m not in NEX_MODELS:
-                raise ValueError(f"modelo não permitido: {m} (veja GET /climate-projections)")
+            if m not in NEX_PREPROCESSED["models"]:
+                raise ValueError(f"modelo indisponível: {m} (veja GET /climate-projections)")
         return v
 
 
@@ -478,8 +479,7 @@ def create_simulation(req: SimulationRequest, key: str = Depends(require_key)) -
     _run_job(rid)
     note = "a simulação leva cerca de 15 a 60 s; consulte o endereço em 'poll'"
     if req.climate_projection:
-        note = ("com clima futuro: cerca de 1 min no Nordeste pré-processado; em outras áreas, a 1ª vez pode "
-                "levar de 10 a 30 min (download da NASA), depois fica em cache; consulte 'poll'")
+        note = "com clima futuro: cerca de 30 a 90 s; consulte o endereço em 'poll'"
     return {"id": rid, "status": "queued", "created_utc": now, "poll": f"/simulations/{rid}", "note": note}
 
 
@@ -543,7 +543,11 @@ def climate_projections() -> dict:
                    "mesmas janelas, solo, cultura e cultivar do resultado atual"),
         "scenarios": NEX_SCENARIOS, "periods": NEX_PERIODS,
         "models": NEX_MODELS, "default_models": NEX_DEFAULT_MODELS,
-        "preprocessed": NEX_PREPROCESSED,
+        "available": {"scenarios": {k: NEX_SCENARIOS[k] for k in NEX_PREPROCESSED["scenarios"]},
+                      "periods": NEX_PREPROCESSED["periods"], "models": NEX_PREPROCESSED["models"],
+                      "coverage": "Brasil inteiro (o Nordeste fica pronto primeiro)"},
+        "if_not_ready": ("enquanto os dados da NASA são preparados, o resultado vem com "
+                         "climate_projection.status = 'unavailable' e o resultado atual normal"),
         "excluded_models": "modelos de instituições chinesas não são usados (política da equipe)",
         "example": {"lat": -12.67, "lon": -39.10, "crop": "feijao-caupi",
                     "climate_projection": {"scenario": "ssp245", "period": "2041-2060"}},
