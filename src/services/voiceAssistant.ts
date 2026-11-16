@@ -699,7 +699,7 @@ export function interpretYesNoVoiceReply(transcript: string): YesNoVoiceIntent {
 
   if (
     norm.includes('nao entendi') ||
-    /\brepeat\b|say it again/.test(norm) ||
+    /\b(repeat|again|pardon|sorry|what)\b|say it again/.test(norm) ||
     norm.includes('repet') ||
     norm.includes('de novo') ||
     norm.includes('outra vez') ||
@@ -709,8 +709,7 @@ export function interpretYesNoVoiceReply(transcript: string): YesNoVoiceIntent {
   }
 
   if (
-    /\bnao\b/.test(norm) ||
-    /\bno\b|without voice|keep reading/.test(norm) ||
+    /\b(nao|no|nope|nah|never|not|skip|mute|disable|off)\b|without voice|keep reading|turn off/.test(norm) ||
     norm.includes('sem voz') ||
     norm.includes('silencioso') ||
     norm.includes('so ler') ||
@@ -726,8 +725,7 @@ export function interpretYesNoVoiceReply(transcript: string): YesNoVoiceIntent {
   }
 
   if (
-    /\bsim\b/.test(norm) ||
-    /\byes\b|enable voice/.test(norm) ||
+    /\b(sim|yes|yeah|yep|yup|yea|sure|ok|okay|aye|enable|on)\b|enable voice|turn on|go ahead|of course/.test(norm) ||
     /\bquero\b/.test(norm) ||
     /\bpode\b/.test(norm) ||
     norm.includes('ativar') ||
@@ -928,6 +926,11 @@ interface WebSpeechRecognitionInstance {
   interimResults: boolean;
   maxAlternatives: number;
   continuous?: boolean;
+  onstart?: () => void;
+  onaudiostart?: () => void;
+  onsoundstart?: () => void;
+  onspeechstart?: () => void;
+  onnomatch?: () => void;
   onresult: (e: {
     results: ArrayLike<{
       isFinal?: boolean;
@@ -982,6 +985,8 @@ export function startVoiceCapture(
   onError: (message: string) => void,
   options: {
     onEnd?: () => void;
+    onInterim?: (transcript: string) => void;
+    onStatus?: (status: string) => void;
     onExpoGoFallback?: () => void;
     unsupportedMessage?: string;
   } = {}
@@ -989,6 +994,8 @@ export function startVoiceCapture(
   const en = interfaceLanguage === 'en';
   const {
     onEnd,
+    onInterim,
+    onStatus,
     onExpoGoFallback,
     unsupportedMessage = en
       ? 'Expo Go does not include the native speech recognition engine. Use your phone keyboard microphone below, or build a Development Build (eas build).'
@@ -1015,148 +1022,342 @@ export function startVoiceCapture(
       | (new () => WebSpeechRecognitionInstance)
       | undefined;
 
-    if (SpeechRec) {
-      let cancelled = false;
-      let finished = false;
-      let deliveredResult = false;
-      let latestTranscript = '';
-      let activeRec: WebSpeechRecognitionInstance | null = null;
-      let retryTimer: ReturnType<typeof setTimeout> | null = null;
-      let startTimer: ReturnType<typeof setTimeout> | null = null;
-      let retriedAudio = false;
-      let retriedLang = false;
-
-      const finish = () => {
-        if (finished) return;
-        finished = true;
-        if (retryTimer) {
-          clearTimeout(retryTimer);
-          retryTimer = null;
-        }
-        if (startTimer) {
-          clearTimeout(startTimer);
-          startTimer = null;
-        }
-        onEnd?.();
-      };
-
-      const startAttempt = (langToUse: string) => {
-        if (cancelled || finished) return;
-        try {
-          const rec = new SpeechRec();
-          activeRec = rec;
-          latestTranscript = '';
-          if (langToUse) rec.lang = langToUse;
-          rec.interimResults = true;
-          rec.maxAlternatives = 3;
-          rec.continuous = false;
-
-          rec.onresult = (event) => {
-            if (cancelled || deliveredResult) return;
-            let combined = '';
-            let hasFinal = false;
-            for (let i = 0; i < event.results.length; i++) {
-              const item = event.results[i];
-              const part = item?.[0]?.transcript ?? '';
-              if (part) combined = combined ? `${combined} ${part}` : part;
-              if (item?.isFinal) hasFinal = true;
-            }
-            const cleaned = combined.trim();
-            if (cleaned) latestTranscript = cleaned;
-            if (hasFinal && cleaned) {
-              deliveredResult = true;
-              onResult(cleaned);
-              try {
-                rec.stop();
-              } catch {
-                // ignore
-              }
-              finish();
-            }
-          };
-
-          rec.onerror = (event) => {
-            if (cancelled || finished || deliveredResult) return;
-            const errCode = event?.error ?? '';
-
-            if (errCode === 'language-not-supported' && !retriedLang) {
-              retriedLang = true;
-              startAttempt(langToUse === recognitionLocale ? recognitionLocale.split('-')[0] : '');
-              return;
-            }
-
-            if ((errCode === 'aborted' || errCode === 'audio-capture') && !retriedAudio) {
-              retriedAudio = true;
-              retryTimer = setTimeout(() => {
-                if (cancelled || finished) return;
-                const mediaDevices = navigator.mediaDevices;
-                if (mediaDevices?.getUserMedia) {
-                  mediaDevices
-                    .getUserMedia({ audio: true })
-                    .then((stream) => {
-                      stream.getTracks().forEach((t) => t.stop());
-                      startAttempt(langToUse);
-                    })
-                    .catch((permErr: unknown) => {
-                      const errName = (permErr as { name?: string })?.name ?? '';
-                      if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
-                        onError(mapWebSpeechError('not-allowed'));
-                      } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
-                        onError(mapWebSpeechError('audio-capture'));
-                      } else {
-                        onError(mapWebSpeechError(errCode));
-                      }
-                      finish();
-                    });
-                } else {
-                  startAttempt(langToUse);
-                }
-              }, 200);
-              return;
-            }
-
-            onError(mapWebSpeechError(errCode));
-            finish();
-          };
-
-          rec.onend = () => {
-            if (cancelled || finished) return;
-            if (!deliveredResult && latestTranscript) {
-              deliveredResult = true;
-              onResult(latestTranscript);
-            }
-            finish();
-          };
-
-          rec.start();
-        } catch {
-          onError('Microfone indisponível neste navegador. Toque em uma das opções abaixo.');
-          finish();
-        }
-      };
-
-      // Aguarda breve liberação de áudio do speechSynthesis antes de abrir o microfone
-      startTimer = setTimeout(() => startAttempt(recognitionLocale), 150);
-
-      return () => {
-        cancelled = true;
-        if (retryTimer) {
-          clearTimeout(retryTimer);
-          retryTimer = null;
-        }
-        if (startTimer) {
-          clearTimeout(startTimer);
-          startTimer = null;
-        }
-        try {
-          activeRec?.abort?.();
-          activeRec?.stop();
-        } catch {
-          // ignore
-        }
-        finish();
-      };
+    if (!SpeechRec) {
+      onError(
+        en
+          ? 'Speech recognition is not supported in this browser. Use Google Chrome or Microsoft Edge, or tap an option below.'
+          : 'O reconhecimento de voz não é suportado neste navegador. Use Google Chrome ou Microsoft Edge, ou toque em uma opção abaixo.'
+      );
+      onEnd?.();
+      return () => {};
     }
+
+    let cancelled = false;
+    let finished = false;
+    let deliveredResult = false;
+    let recStarted = false;
+    let audioStarted = false;
+    let speechStarted = false;
+    let latestTranscript = '';
+    let activeRec: WebSpeechRecognitionInstance | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let startTimer: ReturnType<typeof setTimeout> | null = null;
+    let audioWatchdog: ReturnType<typeof setTimeout> | null = null;
+    let listenTimeout: ReturnType<typeof setTimeout> | null = null;
+    let silenceCommitTimer: ReturnType<typeof setTimeout> | null = null;
+    let retriedAudio = false;
+    let retriedLang = false;
+
+    const clearTimers = () => {
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
+      if (startTimer) {
+        clearTimeout(startTimer);
+        startTimer = null;
+      }
+      if (audioWatchdog) {
+        clearTimeout(audioWatchdog);
+        audioWatchdog = null;
+      }
+      if (listenTimeout) {
+        clearTimeout(listenTimeout);
+        listenTimeout = null;
+      }
+      if (silenceCommitTimer) {
+        clearTimeout(silenceCommitTimer);
+        silenceCommitTimer = null;
+      }
+    };
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearTimers();
+      onEnd?.();
+    };
+
+    const deliverFinal = (text: string, recToStop?: WebSpeechRecognitionInstance | null) => {
+      const cleaned = text.trim();
+      if (!cleaned || cancelled || deliveredResult) return;
+      deliveredResult = true;
+      clearTimers();
+      onResult(cleaned);
+      try {
+        recToStop?.stop();
+      } catch {
+        // ignore
+      }
+      finish();
+    };
+
+    const diagnoseMicrophoneFailure = async () => {
+      const nav = typeof navigator !== 'undefined'
+        ? (navigator as Navigator & { brave?: { isBrave?: () => Promise<boolean> } })
+        : undefined;
+      let isBrave = false;
+      try {
+        if (nav?.brave?.isBrave) {
+          isBrave = await nav.brave.isBrave();
+        }
+      } catch {
+        isBrave = false;
+      }
+
+      let micLabel = '';
+      if (nav?.mediaDevices?.getUserMedia) {
+        try {
+          const stream = await nav.mediaDevices.getUserMedia({ audio: true });
+          const tracks = stream.getAudioTracks();
+          micLabel = tracks.find((t) => t.label)?.label ?? '';
+          const hasLiveTrack = tracks.some((t) => t.readyState === 'live' && t.enabled);
+          tracks.forEach((t) => t.stop());
+          if (cancelled || finished) return;
+
+          if (!hasLiveTrack) {
+            onError(mapWebSpeechError('audio-capture'));
+            finish();
+            return;
+          }
+
+          if (isBrave) {
+            onError(
+              en
+                ? `Microphone "${micLabel || 'default'}" works, but Brave blocks the browser Speech-to-Text service (Web Speech API). Open in Google Chrome or Microsoft Edge, or tap a button below.`
+                : `O microfone "${micLabel || 'padrão'}" funciona, mas o Brave bloqueia o serviço de voz do navegador (Web Speech API). Abra no Google Chrome ou Microsoft Edge, ou toque em um botão abaixo.`
+            );
+            finish();
+            return;
+          }
+
+          onError(
+            en
+              ? `Microphone "${micLabel || 'default'}" is permitted and connected, but this browser's speech engine did not start capture${recStarted ? '' : ' (onstart did not fire)'}. Try Chrome/Edge with internet or tap a button below.`
+              : `O microfone "${micLabel || 'padrão'}" está conectado e liberado, mas o motor de voz deste navegador não iniciou a captura${recStarted ? '' : ' (sem resposta)'}. Use Chrome/Edge com internet ou toque em um botão abaixo.`
+          );
+          finish();
+          return;
+        } catch (permErr: unknown) {
+          if (cancelled || finished) return;
+          const errName = (permErr as { name?: string })?.name ?? '';
+          if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+            onError(mapWebSpeechError('not-allowed'));
+          } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+            onError(mapWebSpeechError('audio-capture'));
+          } else {
+            onError(
+              en
+                ? 'Could not activate browser microphone for speech recognition. Check browser permissions or use Chrome/Edge over localhost/HTTPS.'
+                : 'Não foi possível ativar o microfone no navegador para reconhecimento de voz. Confira as permissões ou use Chrome/Edge em localhost/HTTPS.'
+            );
+          }
+          finish();
+          return;
+        }
+      }
+
+      if (!cancelled && !finished) {
+        onError(
+          en
+            ? 'Browser speech recognition could not open the microphone. Try Chrome or Edge, or tap an option below.'
+            : 'O reconhecimento de voz do navegador não conseguiu abrir o microfone. Use Chrome ou Edge, ou toque em uma opção abaixo.'
+        );
+        finish();
+      }
+    };
+
+    const startAttempt = (langToUse: string) => {
+      if (cancelled || finished) return;
+      clearTimers();
+      recStarted = false;
+      audioStarted = false;
+      speechStarted = false;
+      try {
+        const rec = new SpeechRec();
+        activeRec = rec;
+        latestTranscript = '';
+        if (langToUse) rec.lang = langToUse;
+        rec.interimResults = true;
+        rec.maxAlternatives = 3;
+        rec.continuous = false;
+
+        rec.onstart = () => {
+          if (cancelled || finished) return;
+          recStarted = true;
+          onStatus?.(
+            en
+              ? 'Connecting microphone...'
+              : 'Conectando ao microfone...'
+          );
+        };
+
+        rec.onaudiostart = () => {
+          if (cancelled || finished) return;
+          audioStarted = true;
+          if (audioWatchdog) {
+            clearTimeout(audioWatchdog);
+            audioWatchdog = null;
+          }
+          onStatus?.(
+            en
+              ? 'Microphone active — speak now...'
+              : 'Microfone ativo — pode falar agora...'
+          );
+        };
+
+        rec.onsoundstart = () => {
+          if (cancelled || finished) return;
+          audioStarted = true;
+        };
+
+        rec.onspeechstart = () => {
+          if (cancelled || finished) return;
+          speechStarted = true;
+          onStatus?.(
+            en ? 'Voice detected — listening...' : 'Voz detectada — ouvindo...'
+          );
+        };
+
+        rec.onnomatch = () => {
+          if (cancelled || finished || deliveredResult) return;
+          if (latestTranscript) {
+            deliverFinal(latestTranscript, rec);
+            return;
+          }
+          onError(mapWebSpeechError('no-speech'));
+          finish();
+        };
+
+        rec.onresult = (event) => {
+          if (cancelled || deliveredResult) return;
+          let combined = '';
+          let hasFinal = false;
+          for (let i = 0; i < event.results.length; i++) {
+            const item = event.results[i];
+            const part = item?.[0]?.transcript ?? '';
+            if (part) combined = combined ? `${combined} ${part}` : part;
+            if (item?.isFinal) hasFinal = true;
+          }
+          const cleaned = combined.trim();
+          if (cleaned) {
+            latestTranscript = cleaned;
+            onInterim?.(cleaned);
+          }
+          if (hasFinal && cleaned) {
+            deliverFinal(cleaned, rec);
+            return;
+          }
+          if (cleaned) {
+            if (silenceCommitTimer) clearTimeout(silenceCommitTimer);
+            silenceCommitTimer = setTimeout(() => {
+              if (!cancelled && !finished && !deliveredResult && latestTranscript) {
+                deliverFinal(latestTranscript, rec);
+              }
+            }, 1100);
+          }
+        };
+
+        rec.onerror = (event) => {
+          if (cancelled || finished || deliveredResult) return;
+          const errCode = event?.error ?? '';
+
+          if (errCode === 'language-not-supported' && !retriedLang) {
+            retriedLang = true;
+            startAttempt(langToUse === recognitionLocale ? recognitionLocale.split('-')[0] : '');
+            return;
+          }
+
+          if ((errCode === 'aborted' || errCode === 'audio-capture') && !retriedAudio) {
+            retriedAudio = true;
+            retryTimer = setTimeout(() => {
+              if (!cancelled && !finished) startAttempt(langToUse);
+            }, 250);
+            return;
+          }
+
+          onError(mapWebSpeechError(errCode));
+          finish();
+        };
+
+        rec.onend = () => {
+          if (cancelled || finished) return;
+          if (!deliveredResult && latestTranscript) {
+            deliverFinal(latestTranscript, null);
+            return;
+          }
+          if (!deliveredResult) {
+            onError(
+              speechStarted
+                ? en
+                  ? 'Voice was detected, but the browser could not transcribe it. Try Chrome/Edge with internet or tap an option below.'
+                  : 'O áudio foi detectado, mas o navegador não conseguiu transcrever. Use Chrome/Edge com internet ou toque em uma opção abaixo.'
+                : en
+                ? 'No voice detected from the microphone. Check your browser/Windows default microphone or tap an option below.'
+                : 'Nenhuma voz foi captada pelo microfone. Confira o microfone padrão do navegador/Windows ou toque em uma opção abaixo.'
+            );
+          }
+          finish();
+        };
+
+        audioWatchdog = setTimeout(() => {
+          if (cancelled || finished || deliveredResult || audioStarted) return;
+          try {
+            rec.abort?.();
+          } catch {
+            // ignore
+          }
+          void diagnoseMicrophoneFailure();
+        }, 3200);
+
+        listenTimeout = setTimeout(() => {
+          if (cancelled || finished || deliveredResult) return;
+          if (latestTranscript) {
+            deliverFinal(latestTranscript, rec);
+            return;
+          }
+          try {
+            rec.stop();
+          } catch {
+            // ignore
+          }
+          onError(
+            speechStarted
+              ? en
+                ? 'Audio reached the microphone, but speech recognition did not return text. Try Chrome/Edge or tap a button below.'
+                : 'O áudio chegou ao microfone, mas o reconhecimento não retornou texto. Tente Chrome/Edge ou toque em um botão abaixo.'
+              : en
+              ? 'Microphone is active, but no sound was recognized. Check your default input device or speak closer.'
+              : 'Microfone ativo, mas nenhum som foi reconhecido. Confira seu microfone padrão ou fale mais perto.'
+          );
+          finish();
+        }, 10500);
+
+        rec.start();
+      } catch {
+        onError(
+          en
+            ? 'Microphone unavailable in this browser. Tap one of the options below.'
+            : 'Microfone indisponível neste navegador. Toque em uma das opções abaixo.'
+        );
+        finish();
+      }
+    };
+
+    // Inicia de forma síncrona dentro do clique para manter ativação de usuário e não conflitar com getUserMedia
+    startAttempt(recognitionLocale);
+
+    return () => {
+      cancelled = true;
+      clearTimers();
+      try {
+        activeRec?.abort?.();
+        activeRec?.stop();
+      } catch {
+        // ignore
+      }
+      finish();
+    };
   }
 
   // 2) Nativo Android/iOS quando compilado em Development Build / APK (expo-speech-recognition)

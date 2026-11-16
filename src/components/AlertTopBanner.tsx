@@ -6,6 +6,7 @@ import { Pressable, Text } from '../i18n/native';
 import { translate } from '../i18n/translate';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { getAppTheme } from '../theme/tokens';
+import { useResponsiveLayout } from '../theme/responsive';
 import { ProactiveAlertItem } from '../types/domain';
 
 interface AlertTopBannerProps {
@@ -25,6 +26,7 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
   const { language } = useLanguage();
   const en = language === 'en';
   const theme = getAppTheme(accessibility);
+  const { contentMaxWidth } = useResponsiveLayout();
   const [expanded, setExpanded] = useState(true);
 
   const pendingAlerts = useMemo(
@@ -93,11 +95,12 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
   };
 
   return (
-    <View style={styles.bannerOuter}>
+    <View style={[styles.bannerOuter, { maxWidth: contentMaxWidth }]}>
       <View
         style={[
           styles.bannerWrap,
           {
+            maxWidth: contentMaxWidth,
             backgroundColor: bg,
             borderColor: borderColor,
           },

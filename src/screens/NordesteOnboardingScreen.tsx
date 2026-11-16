@@ -9,6 +9,7 @@ import { NordesteSvgMap } from '../components/NordesteSvgMap';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { BahiaRegionPreset, NORDESTE_REGIONS } from '../data/seedData';
 import { getAppTheme } from '../theme/tokens';
+import { useResponsiveLayout } from '../theme/responsive';
 import {
   calculatePolygonMetrics,
   createMicroPlotAroundPoint,
@@ -180,6 +181,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
   const { language } = useLanguage();
   const en = language === 'en';
   const theme = getAppTheme(accessibility);
+  const { onboardingMaxWidth, isTablet, isDesktop } = useResponsiveLayout();
 
   const [stage, setStage] = useState<OnboardingStage>('mapa');
   const [activeParamIdx, setActiveParamIdx] = useState(0);
@@ -400,7 +402,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
   return (
     <View style={[styles.root, { backgroundColor: theme.bg }]}>
       {/* Cabeçalho fixo */}
-      <View style={styles.topHeader}>
+      <View style={[styles.topHeader, { maxWidth: onboardingMaxWidth }]}>
         <View style={styles.topBar}>
           <View style={styles.titleStack}>
             <Text style={[styles.stepBadge, { color: theme.primary }]}>
@@ -508,9 +510,12 @@ export const NordesteOnboardingScreen: React.FC = () => {
             </View>
 
             <ScrollView
-              horizontal
+              horizontal={!isTablet}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.tabsScroll}
+              contentContainerStyle={[
+                styles.tabsScroll,
+                isTablet && { flexDirection: 'row', flexWrap: 'wrap' },
+              ]}
             >
               {PARAM_TABS.map((tabItem, idx) => {
                 const isActive = idx === activeParamIdx;
@@ -551,7 +556,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
         {/* Conteúdo principal */}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={styles.stepBody}
+        contentContainerStyle={[styles.stepBody, { maxWidth: onboardingMaxWidth }]}
         showsVerticalScrollIndicator={false}
       >
         {stage === 'demarcacao_fazenda' ? (
@@ -594,14 +599,8 @@ export const NordesteOnboardingScreen: React.FC = () => {
               </View>
             )}
           </View>
-        ) : stage === 'mapa' ? (
-          <View
-            style={[
-              styles.mapCard,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
-          >
-            {/* Card de detecção automática por GPS com confirmação */}
+        ) : stage === 'mapa' ? (() => {
+          const gpsCardNode = (
             <View
               style={[
                 styles.gpsBox,
@@ -693,14 +692,9 @@ export const NordesteOnboardingScreen: React.FC = () => {
                   </Pressable>
                 )}
             </View>
+          );
 
-            <NordesteSvgMap
-              selectedRegionName={activeFarm?.regiaoNome ?? 'Recôncavo Baiano'}
-              gpsDetectedRegionId={gpsMatch?.region.id ?? null}
-              gpsUserCoords={gpsUserCoords}
-              onSelectRegion={handleSelectRegion}
-              theme={theme}
-            />
+          const selectedBannerNode = (
             <View
               style={[
                 styles.selectedBanner,
@@ -717,8 +711,29 @@ export const NordesteOnboardingScreen: React.FC = () => {
                 {activeFarm?.estado}) • Bioma {activeFarm?.bioma}
               </Text>
             </View>
-          </View>
-        ) : (
+          );
+
+          return (
+            <View
+              style={[
+                styles.mapCard,
+                { backgroundColor: theme.surface, borderColor: theme.border },
+              ]}
+            >
+              {!isDesktop && gpsCardNode}
+              <NordesteSvgMap
+                selectedRegionName={activeFarm?.regiaoNome ?? 'Recôncavo Baiano'}
+                gpsDetectedRegionId={gpsMatch?.region.id ?? null}
+                gpsUserCoords={gpsUserCoords}
+                desktopSideTop={isDesktop ? gpsCardNode : undefined}
+                desktopSideBottom={isDesktop ? selectedBannerNode : undefined}
+                onSelectRegion={handleSelectRegion}
+                theme={theme}
+              />
+              {!isDesktop && selectedBannerNode}
+            </View>
+          );
+        })() : (
           <View style={styles.stepStack}>
             <View style={styles.tabBannerTitle}>
               <Ionicons name={currentTab.icon} size={22} color={theme.primary} />
@@ -1155,10 +1170,11 @@ export const NordesteOnboardingScreen: React.FC = () => {
       </ScrollView>
 
       {/* Navegação fixa inferior */}
+      <View style={[styles.footerOuter, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
       <View
         style={[
           styles.footerNav,
-          { backgroundColor: theme.surface, borderTopColor: theme.border },
+          { maxWidth: onboardingMaxWidth },
         ]}
       >
         {stage === 'mapa' ? (
@@ -1296,6 +1312,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
           </>
         )}
       </View>
+      </View>
     </View>
   );
 };
@@ -1309,9 +1326,9 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 8,
-    gap: 8,
+    paddingTop: 6,
+    paddingBottom: 6,
+    gap: 6,
   },
   topBar: {
     flexDirection: 'row',
@@ -1418,8 +1435,8 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 22,
-    gap: 12,
+    paddingBottom: 14,
+    gap: 10,
   },
   stepStack: {
     gap: 10,
@@ -1499,6 +1516,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  footerOuter: {
+    width: '100%',
+    borderTopWidth: 1.5,
+  },
   footerNav: {
     maxWidth: 980,
     width: '100%',
@@ -1508,8 +1529,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1.5,
+    paddingVertical: 9,
   },
   backBtn: {
     flexDirection: 'row',

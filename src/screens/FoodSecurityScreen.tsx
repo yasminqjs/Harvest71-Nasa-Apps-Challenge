@@ -76,10 +76,14 @@ export const FoodSecurityScreen: React.FC = () => {
       stopCaptureRef.current?.();
       stopCaptureRef.current = null;
       setListening(false);
-      setMicNote('Escuta encerrada. Toque no microfone para falar de novo.');
+      setMicNote(
+        en
+          ? 'Listening stopped. Tap the microphone to speak again.'
+          : 'Escuta encerrada. Toque no microfone para falar de novo.'
+      );
       return;
     }
-    setMicNote('🎙️ Ouvindo... Fale sua pergunta agora.');
+    setMicNote(en ? '🎙️ Listening... Ask your question now.' : '🎙️ Ouvindo... Fale sua pergunta agora.');
     setListening(true);
     stopCaptureRef.current = startVoiceCapture(
       (transcript) => {
@@ -94,6 +98,12 @@ export const FoodSecurityScreen: React.FC = () => {
         setMicNote(err);
       },
       {
+        onInterim: (partial) => {
+          setQuestionText(partial);
+        },
+        onStatus: (msg) => {
+          setMicNote(msg);
+        },
         onEnd: () => {
           stopCaptureRef.current = null;
           setListening(false);
@@ -101,8 +111,9 @@ export const FoodSecurityScreen: React.FC = () => {
         onExpoGoFallback: () => {
           setTimeout(() => questionInputRef.current?.focus(), 100);
         },
-        unsupportedMessage:
-          'No Expo Go, toque no microfone (🎤) do teclado que abriu para ditar sua pergunta.',
+        unsupportedMessage: en
+          ? 'In Expo Go, tap the keyboard microphone (🎤) to dictate your question.'
+          : 'No Expo Go, toque no microfone (🎤) do teclado que abriu para ditar sua pergunta.',
       }
     );
   };

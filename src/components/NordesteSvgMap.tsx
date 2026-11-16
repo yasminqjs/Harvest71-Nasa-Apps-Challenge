@@ -16,6 +16,7 @@ import { useAccessibility } from '../context/AccessibilityContext';
 import { NORDESTE_IBGE_GEOJSON } from '../data/nordesteIbgeGeo';
 import { BahiaRegionPreset, NORDESTE_REGIONS } from '../data/seedData';
 import { AppTheme } from '../theme/tokens';
+import { useResponsiveLayout } from '../theme/responsive';
 import { GeoPoint } from '../types/domain';
 import { NordesteLeafletMap } from './NordesteLeafletMap';
 
@@ -23,6 +24,8 @@ interface NordesteSvgMapProps {
   selectedRegionName: string;
   gpsDetectedRegionId?: string | null;
   gpsUserCoords?: GeoPoint | null;
+  desktopSideTop?: React.ReactNode;
+  desktopSideBottom?: React.ReactNode;
   onSelectRegion: (region: BahiaRegionPreset) => void;
   theme: AppTheme;
 }
@@ -132,12 +135,16 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
   selectedRegionName,
   gpsDetectedRegionId,
   gpsUserCoords,
+  desktopSideTop,
+  desktopSideBottom,
   onSelectRegion,
   theme,
 }) => {
   const { isOnline } = useAccessibility();
   const { language } = useLanguage();
   const en = language === 'en';
+  const { isTablet, isDesktop, regionMapHeight, desktopSideMapHeight } = useResponsiveLayout();
+  const activeMapHeight = isDesktop ? desktopSideMapHeight : regionMapHeight;
   const [preferOfflineSvg, setPreferOfflineSvg] = useState(false);
   const chipsScrollRef = useRef<React.ComponentRef<typeof ScrollView> | null>(null);
   const chipsScrollXRef = useRef(0);
@@ -176,8 +183,8 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
 
   const selectedRegion = NORDESTE_REGIONS.find((r) => r.nome === selectedRegionName);
 
-  return (
-    <View style={styles.wrap}>
+  const mapArea = (
+    <View style={styles.mapCol}>
       {isOnline && (
         <View style={styles.modeSwitchRow}>
           <Pressable
@@ -239,6 +246,7 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
           selectedRegionName={selectedRegionName}
           gpsDetectedRegionId={gpsDetectedRegionId}
           gpsUserCoords={gpsUserCoords}
+          height={activeMapHeight}
           onSelectRegion={onSelectRegion}
           onFallbackOffline={() => setPreferOfflineSvg(true)}
           theme={theme}
@@ -253,7 +261,7 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
             },
           ]}
         >
-          <Svg width="100%" height={304} viewBox="0 0 326 326">
+          <Svg width="100%" height={activeMapHeight} viewBox="0 0 326 326">
             <Rect
               x="0"
               y="0"
@@ -487,35 +495,17 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
           </Svg>
         </View>
       )}
+    </View>
+  );
 
+  const hubPickerArea = (
+    <View style={styles.hubsSection}>
       <Text style={[styles.hintLabel, { color: theme.textMuted }]}>
         Toque no mapa ou escolha seu polo regional abaixo:
       </Text>
 
-      <View style={styles.regionChipsBar}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={en ? 'Scroll regions left' : 'Rolar regiões para a esquerda'}
-          onPress={() => scrollChipsBy(-220)}
-          style={[
-            styles.scrollArrowBtn,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}
-        >
-          <Ionicons name="chevron-back" size={16} color={theme.text} />
-        </Pressable>
-
-        <ScrollView
-          ref={chipsScrollRef}
-          horizontal
-          style={styles.regionChipsScroller}
-          showsHorizontalScrollIndicator={Platform.OS === 'web'}
-          scrollEventThrottle={16}
-          onScroll={(e) => {
-            chipsScrollXRef.current = e.nativeEvent.contentOffset.x;
-          }}
-          contentContainerStyle={styles.regionChipsScroll}
-        >
+      {isTablet ? (
+        <View style={styles.regionChipsGrid}>
           {NORDESTE_REGIONS.map((reg) => {
             const active = selectedRegionName === reg.nome;
             const isGps = gpsDetectedRegionId === reg.id;
@@ -544,20 +534,95 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
               </Pressable>
             );
           })}
-        </ScrollView>
+        </View>
+      ) : (
+        <View style={styles.regionChipsBar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={en ? 'Scroll regions left' : 'Rolar regiões para a esquerda'}
+            onPress={() => scrollChipsBy(-220)}
+            style={[
+              styles.scrollArrowBtn,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
+            <Ionicons name="chevron-back" size={16} color={theme.text} />
+          </Pressable>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={en ? 'Scroll regions right' : 'Rolar regiões para a direita'}
-          onPress={() => scrollChipsBy(220)}
-          style={[
-            styles.scrollArrowBtn,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}
-        >
-          <Ionicons name="chevron-forward" size={16} color={theme.text} />
-        </Pressable>
+          <ScrollView
+            ref={chipsScrollRef}
+            horizontal
+            style={styles.regionChipsScroller}
+            showsHorizontalScrollIndicator={Platform.OS === 'web'}
+            scrollEventThrottle={16}
+            onScroll={(e) => {
+              chipsScrollXRef.current = e.nativeEvent.contentOffset.x;
+            }}
+            contentContainerStyle={styles.regionChipsScroll}
+          >
+            {NORDESTE_REGIONS.map((reg) => {
+              const active = selectedRegionName === reg.nome;
+              const isGps = gpsDetectedRegionId === reg.id;
+              return (
+                <Pressable
+                  key={reg.id}
+                  onPress={() => onSelectRegion(reg)}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: active ? theme.primary : theme.surface,
+                      borderColor: active ? theme.primary : isGps ? '#1D6FA5' : theme.border,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={isGps ? 'navigate' : active ? 'location' : 'location-outline'}
+                    size={14}
+                    color={active ? theme.primaryText : isGps ? '#1D6FA5' : theme.primary}
+                  />
+                  <Text
+                    style={[styles.chipText, { color: active ? theme.primaryText : theme.text }]}
+                  >
+                    {reg.estado} • {reg.nome}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={en ? 'Scroll regions right' : 'Rolar regiões para a direita'}
+            onPress={() => scrollChipsBy(220)}
+            style={[
+              styles.scrollArrowBtn,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
+            <Ionicons name="chevron-forward" size={16} color={theme.text} />
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+
+  if (isDesktop && (desktopSideTop || desktopSideBottom)) {
+    return (
+      <View style={styles.desktopSplitRow}>
+        <View style={styles.desktopMapCol}>{mapArea}</View>
+        <View style={styles.desktopSideCol}>
+          {desktopSideTop}
+          {desktopSideBottom}
+          {hubPickerArea}
+        </View>
       </View>
+    );
+  }
+
+  return (
+    <View style={styles.wrap}>
+      {mapArea}
+      {hubPickerArea}
     </View>
   );
 };
@@ -568,6 +633,30 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
     alignItems: 'center',
     gap: 8,
+  },
+  desktopSplitRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 16,
+  },
+  desktopMapCol: {
+    flex: 1.35,
+    minWidth: 0,
+  },
+  desktopSideCol: {
+    flex: 1,
+    minWidth: 320,
+    maxWidth: 520,
+    gap: 10,
+  },
+  mapCol: {
+    width: '100%',
+    gap: 8,
+  },
+  hubsSection: {
+    width: '100%',
+    gap: 4,
   },
   modeSwitchRow: {
     flexDirection: 'row',
@@ -595,6 +684,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     alignSelf: 'flex-start',
+  },
+  regionChipsGrid: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingVertical: 4,
   },
   regionChipsBar: {
     width: '100%',

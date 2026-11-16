@@ -5,6 +5,7 @@ import { Pressable, Text } from '../i18n/native';
 import { useLanguage } from '../i18n/Language';
 import { BahiaRegionPreset, NORDESTE_REGIONS } from '../data/seedData';
 import { AppTheme } from '../theme/tokens';
+import { useResponsiveLayout } from '../theme/responsive';
 import { GeoPoint } from '../types/domain';
 import { buildNordesteLeafletHtml } from '../utils/leafletHtml';
 
@@ -12,6 +13,7 @@ export interface NordesteLeafletMapProps {
   selectedRegionName: string;
   gpsDetectedRegionId?: string | null;
   gpsUserCoords?: GeoPoint | null;
+  height?: number;
   onSelectRegion: (region: BahiaRegionPreset) => void;
   onFallbackOffline?: () => void;
   theme: AppTheme;
@@ -29,10 +31,13 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
   selectedRegionName,
   gpsDetectedRegionId,
   gpsUserCoords,
+  height,
   onSelectRegion,
   onFallbackOffline,
   theme,
 }) => {
+  const { regionMapHeight } = useResponsiveLayout();
+  const mapHeight = height ?? regionMapHeight;
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const onSelectRef = useRef(onSelectRegion);
   const [mapReady, setMapReady] = useState(false);
@@ -118,7 +123,12 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
   const selectedReg = NORDESTE_REGIONS.find((r) => r.nome === selectedRegionName);
 
   return (
-    <View style={[styles.container, { borderColor: theme.border, backgroundColor: theme.surfaceMuted }]}>
+    <View
+      style={[
+        styles.container,
+        { height: mapHeight, borderColor: theme.border, backgroundColor: theme.surfaceMuted },
+      ]}
+    >
       <iframe
         ref={iframeRef}
         title={language === 'en' ? 'Interactive map of Northeast Brazil' : 'Mapa interativo do Nordeste'}

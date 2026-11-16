@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { Pressable, Text } from '../i18n/native';
 import { useLanguage } from '../i18n/Language';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { useResponsiveLayout } from '../theme/responsive';
 import { buildFarmLeafletHtml } from '../utils/leafletHtml';
 import { FarmMapCanvasProps, VectorFarmCanvas } from './VectorFarmCanvas';
 
@@ -222,12 +223,15 @@ const LeafletFarmWebCanvas: React.FC<
 /** Mapa da propriedade na Web com Leaflet (Satélite/Cartográfico) e fallback vetorial offline. */
 export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
   const { isOnline } = useAccessibility();
+  const { farmMapHeight } = useResponsiveLayout();
   const [forceVectorOffline, setForceVectorOffline] = useState(false);
+  const resolvedHeight = props.height ?? farmMapHeight;
 
   if (isOnline && !forceVectorOffline) {
     return (
       <LeafletFarmWebCanvas
         {...props}
+        height={resolvedHeight}
         onFallbackOffline={() => setForceVectorOffline(true)}
       />
     );
@@ -249,7 +253,7 @@ export const FarmMapCanvas: React.FC<FarmMapCanvasProps> = (props) => {
           </Text>
         </Pressable>
       )}
-      <VectorFarmCanvas {...props} />
+      <VectorFarmCanvas {...props} height={resolvedHeight} />
     </View>
   );
 };

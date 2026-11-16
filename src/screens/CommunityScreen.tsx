@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useLanguage } from '../i18n/Language';
 import { Pressable, Text, TextInput } from '../i18n/native';
 import { translate } from '../i18n/translate';
@@ -14,6 +14,7 @@ import {
 } from '../data/communityMockData';
 import { FEATURE_COLOR_STYLES } from '../models/farmArchitecture';
 import { getAppTheme } from '../theme/tokens';
+import { useResponsiveLayout } from '../theme/responsive';
 import { CommunityTopic } from '../types/domain';
 
 /**
@@ -34,8 +35,9 @@ export const CommunityScreen: React.FC = () => {
   } = useAccessibility();
   const { language } = useLanguage();
   const en = language === 'en';
-  const { width } = useWindowDimensions();
+  const { width, contentMaxWidth } = useResponsiveLayout();
   const isWideWeb = width >= 920;
+  const leftColWidth = isWideWeb ? Math.max(360, Math.min(460, Math.round(width * 0.28))) : undefined;
   const theme = getAppTheme(accessibility);
   const blue = FEATURE_COLOR_STYLES.azul;
   const salmon = FEATURE_COLOR_STYLES.salmao;
@@ -141,10 +143,14 @@ export const CommunityScreen: React.FC = () => {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.bg }}
-      contentContainerStyle={[styles.container, isWideWeb && styles.containerWide]}
+      contentContainerStyle={[
+        styles.container,
+        isWideWeb && styles.containerWide,
+        { maxWidth: contentMaxWidth },
+      ]}
     >
       <View style={isWideWeb ? styles.columnsWide : styles.columnsStack}>
-        <View style={isWideWeb ? styles.leftColWide : styles.colStack}>
+        <View style={isWideWeb ? [styles.leftColWide, { width: leftColWidth }] : styles.colStack}>
           {/* Cabeçalho Comunidade + Ação AZUL */}
           <View
             style={[

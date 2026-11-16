@@ -5,7 +5,7 @@ import { Pressable, Text } from '../i18n/native';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { getAppTheme } from '../theme/tokens';
 
-export type MainTabKey = 'resumo' | 'plantacao' | 'comunidade';
+export type MainTabKey = 'resumo' | 'plantacao' | 'comunidade' | 'metodologia';
 
 interface BottomTabBarProps {
   activeTab: MainTabKey;
@@ -21,6 +21,7 @@ const TABS: {
   { key: 'resumo', label: 'Resumo', icon: 'sunny', iconInactive: 'sunny-outline' },
   { key: 'plantacao', label: 'Plantação', icon: 'leaf', iconInactive: 'leaf-outline' },
   { key: 'comunidade', label: 'Comunidade', icon: 'people', iconInactive: 'people-outline' },
+  { key: 'metodologia', label: 'Metodologia', icon: 'git-network', iconInactive: 'git-network-outline' },
 ];
 
 export const BottomTabBar: React.FC<BottomTabBarProps> = ({

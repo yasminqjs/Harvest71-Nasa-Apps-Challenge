@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { BackHandler, ScrollView, StyleSheet, View } from 'react-native';
 import { useLanguage } from '../i18n/Language';
 import { Pressable, Text } from '../i18n/native';
 import { translate } from '../i18n/translate';
@@ -16,6 +16,7 @@ import { useAccessibility } from '../context/AccessibilityContext';
 import { useCropQuality } from '../context/CropQualityContext';
 import { FEATURE_COLOR_STYLES } from '../models/farmArchitecture';
 import { getAppTheme } from '../theme/tokens';
+import { useResponsiveLayout } from '../theme/responsive';
 import { formatArea } from '../utils/regionalize';
 import { MapScreen } from './MapScreen';
 
@@ -41,7 +42,7 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
   openCurrentRotation = false,
 }) => {
   const { accessibility, activeFarmer, activeFarm, farmArchitecture, speak } = useAccessibility();
-  const { width } = useWindowDimensions();
+  const { width, contentMaxWidth } = useResponsiveLayout();
   const isWideWeb = width >= 820;
   const { openQualityRequested, clearOpenQualityRequest } = useCropQuality();
   const { language } = useLanguage();
@@ -113,7 +114,11 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <ScrollView
         style={{ flex: 1, backgroundColor: theme.bg }}
-        contentContainerStyle={[styles.container, isWideWeb && styles.containerWide]}
+        contentContainerStyle={[
+          styles.container,
+          isWideWeb && styles.containerWide,
+          { maxWidth: contentMaxWidth },
+        ]}
       >
         {effectiveBlock === 'atualizar_lotes' ? (
           <RotacaoAtualSubscreen
@@ -497,8 +502,8 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   containerWide: {
-    padding: 24,
-    gap: 16,
+    padding: 16,
+    gap: 10,
   },
   headerStrip: {
     borderRadius: 18,

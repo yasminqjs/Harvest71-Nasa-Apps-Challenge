@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { Pressable, Text, TextInput } from '../../i18n/native';
 import { FarmMapCanvas } from '../FarmMapCanvas';
 import { AppTheme } from '../../theme/tokens';
+import { useResponsiveLayout } from '../../theme/responsive';
 import { GeoPoint, PlantingLot } from '../../types/domain';
 import { LOT_PALETTE, PLANT_CATALOG_CHIPS } from '../../utils/agronomyHelpers';
 import {
@@ -36,6 +37,7 @@ export const FarmBoundaryStep: React.FC<FarmBoundaryStepProps> = ({
   theme,
 }) => {
   const [drawingMode, setDrawingMode] = useState(true);
+  const { isDesktop, desktopSideMapHeight } = useResponsiveLayout();
   const metrics = calculatePolygonMetrics(farmPolygon);
 
   const handleAddPoint = (pt: GeoPoint) => {
@@ -54,8 +56,8 @@ export const FarmBoundaryStep: React.FC<FarmBoundaryStepProps> = ({
     onSpeak(`Terreno ajustado para cerca de ${ha} hectares. Você pode ajustar tocando no mapa.`);
   };
 
-  return (
-    <View style={styles.wrap}>
+  const boundaryInfoAndActions = (
+    <View style={isDesktop ? styles.desktopSideCol : styles.wrap}>
       <View
         style={[
           styles.infoCard,
@@ -66,22 +68,10 @@ export const FarmBoundaryStep: React.FC<FarmBoundaryStepProps> = ({
           Demarque o terreno da fazenda em {regiaoNome}
         </Text>
         <Text style={[styles.sub, { color: theme.textMuted }]}>
-          {municipio} - {estado} • Toque nos cantos do seu terreno no mapa abaixo para calcular a
+          {municipio} - {estado} • Toque nos cantos do seu terreno no mapa {isDesktop ? 'ao lado' : 'abaixo'} para calcular a
           área real (hectares e tarefas).
         </Text>
       </View>
-
-      <FarmMapCanvas
-        key={`${regiaoNome}-${centroid.latitude.toFixed(3)}`}
-        centroid={centroid}
-        polygon={farmPolygon}
-        showWells={false}
-        showNdvi={false}
-        drawingMode={drawingMode}
-        height={320}
-        onAddPoint={handleAddPoint}
-        theme={theme}
-      />
 
       <View
         style={[
@@ -180,6 +170,44 @@ export const FarmBoundaryStep: React.FC<FarmBoundaryStepProps> = ({
       </View>
     </View>
   );
+
+  if (isDesktop) {
+    return (
+      <View style={styles.desktopSplitRow}>
+        <View style={styles.desktopMapCol}>
+          <FarmMapCanvas
+            key={`${regiaoNome}-${centroid.latitude.toFixed(3)}`}
+            centroid={centroid}
+            polygon={farmPolygon}
+            showWells={false}
+            showNdvi={false}
+            drawingMode={drawingMode}
+            height={desktopSideMapHeight}
+            onAddPoint={handleAddPoint}
+            theme={theme}
+          />
+        </View>
+        {boundaryInfoAndActions}
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.wrap}>
+      <FarmMapCanvas
+        key={`${regiaoNome}-${centroid.latitude.toFixed(3)}`}
+        centroid={centroid}
+        polygon={farmPolygon}
+        showWells={false}
+        showNdvi={false}
+        drawingMode={drawingMode}
+        height={320}
+        onAddPoint={handleAddPoint}
+        theme={theme}
+      />
+      {boundaryInfoAndActions}
+    </View>
+  );
 };
 
 interface FarmLotsStepProps {
@@ -199,6 +227,7 @@ export const FarmLotsStep: React.FC<FarmLotsStepProps> = ({
   onSpeak,
   theme,
 }) => {
+  const { isDesktop, desktopSideMapHeight } = useResponsiveLayout();
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [drawingLot, setDrawingLot] = useState(true);
   const [customCountInput, setCustomCountInput] = useState(
@@ -531,168 +560,173 @@ export const FarmLotsStep: React.FC<FarmLotsStepProps> = ({
             { backgroundColor: theme.surface, borderColor: activeLot.corHex },
           ]}
         >
-          <View style={styles.lotHeader}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: theme.text, fontSize: 15 * theme.scale }]}>
-                Demarcar área de: {activeLot.nome}
-              </Text>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textMuted }}>
-                Toque dentro da área verde da sua fazenda ({activeLot.polygon.length} pontos)
-              </Text>
-            </View>
+          <View style={isDesktop ? styles.desktopSplitRow : styles.wrap}>
+            <View style={isDesktop ? [styles.desktopMapCol, { gap: 8 }] : { gap: 8 }}>
+              <View style={styles.lotHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.title, { color: theme.text, fontSize: 15 * theme.scale }]}>
+                    Demarcar área de: {activeLot.nome}
+                  </Text>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textMuted }}>
+                    Toque dentro da área verde da sua fazenda ({activeLot.polygon.length} pontos)
+                  </Text>
+                </View>
 
-            <Pressable
-              onPress={() => {
-                setOutsideWarning(null);
-                setDrawingLot((prev) => !prev);
-              }}
-              style={[
-                styles.demarcarSmallBtn,
-                { backgroundColor: drawingLot ? theme.warningBg : activeLot.corHex },
-              ]}
-            >
-              <Ionicons
-                name={drawingLot ? 'checkmark' : 'create-outline'}
-                size={15}
-                color={drawingLot ? theme.warningText : '#FFFFFF'}
+                <Pressable
+                  onPress={() => {
+                    setOutsideWarning(null);
+                    setDrawingLot((prev) => !prev);
+                  }}
+                  style={[
+                    styles.demarcarSmallBtn,
+                    { backgroundColor: drawingLot ? theme.warningBg : activeLot.corHex },
+                  ]}
+                >
+                  <Ionicons
+                    name={drawingLot ? 'checkmark' : 'create-outline'}
+                    size={15}
+                    color={drawingLot ? theme.warningText : '#FFFFFF'}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '900',
+                      color: drawingLot ? theme.warningText : '#FFFFFF',
+                    }}
+                  >
+                    {drawingLot ? 'Concluir pontos' : 'Demarcar Lote no Mapa'}
+                  </Text>
+                </Pressable>
+              </View>
+
+              <FarmMapCanvas
+                centroid={farmCentroid}
+                polygon={farmPolygon}
+                lots={lotes}
+                activeLotId={activeLot.id}
+                showWells={false}
+                showNdvi={false}
+                drawingMode={drawingLot}
+                height={isDesktop ? Math.round(Math.max(280, Math.min(480, desktopSideMapHeight - 100))) : 240}
+                onAddPoint={handleAddLotPoint}
+                theme={theme}
               />
-              <Text
-                style={{
-                  fontSize: 11,
-                  fontWeight: '900',
-                  color: drawingLot ? theme.warningText : '#FFFFFF',
-                }}
-              >
-                {drawingLot ? 'Concluir pontos' : 'Demarcar Lote no Mapa'}
-              </Text>
-            </Pressable>
-          </View>
 
-          <FarmMapCanvas
-            centroid={farmCentroid}
-            polygon={farmPolygon}
-            lots={lotes}
-            activeLotId={activeLot.id}
-            showWells={false}
-            showNdvi={false}
-            drawingMode={drawingLot}
-            height={240}
-            onAddPoint={handleAddLotPoint}
-            theme={theme}
-          />
+              {outsideWarning && (
+                <View
+                  style={[
+                    styles.pendingNotice,
+                    { backgroundColor: theme.dangerBg, borderColor: theme.dangerBorder },
+                  ]}
+                >
+                  <Ionicons name="warning-outline" size={16} color={theme.dangerText} />
+                  <Text style={{ flex: 1, fontSize: 12, fontWeight: '800', color: theme.dangerText }}>
+                    {outsideWarning}
+                  </Text>
+                </View>
+              )}
 
-          {outsideWarning && (
-            <View
-              style={[
-                styles.pendingNotice,
-                { backgroundColor: theme.dangerBg, borderColor: theme.dangerBorder },
-              ]}
-            >
-              <Ionicons name="warning-outline" size={16} color={theme.dangerText} />
-              <Text style={{ flex: 1, fontSize: 12, fontWeight: '800', color: theme.dangerText }}>
-                {outsideWarning}
-              </Text>
-            </View>
-          )}
-
-          <View
-            style={[
-              styles.metricsRow,
-              {
-                backgroundColor:
-                  activeLot.polygon.length >= 3 ? theme.successBg : theme.surfaceMuted,
-                borderColor:
-                  activeLot.polygon.length >= 3 ? theme.successBorder : theme.border,
-              },
-            ]}
-          >
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: '800',
-                  color:
-                    activeLot.polygon.length >= 3 ? theme.successText : theme.textMuted,
-                }}
-              >
-                Pontos marcados no {activeLot.nome}: {activeLot.polygon.length} (mínimo 3)
-              </Text>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: '900',
-                  color: activeLot.polygon.length >= 3 ? theme.successText : theme.text,
-                }}
-              >
-                {activeLot.polygon.length >= 3
-                  ? `Área do lote: ${formatArea(activeLot.areaHectares, activeLot.areaTarefasBa)}`
-                  : 'Toque nos cantos dentro da área verde da fazenda'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.btnRow}>
-            {activeLot.polygon.length > 0 && (
-              <Pressable
-                onPress={() => {
-                  const nextPoly = activeLot.polygon.slice(0, -1);
-                  const m = calculatePolygonMetrics(nextPoly);
-                  patchActiveLot({
-                    polygon: nextPoly,
-                    areaHectares: nextPoly.length >= 3 ? m.areaHectares : 0,
-                    areaTarefasBa: nextPoly.length >= 3 ? m.areaTarefasBa : 0,
-                  });
-                  setOutsideWarning(null);
-                }}
+              <View
                 style={[
-                  styles.btn,
-                  { backgroundColor: theme.surface, borderColor: theme.border },
+                  styles.metricsRow,
+                  {
+                    backgroundColor:
+                      activeLot.polygon.length >= 3 ? theme.successBg : theme.surfaceMuted,
+                    borderColor:
+                      activeLot.polygon.length >= 3 ? theme.successBorder : theme.border,
+                  },
                 ]}
               >
-                <Ionicons name="arrow-undo-outline" size={16} color={theme.text} />
-                <Text style={{ fontSize: 12, fontWeight: '800', color: theme.text }}>
-                  Desfazer ponto
-                </Text>
-              </Pressable>
-            )}
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '800',
+                      color:
+                        activeLot.polygon.length >= 3 ? theme.successText : theme.textMuted,
+                    }}
+                  >
+                    Pontos marcados no {activeLot.nome}: {activeLot.polygon.length} (mínimo 3)
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: '900',
+                      color: activeLot.polygon.length >= 3 ? theme.successText : theme.text,
+                    }}
+                  >
+                    {activeLot.polygon.length >= 3
+                      ? `Área do lote: ${formatArea(activeLot.areaHectares, activeLot.areaTarefasBa)}`
+                      : 'Toque nos cantos dentro da área verde da fazenda'}
+                  </Text>
+                </View>
+              </View>
 
-            {activeLot.polygon.length > 0 && (
-              <Pressable
-                onPress={() => {
-                  patchActiveLot({
-                    polygon: [],
-                    areaHectares: 0,
-                    areaTarefasBa: 0,
-                    retornoFinanceiroEstR$: 0,
-                  });
-                  setDrawingLot(true);
-                  setOutsideWarning(null);
-                }}
-                style={[
-                  styles.btn,
-                  { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
-                ]}
-              >
-                <Ionicons name="trash-outline" size={16} color={theme.text} />
-                <Text style={{ fontSize: 12, fontWeight: '800', color: theme.text }}>
-                  Limpar lote
-                </Text>
-              </Pressable>
-            )}
+              <View style={styles.btnRow}>
+                {activeLot.polygon.length > 0 && (
+                  <Pressable
+                    onPress={() => {
+                      const nextPoly = activeLot.polygon.slice(0, -1);
+                      const m = calculatePolygonMetrics(nextPoly);
+                      patchActiveLot({
+                        polygon: nextPoly,
+                        areaHectares: nextPoly.length >= 3 ? m.areaHectares : 0,
+                        areaTarefasBa: nextPoly.length >= 3 ? m.areaTarefasBa : 0,
+                      });
+                      setOutsideWarning(null);
+                    }}
+                    style={[
+                      styles.btn,
+                      { backgroundColor: theme.surface, borderColor: theme.border },
+                    ]}
+                  >
+                    <Ionicons name="arrow-undo-outline" size={16} color={theme.text} />
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: theme.text }}>
+                      Desfazer ponto
+                    </Text>
+                  </Pressable>
+                )}
 
-            <Pressable
-              onPress={() => handleRemoveLot(safeSelectedIdx)}
-              style={[
-                styles.btn,
-                { backgroundColor: theme.dangerBg, borderColor: theme.dangerBorder },
-              ]}
-            >
-              <Ionicons name="close-circle-outline" size={16} color={theme.dangerText} />
-              <Text style={{ fontSize: 12, fontWeight: '800', color: theme.dangerText }}>
-                Remover lote
-              </Text>
-            </Pressable>
-          </View>
+                {activeLot.polygon.length > 0 && (
+                  <Pressable
+                    onPress={() => {
+                      patchActiveLot({
+                        polygon: [],
+                        areaHectares: 0,
+                        areaTarefasBa: 0,
+                        retornoFinanceiroEstR$: 0,
+                      });
+                      setDrawingLot(true);
+                      setOutsideWarning(null);
+                    }}
+                    style={[
+                      styles.btn,
+                      { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
+                    ]}
+                  >
+                    <Ionicons name="trash-outline" size={16} color={theme.text} />
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: theme.text }}>
+                      Limpar lote
+                    </Text>
+                  </Pressable>
+                )}
+
+                <Pressable
+                  onPress={() => handleRemoveLot(safeSelectedIdx)}
+                  style={[
+                    styles.btn,
+                    { backgroundColor: theme.dangerBg, borderColor: theme.dangerBorder },
+                  ]}
+                >
+                  <Ionicons name="close-circle-outline" size={16} color={theme.dangerText} />
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: theme.dangerText }}>
+                    Remover lote
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={isDesktop ? styles.desktopSideCol : { gap: 8 }}>
 
           <Text style={[styles.fieldLabel, { color: theme.text }]}>
             Sistema deste lote:
@@ -866,6 +900,8 @@ export const FarmLotsStep: React.FC<FarmLotsStepProps> = ({
               },
             ]}
           />
+            </View>
+          </View>
         </View>
       )}
     </View>
@@ -875,6 +911,21 @@ export const FarmLotsStep: React.FC<FarmLotsStepProps> = ({
 const styles = StyleSheet.create({
   wrap: {
     gap: 12,
+  },
+  desktopSplitRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 16,
+  },
+  desktopMapCol: {
+    flex: 1.35,
+    minWidth: 0,
+  },
+  desktopSideCol: {
+    flex: 1,
+    minWidth: 320,
+    maxWidth: 480,
+    gap: 10,
   },
   infoCard: {
     borderRadius: 16,

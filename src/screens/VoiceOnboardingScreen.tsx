@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useLanguage } from '../i18n/Language';
 import { Pressable, Text } from '../i18n/native';
 import { useAccessibility } from '../context/AccessibilityContext';
 import {
@@ -10,13 +11,19 @@ import {
   stopSpeaking,
 } from '../services/voiceAssistant';
 import { getAppTheme } from '../theme/tokens';
+import { useResponsiveLayout } from '../theme/responsive';
 
-const ONBOARDING_SPEECH =
+const ONBOARDING_SPEECH_PT =
   'Olá! Bem-vindo ao Harvest71. Gostaria que o aplicativo faça a leitura e ajude com comandos de voz? Pode dizer Sim ou Não.';
+const ONBOARDING_SPEECH_EN =
+  'Hello! Welcome to Harvest71. Would you like the app to read aloud and help with voice commands? You can say Yes or No.';
 
 export const VoiceOnboardingScreen: React.FC = () => {
   const { accessibility, completeVoiceOnboarding } = useAccessibility();
+  const { language } = useLanguage();
+  const en = language === 'en';
   const theme = getAppTheme(accessibility);
+  const { voiceMaxWidth, isTablet, isCompactHeight } = useResponsiveLayout();
 
   const [listening, setListening] = useState(false);
   const [heardText, setHeardText] = useState<string | null>(null);
@@ -24,6 +31,7 @@ export const VoiceOnboardingScreen: React.FC = () => {
 
   const stopCaptureRef = useRef<(() => void) | null>(null);
   const listenDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handledCaptureRef = useRef(false);
   const mountedRef = useRef(true);
 
   const stopListening = () => {
@@ -40,31 +48,43 @@ export const VoiceOnboardingScreen: React.FC = () => {
 
   const processTranscript = (transcript: string) => {
     const trimmed = transcript.trim();
-    if (!trimmed) return;
+    if (!trimmed || handledCaptureRef.current) return;
     setHeardText(trimmed);
 
     const intent = interpretYesNoVoiceReply(trimmed);
     if (intent === 'sim') {
-      setVoiceFeedback('Entendido: "Sim". Ativando guia por voz...');
+      handledCaptureRef.current = true;
+      setVoiceFeedback(
+        en ? 'Understood: "Yes". Turning on voice guidance...' : 'Entendido: "Sim". Ativando guia por voz...'
+      );
       completeVoiceOnboarding(true);
       return;
     }
     if (intent === 'nao') {
-      setVoiceFeedback('Entendido: "Não". Continuando apenas lendo...');
+      handledCaptureRef.current = true;
+      setVoiceFeedback(
+        en ? 'Understood: "No". Continuing in reading mode...' : 'Entendido: "Não". Continuando apenas lendo...'
+      );
       completeVoiceOnboarding(false);
       return;
     }
     if (intent === 'repetir') {
-      setVoiceFeedback('Repetindo a pergunta...');
+      handledCaptureRef.current = true;
+      setVoiceFeedback(en ? 'Repeating the question...' : 'Repetindo a pergunta...');
       playQuestion(true);
       return;
     }
 
+    handledCaptureRef.current = true;
     setVoiceFeedback(
-      'Não consegui identificar "Sim" ou "Não". Ouvindo novamente...'
+      en
+        ? 'Could not recognize "Yes" or "No". Listening again...'
+        : 'Não consegui identificar "Sim" ou "Não". Ouvindo novamente...'
     );
     speakText(
-      'Não entendi bem. Diga Sim para ativar a leitura por voz, ou Não para continuar apenas lendo.',
+      en
+        ? 'I did not catch that. Say Yes to turn on voice reading, or No to keep reading silently.'
+        : 'Não entendi bem. Diga Sim para ativar a leitura por voz, ou Não para continuar apenas lendo.',
       {
         enabled: true,
         rate: accessibility.speechRate,
@@ -83,36 +103,59 @@ export const VoiceOnboardingScreen: React.FC = () => {
   const beginVoiceReply = () => {
     if (listening) {
       stopListening();
-      setVoiceFeedback('Microfone pausado. Toque para tentar de novo ou escolha um botão.');
+      setVoiceFeedback(
+        en
+          ? 'Microphone paused. Tap to try again or choose an option below.'
+          : 'Microfone pausado. Toque para tentar de novo ou escolha um botão.'
+      );
       return;
     }
 
     stopSpeaking();
+    handledCaptureRef.current = false;
     setHeardText(null);
-    setVoiceFeedback('Ouvindo... Fale "Sim" ou "Não" perto do microfone.');
+    setVoiceFeedback(
+      en
+        ? 'Listening... Say "Yes" or "No" near your microphone.'
+        : 'Ouvindo... Fale "Sim" ou "Não" perto do microfone.'
+    );
     setListening(true);
 
     const stopFn = startVoiceCapture(
       (transcript) => {
-        if (!mountedRef.current) return;
+        if (!mountedRef.current || handledCaptureRef.current) return;
         stopCaptureRef.current = null;
         setListening(false);
         processTranscript(transcript);
       },
       (errMessage) => {
-        if (!mountedRef.current) return;
+        if (!mountedRef.current || handledCaptureRef.current) return;
         stopCaptureRef.current = null;
         setListening(false);
         setVoiceFeedback(errMessage);
       },
       {
+        onInterim: (partial) => {
+          if (!mountedRef.current || handledCaptureRef.current) return;
+          setHeardText(partial);
+          const quickIntent = interpretYesNoVoiceReply(partial);
+          if (quickIntent === 'sim' || quickIntent === 'nao') {
+            stopListening();
+            processTranscript(partial);
+          }
+        },
+        onStatus: (msg) => {
+          if (!mountedRef.current || handledCaptureRef.current) return;
+          setVoiceFeedback(msg);
+        },
         onEnd: () => {
           if (!mountedRef.current) return;
           stopCaptureRef.current = null;
           setListening(false);
         },
-        unsupportedMessage:
-          'O Expo Go não inclui reconhecimento de fala automático em segundo plano (requer Development Build / APK). Você pode tocar em "Sim" ou "Não" abaixo.',
+        unsupportedMessage: en
+          ? 'Automatic background speech recognition is unavailable here. Please tap "Yes" or "No" below.'
+          : 'O reconhecimento de fala automático não está disponível neste ambiente. Você pode tocar em "Sim" ou "Não" abaixo.',
       }
     );
 
@@ -122,7 +165,7 @@ export const VoiceOnboardingScreen: React.FC = () => {
   const playQuestion = (listenAfter = true) => {
     stopListening();
     setVoiceFeedback(null);
-    speakText(ONBOARDING_SPEECH, {
+    speakText(en ? ONBOARDING_SPEECH_EN : ONBOARDING_SPEECH_PT, {
       enabled: true,
       rate: accessibility.speechRate,
       languageLevel: 'acessivel',
@@ -169,14 +212,30 @@ export const VoiceOnboardingScreen: React.FC = () => {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.bg }}
-      contentContainerStyle={[styles.container, { backgroundColor: theme.bg }]}
+      contentContainerStyle={[
+        styles.container,
+        isCompactHeight && styles.containerCompact,
+        { backgroundColor: theme.bg },
+      ]}
     >
-      <View style={styles.innerWrap}>
+      <View
+        style={[
+          styles.innerWrap,
+          { maxWidth: voiceMaxWidth },
+          isCompactHeight && { gap: 12 },
+        ]}
+      >
       <View style={styles.brandBox}>
-        <View style={[styles.logoCircle, { backgroundColor: theme.primary }]}>
-          <Ionicons name="leaf" size={38} color={theme.primaryText} />
-        </View>
-        <Text style={[styles.appTitle, { color: theme.text, fontSize: 28 * theme.scale }]}>
+        <Image
+          source={require('../../assets/harvest71-logo.png')}
+          style={[
+            styles.logoImage,
+            isCompactHeight && { width: 82, height: 82 },
+          ]}
+          resizeMode="contain"
+          accessibilityLabel="Harvest71"
+        />
+        <Text style={[styles.appTitle, { color: theme.text, fontSize: (isCompactHeight ? 24 : 28) * theme.scale }]}>
           Harvest71
         </Text>
         <Text style={[styles.subtitle, { color: theme.textMuted, fontSize: 14 * theme.scale }]}>
@@ -259,11 +318,12 @@ export const VoiceOnboardingScreen: React.FC = () => {
         </Pressable>
       </View>
 
-      <View style={styles.actions}>
+      <View style={[styles.actions, isTablet && styles.actionsWide]}>
         <Pressable
           onPress={() => handleManualChoice(true)}
           style={[
             styles.choiceBtn,
+            isTablet && styles.choiceBtnWide,
             { backgroundColor: theme.primary, borderColor: theme.primary },
           ]}
         >
@@ -289,6 +349,7 @@ export const VoiceOnboardingScreen: React.FC = () => {
           onPress={() => handleManualChoice(false)}
           style={[
             styles.choiceBtn,
+            isTablet && styles.choiceBtnWide,
             { backgroundColor: theme.surface, borderColor: theme.border },
           ]}
         >
@@ -322,22 +383,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 20,
   },
+  containerCompact: {
+    padding: 12,
+    gap: 12,
+  },
   innerWrap: {
     maxWidth: 640,
     width: '100%',
     alignSelf: 'center',
-    gap: 20,
+    gap: 16,
   },
   brandBox: {
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
-  logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
+  logoImage: {
+    width: 104,
+    height: 104,
   },
   appTitle: {
     fontWeight: '900',
@@ -410,7 +472,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   actions: {
-    gap: 14,
+    gap: 12,
+  },
+  actionsWide: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  choiceBtnWide: {
+    flex: 1,
   },
   choiceBtn: {
     flexDirection: 'row',

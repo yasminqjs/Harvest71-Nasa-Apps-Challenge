@@ -19,12 +19,15 @@ import { CropQualityProvider } from './src/context/CropQualityContext';
 import { CommunityScreen } from './src/screens/CommunityScreen';
 import { DecisionScreen } from './src/screens/DecisionScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
+import { MethodologyScreen } from './src/screens/MethodologyScreen';
 import { NordesteOnboardingScreen } from './src/screens/NordesteOnboardingScreen';
 import { SettingsModal, SettingsTabKey } from './src/screens/SettingsModal';
 import { VoiceOnboardingScreen } from './src/screens/VoiceOnboardingScreen';
 import { getAppTheme } from './src/theme/tokens';
+import { useResponsiveLayout } from './src/theme/responsive';
 
 const Harvest71Root: React.FC = () => {
+  const { onboardingMaxWidth } = useResponsiveLayout();
   const {
     ready,
     accessibility,
@@ -109,7 +112,7 @@ const Harvest71Root: React.FC = () => {
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg }]} edges={['top', 'bottom']}>
       <StatusBar style={accessibility.highContrast ? 'light' : 'dark'} />
       {(!accessibility.voiceOnboardingCompleted || !nordesteMapCompleted) && (
-        <View style={styles.onboardingLangBar}>
+        <View style={[styles.onboardingLangBar, { maxWidth: onboardingMaxWidth }]}>
           <LanguageMenu theme={theme} />
         </View>
       )}
@@ -142,6 +145,7 @@ const Harvest71Root: React.FC = () => {
             )}
             {activeTab === 'plantacao' && <DecisionScreen openCurrentRotation={openCurrentRotation} />}
             {activeTab === 'comunidade' && <CommunityScreen />}
+            {activeTab === 'metodologia' && <MethodologyScreen />}
           </View>
           <BottomTabBar activeTab={activeTab} onChangeTab={navigateTab} />
           {settingsOpen && (

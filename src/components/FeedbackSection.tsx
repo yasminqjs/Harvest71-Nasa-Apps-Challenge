@@ -50,6 +50,7 @@ export const FeedbackSection: React.FC = () => {
       (transcript) => {
         stopRef.current = null;
         setListening(false);
+        setStatusMsg(null);
         setComentario((prev) => (prev ? `${prev} ${transcript}` : transcript));
       },
       (err) => {
@@ -58,6 +59,9 @@ export const FeedbackSection: React.FC = () => {
         setStatusMsg(err);
       },
       {
+        onStatus: (msg) => {
+          setStatusMsg(msg);
+        },
         onEnd: () => {
           stopRef.current = null;
           setListening(false);

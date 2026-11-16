@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { Pressable, Text } from '../i18n/native';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { getAppTheme } from '../theme/tokens';
+import { useResponsiveLayout } from '../theme/responsive';
 import type { MainTabKey } from './BottomTabBar';
 import { LanguageMenu } from './LanguageMenu';
 
@@ -23,6 +24,7 @@ const WEB_NAV_TABS: {
   { key: 'resumo', label: 'Resumo', icon: 'sunny', iconInactive: 'sunny-outline' },
   { key: 'plantacao', label: 'Plantação', icon: 'leaf', iconInactive: 'leaf-outline' },
   { key: 'comunidade', label: 'Comunidade', icon: 'people', iconInactive: 'people-outline' },
+  { key: 'metodologia', label: 'Metodologia', icon: 'git-network', iconInactive: 'git-network-outline' },
 ];
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -31,8 +33,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onOpenSettings,
   onOpenTutorial,
 }) => {
-  const { width } = useWindowDimensions();
-  const isDesktopWeb = width >= 768;
+  const { isTablet: isDesktopWeb, headerMaxWidth } = useResponsiveLayout();
   const {
     accessibility,
     activeFarmer,
@@ -54,11 +55,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         { backgroundColor: theme.surface, borderBottomColor: theme.border },
       ]}
     >
-      <View style={[styles.header, isDesktopWeb && styles.headerWide]}>
+      <View style={[styles.header, isDesktopWeb && styles.headerWide, { maxWidth: headerMaxWidth }]}>
         <View style={[styles.leftGroup, isDesktopWeb && styles.leftGroupWide]}>
-          <View style={[styles.brandBadge, { backgroundColor: theme.primary }]}>
-            <Ionicons name="leaf" size={14} color={theme.primaryText} />
-          </View>
+          <Image
+            source={require('../../assets/harvest71-logo.png')}
+            style={styles.brandLogo}
+            resizeMode="contain"
+            accessibilityLabel="Harvest71"
+          />
           <Text
             style={[styles.appName, { color: theme.text, fontSize: 17 * theme.scale }]}
             numberOfLines={1}
@@ -284,12 +288,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
   },
-  brandBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+  brandLogo: {
+    width: 32,
+    height: 32,
     flexShrink: 0,
   },
   appName: {
