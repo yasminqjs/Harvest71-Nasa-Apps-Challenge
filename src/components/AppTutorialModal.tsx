@@ -102,8 +102,8 @@ export const AppTutorialModal: React.FC<AppTutorialModalProps> = ({
   if (!visible) return null;
 
   return (
-    <View style={[styles.overlayRoot, { backgroundColor: theme.bg }]}>
-      <View style={[styles.root, { backgroundColor: theme.bg }]}>
+    <View style={styles.overlayRoot}>
+      <View style={[styles.root, { backgroundColor: theme.bg, borderColor: theme.border }]}>
         <View
           style={[
             styles.header,
@@ -247,9 +247,19 @@ const styles = StyleSheet.create({
     left: 0,
     zIndex: 999,
     elevation: 24,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
   },
   root: {
     flex: 1,
+    width: '100%',
+    maxWidth: 680,
+    maxHeight: '92%',
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',

@@ -21,6 +21,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     return () => { active = false; };
   }, []);
   useEffect(() => {
+    setVoiceInterfaceLanguage(language);
     if (ready) void writeInterfaceLanguage(language).catch(() => {});
     if (typeof document !== 'undefined') document.documentElement.lang = language === 'pt' ? 'pt-BR' : 'en';
   }, [language, ready]);

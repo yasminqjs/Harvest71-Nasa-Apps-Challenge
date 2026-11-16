@@ -13,6 +13,7 @@ import { createSimulation } from '../../services/dssatApi';
 import { getAppTheme } from '../../theme/tokens';
 import type { ScenarioSummary, SimulationResult } from '../../types/dssat';
 import { useLanguage } from '../../i18n/Language';
+import { translate } from '../../i18n/translate';
 import {
   cropCodeFromName,
   soilSummary,
@@ -65,18 +66,22 @@ export const DssatAreaSimulation: React.FC<{ onBack: () => void }> = ({ onBack }
   const scenarios = projection?.available?.scenarios ?? {};
   const period = projection?.available?.periods?.[0];
 
+  const en = language === 'en';
   const result = state.result;
   useEffect(() => {
     if (state.phase !== 'done' || !result || spokenFor.current === result.id) return;
     spokenFor.current = result.id;
     const best = bestRainfed(result.scenario_summary);
     if (best) {
+      const windowName = best.name.replace(/Janela \d /, '');
+      const yieldKg = Math.round(best.yield_kg_ha.p50 ?? 0);
       speak(
-        `Simulação pronta para ${result.crop?.name ?? 'a cultura'}. A melhor janela de sequeiro foi ` +
-          `${best.name.replace(/Janela \d /, '')}, com produção típica de ${Math.round(best.yield_kg_ha.p50 ?? 0)} quilos por hectare.`
+        en
+          ? `Simulation ready for ${result.crop?.name ?? 'the crop'}. The best rainfed window was ${windowName}, with typical yield of ${yieldKg} kilograms per hectare.`
+          : `Simulação pronta para ${result.crop?.name ?? 'a cultura'}. A melhor janela de sequeiro foi ${windowName}, com produção típica de ${yieldKg} quilos por hectare.`
       );
     }
-  }, [state.phase, result, speak]);
+  }, [en, state.phase, result, speak]);
 
   if (!activeFarm) return null;
 
@@ -100,7 +105,6 @@ export const DssatAreaSimulation: React.FC<{ onBack: () => void }> = ({ onBack }
     );
   };
 
-  const en = language === 'en';
   const best = bestRainfed(result?.scenario_summary);
   const headerSpeech = en
     ? result
@@ -133,7 +137,14 @@ export const DssatAreaSimulation: React.FC<{ onBack: () => void }> = ({ onBack }
         <H theme={theme}>1. Cultura</H>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
           {crops.map((c) => (
-            <Chip key={c.code} theme={theme} label={c.name} selected={crop === c.code} onPress={() => setCrop(c.code)} disabled={busy} />
+            <Chip
+              key={c.code}
+              theme={theme}
+              label={en ? translate(c.name, 'en') : c.name}
+              selected={crop === c.code}
+              onPress={() => setCrop(c.code)}
+              disabled={busy}
+            />
           ))}
         </View>
         {loading ? <P theme={theme} muted>Carregando o catálogo do simulador…</P> : null}
@@ -171,7 +182,9 @@ export const DssatAreaSimulation: React.FC<{ onBack: () => void }> = ({ onBack }
             </View>
             {windowErrors.length ? (
               <Text style={{ color: theme.dangerText, fontSize: 12 * theme.scale }}>
-                Data inválida: {windowErrors.join(', ')} (use MM-DD; 29/02 não é aceito).
+                {en
+                  ? `Invalid date: ${windowErrors.join(', ')} (use MM-DD; 02-29 is not allowed).`
+                  : `Data inválida: ${windowErrors.join(', ')} (use MM-DD; 29/02 não é aceito).`}
               </Text>
             ) : null}
           </>
@@ -240,7 +253,13 @@ export const DssatAreaSimulation: React.FC<{ onBack: () => void }> = ({ onBack }
         state={state}
         onRetry={retry}
         onReset={reset}
-        runningExtra={future !== 'none' ? 'Com clima futuro, o resultado de hoje aparece primeiro.' : undefined}
+        runningExtra={
+          future !== 'none'
+            ? en
+              ? 'With future climate, today’s baseline result appears first.'
+              : 'Com clima futuro, o resultado de hoje aparece primeiro.'
+            : undefined
+        }
       />
 
       {result?.scenario_summary ? <SimulationView result={result} theme={theme} /> : null}
@@ -286,7 +305,9 @@ const SimulationView: React.FC<{
       {/* Resultado por janela */}
       <Card theme={theme}>
         <H theme={theme}>
-          {result.crop?.name ?? 'Cultura'} — {product}
+          {language === 'en'
+            ? `${translate(result.crop?.name ?? 'Crop', 'en')} — ${translate(product, 'en')}`
+            : `${result.crop?.name ?? 'Cultura'} — ${product}`}
         </H>
         <Text style={{ fontSize: 11.5 * theme.scale, color: theme.textMuted }}>
           {nYears ?? '?'} {language === 'en' ? 'seasons' : 'safras'} ({result.climate?.period?.[0]?.slice(0, 4) ?? '1991'}–{result.climate?.period?.[1]?.slice(0, 4) ?? '2025'})
@@ -301,11 +322,18 @@ const SimulationView: React.FC<{
           label={language === 'en' ? 'Cultivar, methodology & assumptions' : 'Variedade, método e premissas'}
         >
           <P theme={theme} muted>
-            Variedade {result.crop?.cultivar?.name ?? 'padrão'}.
-            {result.planting_windows_source ? ` Datas: ${result.planting_windows_source}.` : ''}
+            {language === 'en'
+              ? `Cultivar ${result.crop?.cultivar?.name ?? 'default'}.${
+                  result.planting_windows_source ? ` Dates: ${result.planting_windows_source}.` : ''
+                }`
+              : `Variedade ${result.crop?.cultivar?.name ?? 'padrão'}.${
+                  result.planting_windows_source ? ` Datas: ${result.planting_windows_source}.` : ''
+                }`}
           </P>
           <P theme={theme} muted>
-            “Ano ruim/bom” = 10% piores/melhores safras simuladas. É comparação entre datas e manejo, não previsão da próxima safra.
+            {language === 'en'
+              ? '“Poor/Good year” = worst/best 10% simulated seasons. This compares planting dates and management, not a seasonal weather forecast.'
+              : '“Ano ruim/bom” = 10% piores/melhores safras simuladas. É comparação entre datas e manejo, não previsão da próxima safra.'}
           </P>
           {result.assumptions
             ? Object.values(result.assumptions).map((a, i) => (
@@ -362,11 +390,24 @@ const ProjectionView: React.FC<{
         theme={theme}
         label={language === 'en' ? 'Scientific caveats & data source' : 'Notas científicas e fonte'}
       >
-        <SourceBadge theme={theme} text="Projeção NASA NEX-GDDP-CMIP6 aplicada ao clima NASA POWER do local" />
+        <SourceBadge
+          theme={theme}
+          text={
+            language === 'en'
+              ? 'NASA NEX-GDDP-CMIP6 projection applied to local NASA POWER weather'
+              : 'Projeção NASA NEX-GDDP-CMIP6 aplicada ao clima NASA POWER do local'
+          }
+        />
         <P theme={theme} muted>
           {friendly.technicalCode} •{' '}
-          {n < 3 ? `Por enquanto ${n} modelo${n === 1 ? '' : 's'} pronto${n === 1 ? '' : 's'}; os outros entram quando a NASA terminar de ser processada. ` : ''}
-          Tendência de longo prazo, não previsão de um ano específico. CO₂ no nível atual; a ordem dos anos secos é a observada.
+          {n < 3
+            ? language === 'en'
+              ? `So far ${n} model${n === 1 ? ' is' : 's are'} ready; others appear as NASA processing completes. `
+              : `Por enquanto ${n} modelo${n === 1 ? '' : 's'} pronto${n === 1 ? '' : 's'}; os outros entram quando a NASA terminar de ser processada. `
+            : ''}
+          {language === 'en'
+            ? 'Long-term climate trend, not a single-year forecast. CO₂ held at current level; historical dry-year sequence preserved.'
+            : 'Tendência de longo prazo, não previsão de um ano específico. CO₂ no nível atual; a ordem dos anos secos é a observada.'}
         </P>
       </ExpandableDetails>
     </Card>

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { useLanguage } from '../i18n/Language';
 import { Pressable, Text, TextInput } from '../i18n/native';
 import { FarmBoundaryStep, FarmLotsStep } from '../components/onboarding/FarmLotDemarcationStep';
 import { NordesteSvgMap } from '../components/NordesteSvgMap';
@@ -176,6 +177,8 @@ export const NordesteOnboardingScreen: React.FC = () => {
     toggleVoiceGuidance,
     speak,
   } = useAccessibility();
+  const { language } = useLanguage();
+  const en = language === 'en';
   const theme = getAppTheme(accessibility);
 
   const [stage, setStage] = useState<OnboardingStage>('mapa');
@@ -278,12 +281,14 @@ export const NordesteOnboardingScreen: React.FC = () => {
       setLotesDraft([]);
       setLotStepError(null);
       speak(
-        `Local detectado pelo GPS: ${match.region.nome}, em ${match.region.municipio}. Toque em confirmar se estiver correto ou escolha outra região no mapa.`
+        en
+          ? `GPS detected location: ${match.region.nome}, in ${match.region.municipio}. Tap confirm if correct or choose another region on the map.`
+          : `Local detectado pelo GPS: ${match.region.nome}, em ${match.region.municipio}. Toque em confirmar se estiver correto ou escolha outra região no mapa.`
       );
     } catch {
       setGpsStatus('error');
     }
-  }, [selectBahiaRegion, speak]);
+  }, [en, selectBahiaRegion, speak]);
 
   useEffect(() => {
     if (stage !== 'mapa' || gpsStatus !== 'idle') return undefined;
@@ -295,12 +300,18 @@ export const NordesteOnboardingScreen: React.FC = () => {
 
   const stageVoicePrompt =
     stage === 'mapa'
-      ? 'Primeiro, confirme sua região detectada pelo GPS ou toque em outro ponto no mapa do Nordeste.'
+      ? en
+        ? 'First, confirm your region detected by GPS or select another location on the Northeast map.'
+        : 'Primeiro, confirme sua região detectada pelo GPS ou toque em outro ponto no mapa do Nordeste.'
       : stage === 'demarcacao_fazenda'
-      ? 'Toque nos cantos do terreno da sua fazenda no mapa com zoom para calcular a área.'
-      : stage === 'lotes'
-      ? 'Informe quantos lotes de plantio existem na fazenda, demarque cada lote e diga o que está plantado, se é monocultura ou rotação, há quantos dias foi plantado e se já tem data de colheita.'
-      : currentTab.voice;
+        ? en
+          ? 'Tap the corners of your farm boundary on the zoomed map to calculate the area.'
+          : 'Toque nos cantos do terreno da sua fazenda no mapa com zoom para calcular a área.'
+        : stage === 'lotes'
+          ? en
+            ? 'Specify how many planting plots exist on the farm, mark each plot on the map, and set what is planted, monoculture or rotation, days planted, and expected harvest date.'
+            : 'Informe quantos lotes de plantio existem na fazenda, demarque cada lote e diga o que está plantado, se é monocultura ou rotação, há quantos dias foi plantado e se já tem data de colheita.'
+          : currentTab.voice;
 
   useEffect(() => {
     if (!accessibility.voiceGuidanceEnabled) return;
@@ -314,7 +325,11 @@ export const NordesteOnboardingScreen: React.FC = () => {
     setFarmPolygonDraft(freshPoly);
     setLotesDraft([]);
     setLotStepError(null);
-    speak(`Região selecionada: ${reg.nome}, ${reg.municipio} - ${reg.estado}.`);
+    speak(
+      en
+        ? `Selected region: ${reg.nome}, ${reg.municipio}, ${reg.estado}.`
+        : `Região selecionada: ${reg.nome}, ${reg.municipio} - ${reg.estado}.`
+    );
   };
 
   const handleGoToFarmDemarcation = () => {
@@ -1290,6 +1305,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   topHeader: {
+    maxWidth: 980,
+    width: '100%',
+    alignSelf: 'center',
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 8,
@@ -1396,6 +1414,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   stepBody: {
+    maxWidth: 980,
+    width: '100%',
+    alignSelf: 'center',
     paddingHorizontal: 16,
     paddingBottom: 22,
     gap: 12,
@@ -1404,11 +1425,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   mapCard: {
+    width: '100%',
     borderRadius: 22,
     borderWidth: 1.5,
     padding: 12,
     alignItems: 'center',
     gap: 10,
+    overflow: 'hidden',
   },
   selectedBanner: {
     width: '100%',
@@ -1477,6 +1500,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   footerNav: {
+    maxWidth: 980,
+    width: '100%',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useLanguage, type Language } from '../../i18n/Language';
 import { Text } from '../../i18n/native';
+import { translate } from '../../i18n/translate';
 import type { AppTheme } from '../../theme/tokens';
 import type {
   ProjectionEnsembleRow,
@@ -222,7 +223,7 @@ export const PlotSoilVisual: React.FC<{
             {tr(language, 'Texture', 'Textura')}
           </Text>
           <Text style={{ fontSize: 12.5 * theme.scale, fontWeight: '900', color: theme.text }} numberOfLines={1}>
-            {soil.texture}
+            {translate(soil.texture, language)}
           </Text>
           <Text style={{ fontSize: 10, color: theme.textMuted }}>{soil.depthCm} cm</Text>
         </View>
@@ -312,7 +313,7 @@ export const PlotSoilVisual: React.FC<{
         )}
       >
         <Text style={{ fontSize: 11, color: theme.textMuted }}>
-          {tr(language, 'Source:', 'Fonte:')} {sourceLabel ?? 'PronaSolos'}
+          {tr(language, 'Source:', 'Fonte:')} {translate(sourceLabel ?? 'PronaSolos', language)}
           {soil.measured ? tr(language, ' (with local lab analysis)', ' (com análise local)') : ''} •{' '}
           {tr(language, 'Organic Carbon:', 'Carbono Orgânico:')}{' '}
           {soil.organicCarbonPct !== null ? `${soil.organicCarbonPct.toFixed(2)}%` : '–'}

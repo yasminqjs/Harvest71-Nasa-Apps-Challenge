@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { useLanguage } from '../i18n/Language';
 import { Pressable, Text } from '../i18n/native';
 import { FarmMapCanvas } from '../components/FarmMapCanvas';
 import { useAccessibility } from '../context/AccessibilityContext';
@@ -11,6 +12,8 @@ import { formatArea } from '../utils/regionalize';
 
 export const MapScreen: React.FC = () => {
   const { accessibility, activeFarm, updateFarmPolygon, speak } = useAccessibility();
+  const { language } = useLanguage();
+  const en = language === 'en';
 
   const theme = getAppTheme(accessibility);
   const [drawingMode, setDrawingMode] = useState(false);
@@ -35,7 +38,11 @@ export const MapScreen: React.FC = () => {
     setDraftPoints(next);
     if (next.length >= 3) {
       const m = calculatePolygonMetrics(next);
-      speak(`Ponto marcado. Área atual: ${m.areaHectares.toFixed(1)} hectares.`);
+      speak(
+        en
+          ? `Point marked. Current area: ${m.areaHectares.toFixed(1)} hectares.`
+          : `Ponto marcado. Área atual: ${m.areaHectares.toFixed(1)} hectares.`
+      );
     }
   };
 
@@ -43,7 +50,11 @@ export const MapScreen: React.FC = () => {
     if (!drawingMode) {
       setDraftPoints([]);
       setDrawingMode(true);
-      speak('Modo Demarcar Terreno ativado. Toque nos cantos da sua roça no mapa.');
+      speak(
+        en
+          ? 'Mark Farm Area mode enabled. Tap the corners of your field on the map.'
+          : 'Modo Demarcar Terreno ativado. Toque nos cantos da sua roça no mapa.'
+      );
     } else {
       setDrawingMode(false);
       setDraftPoints(activeFarm.polygon);
@@ -57,7 +68,9 @@ export const MapScreen: React.FC = () => {
     await updateFarmPolygon(orderedPoints);
     setDrawingMode(false);
     speak(
-      `Terreno demarcado com ${liveMetrics.areaHectares.toFixed(1)} hectares (${liveMetrics.areaTarefasBa.toFixed(1)} tarefas).`
+      en
+        ? `Farm area saved with ${liveMetrics.areaHectares.toFixed(1)} hectares.`
+        : `Terreno demarcado com ${liveMetrics.areaHectares.toFixed(1)} hectares (${liveMetrics.areaTarefasBa.toFixed(1)} tarefas).`
     );
   };
 

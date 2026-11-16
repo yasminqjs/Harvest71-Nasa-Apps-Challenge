@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Pressable, Text } from '../i18n/native';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { getAppTheme } from '../theme/tokens';
@@ -27,7 +27,13 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
   activeTab,
   onChangeTab,
 }) => {
+  const { width } = useWindowDimensions();
   const { accessibility, activeFarm } = useAccessibility();
+
+  if (width >= 768) {
+    return null;
+  }
+
   const theme = getAppTheme(accessibility);
   const droughtLevel = activeFarm?.diagnostico.modeloB.nivel ?? 'normal';
   const foodAlertActive =
@@ -56,13 +62,14 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
                 backgroundColor: isActive ? theme.primary : theme.surfaceMuted,
                 borderColor: isActive ? theme.primary : theme.border,
               },
+              isActive && styles.tabSquareActive,
             ]}
           >
             <View>
               <Ionicons
                 name={isActive ? t.icon : t.iconInactive}
                 size={22}
-                color={isActive ? theme.primaryText : theme.text}
+                color={isActive ? theme.primaryText : theme.textMuted}
               />
               {showBadge && <View style={styles.alertDot} />}
             </View>
@@ -91,16 +98,23 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderTopWidth: 2,
+    borderTopWidth: 1,
   },
   tabSquare: {
     flex: 1,
     minHeight: 58,
     borderRadius: 16,
-    borderWidth: 2,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 3,
+  },
+  tabSquareActive: {
+    shadowColor: '#166534',
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   tabLabel: {
     fontWeight: '800',

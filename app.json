@@ -32,6 +32,10 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
+      "name": "Harvest71 — Extensão Rural Digital",
+      "shortName": "Harvest71",
+      "bundler": "metro",
+      "output": "single",
       "favicon": "./assets/favicon.png"
     },
     "plugins": [

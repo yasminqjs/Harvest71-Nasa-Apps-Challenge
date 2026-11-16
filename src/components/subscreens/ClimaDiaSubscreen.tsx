@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text } from '../../i18n/native';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { SvgText } from '../../i18n/svg';
@@ -21,6 +22,8 @@ export const ClimaDiaSubscreen: React.FC<ClimaDiaSubscreenProps> = ({
   onSpeak,
   theme,
 }) => {
+  const { language } = useLanguage();
+  const en = language === 'en';
   const diag = farm.diagnostico;
   const series = buildSevenDayClimateSeries(diag);
 
@@ -52,7 +55,9 @@ export const ClimaDiaSubscreen: React.FC<ClimaDiaSubscreenProps> = ({
 
   const speakSummary = () => {
     onSpeak(
-      `Clima do dia em ${farm.regiaoNome}: previsão de chuva de ${diag.climaDia.chuvaHojeMm} milímetros, umidade em ${diag.climaDia.umidadeRelativaPct}% e calor máximo de ${diag.climaDia.tempMaxC} graus.`
+      en
+        ? `Today's weather in ${farm.regiaoNome}: expected rainfall ${diag.climaDia.chuvaHojeMm} millimeters, humidity ${diag.climaDia.umidadeRelativaPct} percent, and high temperature ${diag.climaDia.tempMaxC} degrees Celsius.`
+        : `Clima do dia em ${farm.regiaoNome}: previsão de chuva de ${diag.climaDia.chuvaHojeMm} milímetros, umidade em ${diag.climaDia.umidadeRelativaPct}% e calor máximo de ${diag.climaDia.tempMaxC} graus.`
     );
   };
 

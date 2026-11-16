@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { useLanguage } from '../i18n/Language';
 import { Pressable, Text, TextInput } from '../i18n/native';
+import { translate } from '../i18n/translate';
 import { useAccessibility } from '../context/AccessibilityContext';
 import {
   VoiceReply,
@@ -27,6 +29,8 @@ export const FoodSecurityScreen: React.FC = () => {
     stopVoice,
   } = useAccessibility();
 
+  const { language } = useLanguage();
+  const en = language === 'en';
   const theme = getAppTheme(accessibility);
   const [questionText, setQuestionText] = useState('');
   const [listening, setListening] = useState(false);
@@ -249,7 +253,9 @@ export const FoodSecurityScreen: React.FC = () => {
               <Pressable
                 onPress={() =>
                   speak(
-                    `${plant.nomePopular}. Parte de comer: ${plant.parteComestivel}. Como plantar: ${plant.cultivoRapido} Como preparar: ${plant.preparoCulinario}`,
+                    en
+                      ? `${translate(plant.nomePopular, 'en')}. Edible part: ${translate(plant.parteComestivel, 'en')}. How to plant: ${translate(plant.cultivoRapido, 'en')}. How to prepare: ${translate(plant.preparoCulinario, 'en')}`
+                      : `${plant.nomePopular}. Parte de comer: ${plant.parteComestivel}. Como plantar: ${plant.cultivoRapido} Como preparar: ${plant.preparoCulinario}`,
                     true
                   )
                 }

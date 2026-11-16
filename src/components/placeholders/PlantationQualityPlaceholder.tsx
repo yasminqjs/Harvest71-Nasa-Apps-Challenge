@@ -1,14 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Image, Platform, StyleSheet, View } from 'react-native';
+import { useAccessibility } from '../../context/AccessibilityContext';
 import { buildLotTarget, useCropQuality } from '../../context/CropQualityContext';
 import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text } from '../../i18n/native';
+import { translate } from '../../i18n/translate';
 import { FEATURE_COLOR_STYLES } from '../../models/farmArchitecture';
+import { SimulatedLeafProfile, analyzeLeafImageOffline } from '../../services/leafAnalyzer';
 import { AppTheme } from '../../theme/tokens';
 import { VisualFieldZone } from '../../types/cropQuality';
 import { FarmArchitectureModel, PlantationArchitectureModel } from '../../types/domain';
-import { CropQualityAnalysisCard } from '../CropQualityAnalysisCard';
+import {
+  CropQualityAnalysisCard,
+  buildCropQualityEnglishVoiceScript,
+} from '../CropQualityAnalysisCard';
 import { FarmMapCanvas } from '../FarmMapCanvas';
 import { FeatureBadge } from '../FeatureBadge';
 import { MapLotOverlay } from '../VectorFarmCanvas';
@@ -44,6 +51,8 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
   const { language } = useLanguage();
   const en = language === 'en';
   const palette = FEATURE_COLOR_STYLES.roxo;
+  const { accessibility, lastLeafAnalysis, saveLeafAnalysis, speak } = useAccessibility();
+  const level = accessibility.languageLevel;
   const {
     target,
     analysis,
@@ -63,6 +72,73 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
   } = useCropQuality();
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const [showRealSatelliteOverlay, setShowRealSatelliteOverlay] = useState<boolean>(true);
+  const [analyzingLeaf, setAnalyzingLeaf] = useState<boolean>(false);
+
+  const handleOpenLeafCamera = async () => {
+    setAnalyzingLeaf(true);
+    try {
+      let res: ImagePicker.ImagePickerResult;
+      if (Platform.OS === 'web') {
+        res = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          quality: 0.35,
+          base64: true,
+        });
+      } else {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        res = perm.granted
+          ? await ImagePicker.launchCameraAsync({
+              mediaTypes: ['images'],
+              quality: 0.35,
+              base64: true,
+            })
+          : await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ['images'],
+              quality: 0.35,
+              base64: true,
+            });
+      }
+
+      if (!res.canceled && res.assets?.[0]?.uri) {
+        const asset = res.assets[0];
+        const leafResult = await analyzeLeafImageOffline(
+          asset.uri,
+          undefined,
+          asset.base64,
+          en ? 'en' : 'pt'
+        );
+        await saveLeafAnalysis(leafResult);
+        speak(
+          `${leafResult.titulo}. ${
+            level === 'acessivel' ? leafResult.diagnosticoAcessivel : leafResult.diagnosticoTecnico
+          } ${leafResult.acaoRecomendada}`,
+          true
+        );
+      }
+    } catch {
+      const fallback = await analyzeLeafImageOffline(
+        'local-sample://folha',
+        'saudavel',
+        undefined,
+        en ? 'en' : 'pt'
+      );
+      await saveLeafAnalysis(fallback);
+      speak(fallback.diagnosticoAcessivel, true);
+    } finally {
+      setAnalyzingLeaf(false);
+    }
+  };
+
+  const handleSimulateLeafTest = async (profile: SimulatedLeafProfile) => {
+    const leafResult = await analyzeLeafImageOffline(
+      `sample-${profile}://folha`,
+      profile,
+      undefined,
+      en ? 'en' : 'pt'
+    );
+    await saveLeafAnalysis(leafResult);
+    speak(`${leafResult.titulo}. ${leafResult.diagnosticoAcessivel}`, true);
+  };
 
   const farmVars = farmArchitecture.variaveisDaFazenda;
   const lots = useMemo(
@@ -77,18 +153,26 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
         const isCornSorghum = lower.includes('milho') || lower.includes('sorgo');
         const sacksHa = isCornSorghum ? 48.0 : 23.0;
         const totalSacks = Number((sacksHa * Math.max(0.5, lot.areaHectares)).toFixed(0));
-        const harvest = lot.culturaAtual.dataColheitaPrevista || 'Em 35 dias';
+        const harvest = lot.culturaAtual.dataColheitaPrevista
+          ? en
+            ? translate(lot.culturaAtual.dataColheitaPrevista, 'en')
+            : lot.culturaAtual.dataColheitaPrevista
+          : en
+          ? 'In 35 days'
+          : 'Em 35 dias';
         return {
           id: lot.id,
           nome: lot.nome,
           corHex: lot.corHex,
           polygon: lot.polygon,
           culturaAtual: lot.culturaAtual.culturaNome,
-          previsaoBadge: `📈 ~${sacksHa} sc/ha (${totalSacks} sc) • Colheita: ${harvest}`,
+          previsaoBadge: en
+            ? `📈 ~${sacksHa} sc/ha (${totalSacks} sc) • Harvest: ${harvest}`
+            : `📈 ~${sacksHa} sc/ha (${totalSacks} sc) • Colheita: ${harvest}`,
           areaHectares: lot.areaHectares,
         };
       }),
-    [lots]
+    [lots, en]
   );
 
   const activeLotIdOnSat = target?.key.startsWith('lot:')
@@ -97,7 +181,9 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
 
   const handleSelectZone = (zone: VisualFieldZone) => {
     setSelectedZoneId(zone.zone_id);
-    playVoice(`${zone.location_label_pt}: ${zone.short_label_pt}`);
+    const label = en ? translate(zone.location_label_pt, 'en') : zone.location_label_pt;
+    const summary = en ? translate(zone.short_label_pt, 'en') : zone.short_label_pt;
+    playVoice(`${label}: ${summary}`);
   };
 
   const selectFarm = () => {
@@ -126,8 +212,12 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
   };
 
   const voiceSummaryText = analysis
-    ? `${analysis.farmer_accessible_view.status_badge_title}. ${analysis.farmer_accessible_view.voice_tts_script_pt}`
-    : `Qualidade da plantação atual para ${target?.label ?? farmArchitecture.nomeFazenda}.`;
+    ? en
+      ? buildCropQualityEnglishVoiceScript(analysis)
+      : `${analysis.farmer_accessible_view.status_badge_title}. ${analysis.farmer_accessible_view.voice_tts_script_pt}`
+    : en
+      ? `Current plantation quality for ${target?.label ?? farmArchitecture.nomeFazenda}.`
+      : `Qualidade da plantação atual para ${target?.label ?? farmArchitecture.nomeFazenda}.`;
 
   return (
     <View style={styles.container}>
@@ -152,7 +242,7 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
       <VoiceReadBar
         text={voiceSummaryText}
         theme={theme}
-        label="Ouvir qualidade da plantação atual"
+        label={en ? 'Read crop condition aloud' : 'Ouvir qualidade da plantação atual'}
       />
 
       <View style={[styles.headerCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
@@ -291,6 +381,140 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
         )}
       </View>
 
+      {/* Exame visual da folha por foto/imagem (verde, amarelada, seca, pontos pretos) */}
+      <View
+        style={[
+          styles.leafCard,
+          { backgroundColor: theme.surface, borderColor: theme.border },
+        ]}
+      >
+        <View style={styles.leafCardHeader}>
+          <Ionicons name="leaf-outline" size={20} color={theme.primary} />
+          <Text style={[styles.leafCardTitle, { color: theme.text, fontSize: 15 * theme.scale }]}>
+            {en
+              ? 'Plant Leaf Examination by Image (Offline)'
+              : 'Examinação da Folha por Imagem (Câmera Offline)'}
+          </Text>
+        </View>
+        <Text style={[styles.leafCardSub, { color: theme.textMuted }]}>
+          {en
+            ? 'Send or photograph a plant leaf to test whether it is green/healthy, dry, yellowed, or has black spots without internet.'
+            : 'Envie ou fotografe uma folha da planta para detectar se ela está verde, seca, amarelada ou com pontos pretos sem precisar de internet.'}
+        </Text>
+
+        <Pressable
+          onPress={handleOpenLeafCamera}
+          disabled={analyzingLeaf}
+          style={[styles.cameraBtn, { backgroundColor: theme.accent }]}
+        >
+          <Ionicons name="camera" size={20} color="#FFFFFF" />
+          <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13.5 }}>
+            {analyzingLeaf
+              ? en
+                ? 'Analyzing leaf...'
+                : 'Analisando folha...'
+              : en
+                ? 'Examine Leaf with Camera / Image'
+                : 'Examinar Folha com a Câmera / Imagem'}
+          </Text>
+        </Pressable>
+
+        <View style={styles.leafSimGrid}>
+          <Pressable
+            onPress={() => handleSimulateLeafTest('saudavel')}
+            style={[
+              styles.leafSimBtn,
+              { borderColor: theme.successBorder, backgroundColor: theme.successBg },
+            ]}
+          >
+            <Text style={{ fontSize: 11.5, fontWeight: '800', color: theme.successText }}>
+              {en ? 'Green leaf test' : 'Teste folha verde'}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleSimulateLeafTest('seca_total')}
+            style={[
+              styles.leafSimBtn,
+              { borderColor: theme.dangerBorder, backgroundColor: theme.dangerBg },
+            ]}
+          >
+            <Text style={{ fontSize: 11.5, fontWeight: '800', color: theme.dangerText }}>
+              {en ? 'Dry leaf test' : 'Teste folha seca'}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleSimulateLeafTest('pontos_pretos')}
+            style={[
+              styles.leafSimBtn,
+              { borderColor: theme.border, backgroundColor: theme.surfaceMuted },
+            ]}
+          >
+            <Text style={{ fontSize: 11.5, fontWeight: '800', color: theme.text }}>
+              {en ? 'Black spots test' : 'Teste pontos pretos'}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleSimulateLeafTest('amarelada')}
+            style={[
+              styles.leafSimBtn,
+              { borderColor: theme.warningBorder, backgroundColor: theme.warningBg },
+            ]}
+          >
+            <Text style={{ fontSize: 11.5, fontWeight: '800', color: theme.warningText }}>
+              {en ? 'Yellowed leaf test' : 'Teste amarelada'}
+            </Text>
+          </Pressable>
+        </View>
+
+        {lastLeafAnalysis && (
+          <View
+            style={[
+              styles.leafResultBox,
+              {
+                backgroundColor:
+                  lastLeafAnalysis.status === 'saudavel'
+                    ? theme.successBg
+                    : lastLeafAnalysis.status === 'estresse_leve'
+                      ? theme.warningBg
+                      : theme.dangerBg,
+                borderColor:
+                  lastLeafAnalysis.status === 'saudavel'
+                    ? theme.successBorder
+                    : lastLeafAnalysis.status === 'estresse_leve'
+                      ? theme.warningBorder
+                      : theme.dangerBorder,
+              },
+            ]}
+          >
+            {lastLeafAnalysis.imageUri.startsWith('http') ||
+            lastLeafAnalysis.imageUri.startsWith('file') ||
+            lastLeafAnalysis.imageUri.startsWith('data') ||
+            lastLeafAnalysis.imageUri.startsWith('blob') ? (
+              <Image source={{ uri: lastLeafAnalysis.imageUri }} style={styles.leafThumb} />
+            ) : null}
+            <View style={{ flex: 1, gap: 3 }}>
+              <Text style={{ fontSize: 13.5, fontWeight: '900', color: theme.text }}>
+                {lastLeafAnalysis.titulo}
+              </Text>
+              <Text style={{ fontSize: 12, color: theme.text }}>
+                {level === 'acessivel'
+                  ? lastLeafAnalysis.diagnosticoAcessivel
+                  : lastLeafAnalysis.diagnosticoTecnico}
+              </Text>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textMuted }}>
+                {en
+                  ? `Green: ${lastLeafAnalysis.indiceVerdePct}% • Yellow: ${lastLeafAnalysis.amarelamentoPct}% • Dry: ${lastLeafAnalysis.necrosePct ?? 0}% • Black spots: ${lastLeafAnalysis.pontosPretosPct ?? 0}%`
+                  : `Verde: ${lastLeafAnalysis.indiceVerdePct}% • Amarelo: ${lastLeafAnalysis.amarelamentoPct}% • Seco: ${lastLeafAnalysis.necrosePct ?? 0}% • Pontos pretos: ${lastLeafAnalysis.pontosPretosPct ?? 0}%`}
+              </Text>
+              <Text style={{ fontSize: 11.5, fontWeight: '800', color: theme.primary }}>
+                {en ? 'Guidance: ' : 'Orientação: '}
+                {lastLeafAnalysis.acaoRecomendada}
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+
       {analysis ? (
         <CropQualityAnalysisCard
           analysis={analysis}
@@ -319,8 +543,9 @@ export const PlantationQualityPlaceholder: React.FC<PlantationQualityPlaceholder
       ) : (
         <View style={[styles.emptyBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.emptyText, { color: theme.text }]}>
-            Demarque o terreno da sua roça (Plantação → Atualizar dados → Mapa) para ver a qualidade
-            da lavoura pelo satélite.
+            {en
+              ? 'Outline your farm boundary (Crops → Update data → Map) to see satellite crop quality.'
+              : 'Demarque o terreno da sua roça (Plantação → Atualizar dados → Mapa) para ver a qualidade da lavoura pelo satélite.'}
           </Text>
         </View>
       )}
@@ -376,6 +601,62 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
+  },
+  leafCard: {
+    borderRadius: 18,
+    borderWidth: 1.5,
+    padding: 14,
+    gap: 10,
+  },
+  leafCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  leafCardTitle: {
+    fontWeight: '900',
+    flex: 1,
+  },
+  leafCardSub: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  cameraBtn: {
+    minHeight: 46,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+  },
+  leafSimGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  leafSimBtn: {
+    flexGrow: 1,
+    minWidth: 140,
+    minHeight: 38,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  leafResultBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  leafThumb: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
   },
   emptyBox: { borderRadius: 14, borderWidth: 1.5, padding: 14 },
   emptyText: { fontSize: 13, fontWeight: '700', lineHeight: 19 },

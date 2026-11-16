@@ -451,5 +451,11 @@
   "Como as datas são calculadas": "How planting dates are calculated",
   "Calendários possíveis ({0})": "Possible schedules ({0})",
   "Como funciona a busca por metas": "How goal search works",
-  "O calendário aceita todas as culturas do catálogo. O DSSAT compara apenas combinações habilitadas para rotação. As datas sugeridas são um ponto de partida.": "The calendar accepts every crop in the catalog. DSSAT only compares pairs enabled for rotation. Suggested dates are a starting point."
+  "O calendário aceita todas as culturas do catálogo. O DSSAT compara apenas combinações habilitadas para rotação. As datas sugeridas são um ponto de partida.": "The calendar accepts every crop in the catalog. DSSAT only compares pairs enabled for rotation. Suggested dates are a starting point.",
+  "Informe as três datas de plantio no formato AAAA-MM-DD.": "Enter all three planting dates in YYYY-MM-DD format.",
+  "As datas de plantio precisam estar em ordem crescente e ser diferentes.": "Planting dates must be distinct and in chronological order.",
+  "As três datas precisam caber em até dois anos seguidos.": "All three planting dates must fit within two consecutive years.",
+  "Escolha 2 ou 3 anos históricos diferentes entre 1992 e 2023.": "Choose 2 or 3 different historical years between 1992 and 2023.",
+  "A data {0} não existe no ano {1}. Troque a data ou o ano.": "Date {0} does not exist in {1}. Change the date or year.",
+  "Informe a meta (kg/ha) de {0}.": "Enter the target yield (kg/ha) for {0}."
 }

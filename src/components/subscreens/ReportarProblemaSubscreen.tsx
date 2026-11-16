@@ -2,7 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
+import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text, TextInput } from '../../i18n/native';
+import { translate } from '../../i18n/translate';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { getAppTheme } from '../../theme/tokens';
 import { ProblemReportType } from '../../types/domain';
@@ -19,6 +21,8 @@ export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps>
   onBack,
 }) => {
   const { accessibility, activeFarm, registerFieldLog, speak } = useAccessibility();
+  const { language } = useLanguage();
+  const en = language === 'en';
   const theme = getAppTheme(accessibility);
 
   const [tipoProblema, setTipoProblema] = useState<ProblemReportType>('seca_estiagem');
@@ -82,7 +86,11 @@ export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps>
         `Problema registrado! Dica imediata: ${activeOption.dicaRapida}`
       );
       setDescricao('');
-      speak(`Problema registrado: ${activeOption.label}. ${activeOption.dicaRapida}`);
+      speak(
+        en
+          ? `Issue reported: ${translate(activeOption.label, 'en')}. ${translate(activeOption.dicaRapida, 'en')}`
+          : `Problema registrado: ${activeOption.label}. ${activeOption.dicaRapida}`
+      );
     } finally {
       setSaving(false);
     }
@@ -255,7 +263,12 @@ export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps>
               </View>
               <Pressable
                 onPress={() =>
-                  speak(`${prob.titulo}. ${prob.descricao}. O que funcionou: ${prob.acaoQueFuncionou}`, true)
+                  speak(
+                    en
+                      ? `${translate(prob.titulo, 'en')}. ${translate(prob.descricao, 'en')}. What worked: ${translate(prob.acaoQueFuncionou, 'en')}`
+                      : `${prob.titulo}. ${prob.descricao}. O que funcionou: ${prob.acaoQueFuncionou}`,
+                    true
+                  )
                 }
                 style={[styles.listenBtn, { backgroundColor: theme.surfaceMuted }]}
               >

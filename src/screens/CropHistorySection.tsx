@@ -1,16 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useLanguage } from '../i18n/Language';
+import { translate } from '../i18n/translate';
 import { Pressable, Text, TextInput } from '../i18n/native';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { SEED_CROPS } from '../data/seedData';
 import { CropDecisionItem, HarvestQuantityUnit } from '../types/domain';
 import { getAppTheme } from '../theme/tokens';
 
-const QUANTITY_UNITS: { key: HarvestQuantityUnit; label: string }[] = [
-  { key: 'kg', label: 'kg' },
-  { key: 'sacas', label: 'sacas' },
-  { key: 'toneladas', label: 'toneladas' },
+const QUANTITY_UNITS: { key: HarvestQuantityUnit; label: string; labelEn: string }[] = [
+  { key: 'kg', label: 'kg', labelEn: 'kg' },
+  { key: 'sacas', label: 'sacas', labelEn: 'sacks' },
+  { key: 'toneladas', label: 'toneladas', labelEn: 'tons' },
 ];
 
 function normalizeCropName(value: string): string {
@@ -23,6 +25,8 @@ function normalizeCropName(value: string): string {
 
 export const CropHistorySection: React.FC = () => {
   const { accessibility, activeFarmer, recordCropHistory } = useAccessibility();
+  const { language } = useLanguage();
+  const en = language === 'en';
   const theme = getAppTheme(accessibility);
   const [query, setQuery] = useState('');
   const [selectedCrop, setSelectedCrop] = useState<CropDecisionItem | null>(null);
@@ -68,14 +72,22 @@ export const CropHistorySection: React.FC = () => {
   const saveRecord = async () => {
     const cropName = selectedCrop?.nome ?? customCrop;
     if (!cropName) {
-      setError('Escolha uma sugestão ou confirme o nome digitado.');
+      setError(
+        en
+          ? 'Pick a suggestion or confirm the typed crop name.'
+          : 'Escolha uma sugestão ou confirme o nome digitado.'
+      );
       return;
     }
     const parsedQuantity = quantity.trim()
       ? Number(quantity.trim().replace(',', '.'))
       : undefined;
     if (parsedQuantity !== undefined && (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0)) {
-      setError('Informe uma quantidade maior que zero.');
+      setError(
+        en
+          ? 'Enter a quantity greater than zero.'
+          : 'Informe uma quantidade maior que zero.'
+      );
       return;
     }
 
@@ -95,7 +107,7 @@ export const CropHistorySection: React.FC = () => {
       setQuantity('');
       setPeriod('');
     } catch {
-      setError('Não foi possível salvar. Tente novamente.');
+      setError(en ? 'Could not save. Please try again.' : 'Não foi possível salvar. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -110,7 +122,9 @@ export const CropHistorySection: React.FC = () => {
         </Text>
       </View>
       <Text style={{ color: theme.textMuted, fontSize: 12 }}>
-        Registre o que já foi plantado e colhido por {activeFarmer.tratamento}.
+        {en
+          ? `Record what ${activeFarmer.tratamento} has already planted and harvested.`
+          : `Registre o que já foi plantado e colhido por ${activeFarmer.tratamento}.`}
       </Text>
 
       <Text style={[styles.label, { color: theme.text }]}>Cultura</Text>
@@ -136,8 +150,12 @@ export const CropHistorySection: React.FC = () => {
               onPress={() => chooseCrop(crop)}
               style={[styles.suggestion, { borderColor: theme.border, backgroundColor: theme.surfaceMuted }]}
             >
-              <Text style={{ color: theme.text, fontWeight: '700', fontSize: 13 }}>{crop.nome}</Text>
-              <Text style={{ color: theme.textMuted, fontSize: 11 }}>{crop.variedadeRegional}</Text>
+              <Text style={{ color: theme.text, fontWeight: '700', fontSize: 13 }}>
+                {translate(crop.nome, language)}
+              </Text>
+              <Text style={{ color: theme.textMuted, fontSize: 11 }}>
+                {translate(crop.variedadeRegional, language)}
+              </Text>
             </Pressable>
           ))}
           <Pressable
@@ -145,7 +163,7 @@ export const CropHistorySection: React.FC = () => {
             style={[styles.customOption, { borderColor: theme.border }]}
           >
             <Text style={{ color: theme.primary, fontWeight: '800', fontSize: 12 }}>
-              Usar “{query.trim()}” como nome da cultura
+              {en ? `Use "${query.trim()}" as crop name` : `Usar “${query.trim()}” como nome da cultura`}
             </Text>
           </Pressable>
         </View>
@@ -155,7 +173,13 @@ export const CropHistorySection: React.FC = () => {
         <View style={[styles.confirmed, { backgroundColor: theme.successBg, borderColor: theme.successBorder }]}>
           <Ionicons name="checkmark-circle" size={18} color={theme.successText} />
           <Text style={{ color: theme.successText, fontWeight: '800', fontSize: 12, flex: 1 }}>
-            {selectedCrop ? `Correspondência: ${selectedCrop.nome}` : `Nome informado: ${customCrop}`}
+            {selectedCrop
+              ? en
+                ? `Match: ${translate(selectedCrop.nome, language)}`
+                : `Correspondência: ${selectedCrop.nome}`
+              : en
+              ? `Entered name: ${customCrop}`
+              : `Nome informado: ${customCrop}`}
           </Text>
           <Pressable
             onPress={() => {
@@ -203,7 +227,7 @@ export const CropHistorySection: React.FC = () => {
                   ]}
                 >
                   <Text style={{ color: active ? theme.primaryText : theme.text, fontWeight: '800', fontSize: 10 }}>
-                    {option.label}
+                    {en ? option.labelEn : option.label}
                   </Text>
                 </Pressable>
               );
@@ -230,34 +254,44 @@ export const CropHistorySection: React.FC = () => {
       >
         <Ionicons name="save-outline" size={18} color={theme.primaryText} />
         <Text style={{ color: theme.primaryText, fontWeight: '900', fontSize: 13 }}>
-          {saving ? 'Salvando...' : 'Confirmar e salvar cultivo'}
+          {saving ? (en ? 'Saving...' : 'Salvando...') : en ? 'Confirm & save crop' : 'Confirmar e salvar cultivo'}
         </Text>
       </Pressable>
 
       <View style={[styles.divider, { backgroundColor: theme.border }]} />
       <Text style={[styles.label, { color: theme.text }]}>Cultivos registrados</Text>
-      {detailedHistory.map((record) => (
-        <View key={record.id} style={[styles.historyRow, { backgroundColor: theme.bg }]}>
-          <View style={{ flex: 1, gap: 3 }}>
-            <Text style={{ color: theme.text, fontWeight: '900', fontSize: 13 }}>
-              {record.nomeCultura}
-            </Text>
-            <Text style={{ color: theme.textMuted, fontSize: 11 }}>
-              {[
-                record.quantidadeColhida !== undefined && record.unidadeQuantidade
-                  ? `Colheita: ${record.quantidadeColhida} ${record.unidadeQuantidade}`
-                  : null,
-                record.periodoSafra,
-              ].filter(Boolean).join(' • ') || 'Sem quantidade ou período informado'}
-            </Text>
+      {detailedHistory.map((record) => {
+        const unitLabel = QUANTITY_UNITS.find((u) => u.key === record.unidadeQuantidade);
+        const unitText = en ? unitLabel?.labelEn ?? record.unidadeQuantidade : record.unidadeQuantidade;
+        return (
+          <View key={record.id} style={[styles.historyRow, { backgroundColor: theme.bg }]}>
+            <View style={{ flex: 1, gap: 3 }}>
+              <Text style={{ color: theme.text, fontWeight: '900', fontSize: 13 }}>
+                {translate(record.nomeCultura, language)}
+              </Text>
+              <Text style={{ color: theme.textMuted, fontSize: 11 }}>
+                {[
+                  record.quantidadeColhida !== undefined && record.unidadeQuantidade
+                    ? `${en ? 'Harvest' : 'Colheita'}: ${record.quantidadeColhida} ${unitText}`
+                    : null,
+                  record.periodoSafra,
+                ]
+                  .filter(Boolean)
+                  .join(' • ') || (en ? 'No quantity or period recorded' : 'Sem quantidade ou período informado')}
+              </Text>
+            </View>
+            {record.cropId ? <Ionicons name="checkmark-circle" size={18} color={theme.successText} /> : null}
           </View>
-          {record.cropId ? <Ionicons name="checkmark-circle" size={18} color={theme.successText} /> : null}
-        </View>
-      ))}
+        );
+      })}
       {previousHistory.map((name) => (
         <View key={`legacy-${name}`} style={[styles.historyRow, { backgroundColor: theme.bg }]}>
-          <Text style={{ color: theme.text, fontWeight: '800', fontSize: 12, flex: 1 }}>{name}</Text>
-          <Text style={{ color: theme.textMuted, fontSize: 10 }}>já informado</Text>
+          <Text style={{ color: theme.text, fontWeight: '800', fontSize: 12, flex: 1 }}>
+            {translate(name, language)}
+          </Text>
+          <Text style={{ color: theme.textMuted, fontSize: 10 }}>
+            {en ? 'already recorded' : 'já informado'}
+          </Text>
         </View>
       ))}
       {detailedHistory.length === 0 && previousHistory.length === 0 && (

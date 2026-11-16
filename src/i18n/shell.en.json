@@ -31,5 +31,11 @@
   "misto": "mixed",
   "comercial": "commercial",
   "Relatório Harvest71 — {0}": "Harvest71 report — {0}",
-  "O reconhecimento de voz deste navegador não oferece o idioma selecionado. Use os controles na tela.": "This browser does not offer speech recognition in the selected language. Use the on-screen controls."
+  "O reconhecimento de voz deste navegador não oferece o idioma selecionado. Use os controles na tela.": "This browser does not offer speech recognition in the selected language. Use the on-screen controls.",
+  "Tela Ampla": "Wide View",
+  "Modo Celular": "Phone View",
+  "Ocultar painel": "Hide panel",
+  "Painel de Teste": "Test Panel",
+  "Simulador Demo": "Demo Simulator",
+  "Fechar simulador": "Close simulator"
 }

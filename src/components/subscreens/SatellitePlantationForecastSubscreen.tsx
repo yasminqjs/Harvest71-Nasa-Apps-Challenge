@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text } from '../../i18n/native';
+import { translate } from '../../i18n/translate';
 import { VoiceReadBar } from '../VoiceReadBar';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { buildLotTarget, useCropQuality } from '../../context/CropQualityContext';
@@ -37,7 +39,7 @@ interface LotForecastMetrics {
   totalKg: number;
   totalSacks: number;
   estimatedRevenueBRL: number;
-  waterStressStatus: 'Ótimo' | 'Atenção Moderada' | 'Estresse Hídrico';
+  waterStressStatus: string;
   waterStressColor: string;
   forecastSummaryPt: string;
   previsaoBadge: string;
@@ -46,7 +48,8 @@ interface LotForecastMetrics {
 function computeLotForecast(
   lot: PlantingLot,
   waterBalanceRatio: number,
-  veranicoRiskPct: number
+  veranicoRiskPct: number,
+  en: boolean
 ): LotForecastMetrics {
   const lower = lot.culturaAtual.toLowerCase();
   const isCornSorghum = lower.includes('milho') || lower.includes('sorgo');
@@ -56,9 +59,15 @@ function computeLotForecast(
   const cycleDays = isCornSorghum ? 95 : isCassava ? 240 : 70;
   const kcMedio = isCornSorghum ? 0.92 : isCassava ? 0.78 : 0.82;
   const varietyLabel = isCornSorghum
-    ? 'Milho BRS Caatingueiro + Sorgo Ponta Negra (Consórcio de Grãos)'
+    ? en
+      ? 'BRS Caatingueiro Corn + Ponta Negra Sorghum (Grain Intercrop)'
+      : 'Milho BRS Caatingueiro + Sorgo Ponta Negra (Consórcio de Grãos)'
     : isCassava
-    ? 'Mandioca BRS Formosa + Feijão-Caupi'
+    ? en
+      ? 'BRS Formosa Cassava + Cowpea'
+      : 'Mandioca BRS Formosa + Feijão-Caupi'
+    : en
+    ? 'BRS Pujante Cowpea (Ultra-Early Cycle)'
     : 'Feijão-Caupi BRS Pujante (Ciclo Superprecoce)';
   const grainIcon = isCornSorghum ? '🌽' : isCassava ? '🌿' : '🫘';
 
@@ -84,25 +93,50 @@ function computeLotForecast(
       : Math.round(totalSacks * pricePerSack);
 
   const daysRemaining = Math.max(5, cycleDays - (lot.tempoPlantadaDias || 35));
-  const harvestLabel = lot.dataColheitaPrevista || `Em ${daysRemaining} dias`;
+  const harvestLabel = lot.dataColheitaPrevista
+    ? en
+      ? translate(lot.dataColheitaPrevista, 'en')
+      : lot.dataColheitaPrevista
+    : en
+    ? `In ${daysRemaining} days`
+    : `Em ${daysRemaining} dias`;
 
-  const waterStressStatus: LotForecastMetrics['waterStressStatus'] =
+  const stressLevel =
     waterBalanceRatio >= 0.72
-      ? 'Ótimo'
+      ? 'optimal'
       : waterBalanceRatio >= 0.48
-      ? 'Atenção Moderada'
+      ? 'moderate'
+      : 'stress';
+
+  const waterStressStatus =
+    stressLevel === 'optimal'
+      ? en
+        ? 'Optimal'
+        : 'Ótimo'
+      : stressLevel === 'moderate'
+      ? en
+        ? 'Moderate Attention'
+        : 'Atenção Moderada'
+      : en
+      ? 'Water Stress'
       : 'Estresse Hídrico';
 
   const waterStressColor =
-    waterStressStatus === 'Ótimo'
+    stressLevel === 'optimal'
       ? '#16A34A'
-      : waterStressStatus === 'Atenção Moderada'
+      : stressLevel === 'moderate'
       ? '#D97706'
       : '#DC2626';
 
-  const previsaoBadge = `📈 ~${yieldSacksHa} sc/ha (${totalSacks} sc) • Colheita: ${harvestLabel}`;
+  const previsaoBadge = en
+    ? `📈 ~${yieldSacksHa} sc/ha (${totalSacks} sc) • Harvest: ${harvestLabel}`
+    : `📈 ~${yieldSacksHa} sc/ha (${totalSacks} sc) • Colheita: ${harvestLabel}`;
 
-  const forecastSummaryPt = isCornSorghum
+  const forecastSummaryPt = en
+    ? isCornSorghum
+      ? `Grain in vegetative/tasseling stage. Forecast ${yieldSacksHa} sacks/ha (${totalSacks} sacks on plot). Border sorghum shields corn from dry winds and adds surface mulch.`
+      : `Grain in flowering/pod-filling stage. Forecast ${yieldSacksHa} sacks/ha (${totalSacks} sacks on plot). Solid harvest window ${harvestLabel.toLowerCase()} with good moisture retention.`
+    : isCornSorghum
     ? `Grão em fase vegetativa/pendoamento. Previsão de ${yieldSacksHa} sacas/ha (${totalSacks} sacas no talhão). O sorgo em bordadura protege o milho contra ventos secos e garante cobertura residual.`
     : `Grão em floração/enchimento de vagens. Previsão de ${yieldSacksHa} sacas/ha (${totalSacks} sacas no talhão). Janela firme para colheita ${harvestLabel.toLowerCase()} com boa retenção de umidade.`;
 
@@ -136,6 +170,8 @@ export const SatellitePlantationForecastSubscreen: React.FC<
     speak,
   } = useAccessibility();
   const { analysis, setTarget, playVoice, stopVoice, isPlayingAudio } = useCropQuality();
+  const { language } = useLanguage();
+  const en = language === 'en';
   const theme = getAppTheme(accessibility);
 
   const [selectedLotId, setSelectedLotId] = useState<string | undefined>(undefined);
@@ -179,9 +215,9 @@ export const SatellitePlantationForecastSubscreen: React.FC<
   const lotForecasts = useMemo(
     () =>
       safeLots.map((lot) =>
-        computeLotForecast(lot, waterBalanceRatio, veranicoRiskPct)
+        computeLotForecast(lot, waterBalanceRatio, veranicoRiskPct, en)
       ),
-    [safeLots, waterBalanceRatio, veranicoRiskPct]
+    [safeLots, waterBalanceRatio, veranicoRiskPct, en]
   );
 
   const mapLots: MapLotOverlay[] = useMemo(
@@ -252,30 +288,29 @@ export const SatellitePlantationForecastSubscreen: React.FC<
     );
     await updateFarmPolygon(
       DEFAULT_IRECE_FARM_POLYGON,
-      'Fazenda Nova — Polo de Grãos (Irecê - BA)'
+      en
+        ? 'Nova Farm — Grain Hub (Irecê - BA)'
+        : 'Fazenda Nova — Polo de Grãos (Irecê - BA)'
     );
     await updateFarmLots(defaultLots);
     setSelectedLotId(undefined);
     speak(
-      'Fazenda real de grãos em Irecê, Bahia carregada no satélite com dois talhões: Lote 1 com Feijão-Caupi e Lote 2 com Milho e Sorgo.'
+      en
+        ? 'Real grain farm in Irecê, Bahia loaded on satellite with two plots: Plot 1 with cowpea and Plot 2 with corn and sorghum.'
+        : 'Fazenda real de grãos em Irecê, Bahia carregada no satélite com dois talhões: Lote 1 com Feijão-Caupi e Lote 2 com Milho e Sorgo.'
     );
   };
 
   const lotsSpeech = lotForecasts
-    .map(
-      (lf) =>
-        `${lf.lot.nome}, plantado com ${lf.lot.culturaAtual} em ${lf.lot.areaHectares.toFixed(
-          1
-        )} hectares: previsão de ${lf.yieldSacksHa} sacas por hectare, totalizando ${
-          lf.totalSacks
-        } sacas, colheita prevista ${lf.lot.dataColheitaPrevista?.toLowerCase() || `em ${lf.daysRemaining} dias`}.`
+    .map((lf) =>
+      en
+        ? `${lf.lot.nome}, planted with ${translate(lf.lot.culturaAtual, 'en')} on ${lf.lot.areaHectares.toFixed(1)} hectares: forecast ${lf.yieldSacksHa} sacks per hectare, totaling ${lf.totalSacks} sacks, expected harvest in ${lf.daysRemaining} days.`
+        : `${lf.lot.nome}, plantado com ${lf.lot.culturaAtual} em ${lf.lot.areaHectares.toFixed(1)} hectares: previsão de ${lf.yieldSacksHa} sacas por hectare, totalizando ${lf.totalSacks} sacas, colheita prevista ${lf.lot.dataColheitaPrevista?.toLowerCase() || `em ${lf.daysRemaining} dias`}.`
     )
     .join(' ');
-  const forecastVoiceText = `Visão de satélite e previsões da ${activeFarm.nome}, em ${activeFarm.municipio}. Terreno mapeado com ${activeFarm.areaHectares.toFixed(
-    2
-  )} hectares e ${lotForecasts.length} grãos simultâneos. ${lotsSpeech} Previsão total da fazenda: ${totalFarmSacks} sacas e retorno estimado de ${totalFarmRevenue.toLocaleString(
-    'pt-BR'
-  )} reais.`;
+  const forecastVoiceText = en
+    ? `Satellite view and grain forecasts for ${activeFarm.nome} in ${activeFarm.municipio}. Mapped area is ${activeFarm.areaHectares.toFixed(2)} hectares with ${lotForecasts.length} active crops. ${lotsSpeech} Total farm forecast: ${totalFarmSacks} sacks and estimated revenue of ${totalFarmRevenue} Brazilian reais.`
+    : `Visão de satélite e previsões da ${activeFarm.nome}, em ${activeFarm.municipio}. Terreno mapeado com ${activeFarm.areaHectares.toFixed(2)} hectares e ${lotForecasts.length} grãos simultâneos. ${lotsSpeech} Previsão total da fazenda: ${totalFarmSacks} sacas e retorno estimado de ${totalFarmRevenue.toLocaleString('pt-BR')} reais.`;
 
   const handleSpeakForecastSummary = () => {
     if (isPlayingAudio) {
@@ -303,7 +338,9 @@ export const SatellitePlantationForecastSubscreen: React.FC<
           ]}
         >
           <Ionicons name="arrow-back" size={18} color={theme.text} />
-          <Text style={[styles.backText, { color: theme.text }]}>Plantação</Text>
+          <Text style={[styles.backText, { color: theme.text }]}>
+            {en ? 'Crops' : 'Plantação'}
+          </Text>
         </Pressable>
         <Text
           style={[
@@ -311,7 +348,7 @@ export const SatellitePlantationForecastSubscreen: React.FC<
             { color: theme.text, fontSize: 16 * theme.scale },
           ]}
         >
-          Satélite da Plantação + Previsões
+          {en ? 'Plantation Satellite + Forecasts' : 'Satélite da Plantação + Previsões'}
         </Text>
         <View style={{ width: 68 }} />
       </View>
@@ -327,7 +364,9 @@ export const SatellitePlantationForecastSubscreen: React.FC<
           <View style={styles.heroPill}>
             <Ionicons name="planet" size={14} color="#38BDF8" />
             <Text style={styles.heroPillText}>
-              IMAGEM DE SATÉLITE REAL (ESRI WORLD IMAGERY) + PREVISÕES NASA/FAO
+              {en
+                ? 'REAL SATELLITE IMAGERY (ESRI WORLD IMAGERY) + NASA/FAO FORECASTS'
+                : 'IMAGEM DE SATÉLITE REAL (ESRI WORLD IMAGERY) + PREVISÕES NASA/FAO'}
             </Text>
           </View>
         </View>
@@ -336,25 +375,32 @@ export const SatellitePlantationForecastSubscreen: React.FC<
           {activeFarm.nome} ({activeFarm.municipio} - {activeFarm.estado})
         </Text>
         <Text style={styles.heroCoords}>
-          📍 Coordenadas reais: {activeFarm.centroid.latitude.toFixed(5)}°,{' '}
-          {activeFarm.centroid.longitude.toFixed(5)}° • Terreno:{' '}
-          {formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)} •{' '}
-          {lotForecasts.length} grãos mapeados simultaneamente
+          {en
+            ? `📍 Real coordinates: ${activeFarm.centroid.latitude.toFixed(5)}°, ${activeFarm.centroid.longitude.toFixed(5)}° • Terrain: ${formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)} • ${lotForecasts.length} mapped crops simultaneously`
+            : `📍 Coordenadas reais: ${activeFarm.centroid.latitude.toFixed(5)}°, ${activeFarm.centroid.longitude.toFixed(5)}° • Terreno: ${formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)} • ${lotForecasts.length} grãos mapeados simultaneamente`}
         </Text>
 
         <View style={styles.heroStatsStrip}>
           <View style={styles.heroStatBox}>
-            <Text style={styles.heroStatLabel}>COLHEITA TOTAL PREVISTA</Text>
-            <Text style={styles.heroStatValue}>{totalFarmSacks} sacas (60 kg)</Text>
-          </View>
-          <View style={styles.heroStatBox}>
-            <Text style={styles.heroStatLabel}>RETORNO BRUTO ESTIMADO</Text>
-            <Text style={[styles.heroStatValue, { color: '#4ADE80' }]}>
-              R$ {totalFarmRevenue.toLocaleString('pt-BR')}
+            <Text style={styles.heroStatLabel}>
+              {en ? 'TOTAL FORECAST HARVEST' : 'COLHEITA TOTAL PREVISTA'}
+            </Text>
+            <Text style={styles.heroStatValue}>
+              {totalFarmSacks} {en ? 'sacks (60 kg)' : 'sacas (60 kg)'}
             </Text>
           </View>
           <View style={styles.heroStatBox}>
-            <Text style={styles.heroStatLabel}>ÍNDICE HÍDRICO (Ks)</Text>
+            <Text style={styles.heroStatLabel}>
+              {en ? 'ESTIMATED GROSS REVENUE' : 'RETORNO BRUTO ESTIMADO'}
+            </Text>
+            <Text style={[styles.heroStatValue, { color: '#4ADE80' }]}>
+              R$ {totalFarmRevenue.toLocaleString(en ? 'en-US' : 'pt-BR')}
+            </Text>
+          </View>
+          <View style={styles.heroStatBox}>
+            <Text style={styles.heroStatLabel}>
+              {en ? 'WATER INDEX (Ks)' : 'ÍNDICE HÍDRICO (Ks)'}
+            </Text>
             <Text style={[styles.heroStatValue, { color: '#38BDF8' }]}>
               {(waterBalanceRatio * 100).toFixed(0)}% (NASA POWER)
             </Text>
@@ -376,7 +422,11 @@ export const SatellitePlantationForecastSubscreen: React.FC<
             />
             <Text style={styles.voiceBtnText}>
               {isPlayingAudio
-                ? 'Parar Narração'
+                ? en
+                  ? 'Stop Narration'
+                  : 'Parar Narração'
+                : en
+                ? '🔊 Listen to Satellite Forecasts'
                 : '🔊 Ouvir Previsões da Plantação no Satélite'}
             </Text>
           </Pressable>
@@ -388,7 +438,9 @@ export const SatellitePlantationForecastSubscreen: React.FC<
             >
               <Ionicons name="locate" size={16} color="#FDE047" />
               <Text style={styles.resetRealFarmBtnText}>
-                Carregar Fazenda Real Irecê-BA (2 Grãos)
+                {en
+                  ? 'Load Real Irecê-BA Farm (2 Grains)'
+                  : 'Carregar Fazenda Real Irecê-BA (2 Grãos)'}
               </Text>
             </Pressable>
           )}
@@ -398,7 +450,7 @@ export const SatellitePlantationForecastSubscreen: React.FC<
       <VoiceReadBar
         text={forecastVoiceText}
         theme={theme}
-        label="Ouvir previsões e análise do satélite"
+        label={en ? 'Read satellite & forecasts aloud' : 'Ouvir previsões e análise do satélite'}
       />
 
       {/* Seletor rápido de Talhão/Grão para focar no Satélite */}
@@ -409,7 +461,9 @@ export const SatellitePlantationForecastSubscreen: React.FC<
         ]}
       >
         <Text style={[styles.selectorTitle, { color: theme.text }]}>
-          🗺️ Toque em um grão abaixo (ou direto na imagem de satélite) para destacar sua previsão:
+          {en
+            ? '🗺️ Tap a crop below (or directly on the satellite map) to highlight its forecast:'
+            : '🗺️ Toque em um grão abaixo (ou direto na imagem de satélite) para destacar sua previsão:'}
         </Text>
         <ScrollView
           horizontal
@@ -432,7 +486,9 @@ export const SatellitePlantationForecastSubscreen: React.FC<
                 { color: !selectedLotId ? '#FFFFFF' : theme.text },
               ]}
             >
-              🏡 Terreno da Fazenda ({activeFarm.areaHectares.toFixed(2)} ha)
+              {en
+                ? `🏡 Farm Land (${activeFarm.areaHectares.toFixed(2)} ha)`
+                : `🏡 Terreno da Fazenda (${activeFarm.areaHectares.toFixed(2)} ha)`}
             </Text>
           </Pressable>
 
@@ -457,7 +513,8 @@ export const SatellitePlantationForecastSubscreen: React.FC<
                   ]}
                 >
                   {lf.grainIcon} {lf.lot.nome.split('—')[0].trim()} •{' '}
-                  {lf.lot.culturaAtual} ({lf.lot.areaHectares.toFixed(2)} ha)
+                  {en ? translate(lf.lot.culturaAtual, 'en') : lf.lot.culturaAtual} (
+                  {lf.lot.areaHectares.toFixed(2)} ha)
                 </Text>
               </Pressable>
             );
@@ -486,7 +543,9 @@ export const SatellitePlantationForecastSubscreen: React.FC<
           <View style={styles.legendItem}>
             <View style={[styles.legendSwatch, { backgroundColor: '#22C55E' }]} />
             <Text style={[styles.legendText, { color: theme.textMuted }]}>
-              Terreno cercado da fazenda ({activeFarm.areaHectares.toFixed(2)} ha)
+              {en
+                ? `Fenced farm boundary (${activeFarm.areaHectares.toFixed(2)} ha)`
+                : `Terreno cercado da fazenda (${activeFarm.areaHectares.toFixed(2)} ha)`}
             </Text>
           </View>
           {lotForecasts.map((lf) => (
@@ -495,7 +554,8 @@ export const SatellitePlantationForecastSubscreen: React.FC<
                 style={[styles.legendSwatch, { backgroundColor: lf.lot.corHex }]}
               />
               <Text style={[styles.legendText, { color: theme.textMuted }]}>
-                {lf.lot.culturaAtual} ({lf.lot.areaHectares.toFixed(2)} ha)
+                {en ? translate(lf.lot.culturaAtual, 'en') : lf.lot.culturaAtual} (
+                {lf.lot.areaHectares.toFixed(2)} ha)
               </Text>
             </View>
           ))}
@@ -510,7 +570,9 @@ export const SatellitePlantationForecastSubscreen: React.FC<
             { color: theme.text, fontSize: 16 * theme.scale },
           ]}
         >
-          🌾 Previsões de Safra por Grão Mapeado ({lotForecasts.length} Plantios Simultâneos)
+          {en
+            ? `🌾 Harvest Forecasts by Mapped Grain (${lotForecasts.length} Simultaneous Crops)`
+            : `🌾 Previsões de Safra por Grão Mapeado (${lotForecasts.length} Plantios Simultâneos)`}
         </Text>
 
         {lotForecasts.map((lf) => {
@@ -579,7 +641,7 @@ export const SatellitePlantationForecastSubscreen: React.FC<
               >
                 <View style={styles.metricCell}>
                   <Text style={[styles.metricLabel, { color: theme.textMuted }]}>
-                    PRODUTIVIDADE PREVISTA
+                    {en ? 'FORECAST YIELD' : 'PRODUTIVIDADE PREVISTA'}
                   </Text>
                   <Text style={[styles.metricValue, { color: theme.text }]}>
                     {lf.yieldSacksHa} sc/ha
@@ -591,34 +653,42 @@ export const SatellitePlantationForecastSubscreen: React.FC<
 
                 <View style={styles.metricCell}>
                   <Text style={[styles.metricLabel, { color: theme.textMuted }]}>
-                    PRODUÇÃO NO TALHÃO
+                    {en ? 'PLOT PRODUCTION' : 'PRODUÇÃO NO TALHÃO'}
                   </Text>
                   <Text style={[styles.metricValue, { color: theme.primary }]}>
-                    {lf.totalSacks} sacas
+                    {lf.totalSacks} {en ? 'sacks' : 'sacas'}
                   </Text>
                   <Text style={[styles.metricHint, { color: theme.textMuted }]}>
-                    ({lf.totalKg.toLocaleString('pt-BR')} kg totais)
+                    ({lf.totalKg.toLocaleString(en ? 'en-US' : 'pt-BR')} {en ? 'kg total' : 'kg totais'})
                   </Text>
                 </View>
 
                 <View style={styles.metricCell}>
                   <Text style={[styles.metricLabel, { color: theme.textMuted }]}>
-                    JANELA DE COLHEITA
+                    {en ? 'HARVEST WINDOW' : 'JANELA DE COLHEITA'}
                   </Text>
                   <Text style={[styles.metricValue, { color: '#D97706' }]}>
-                    {lf.lot.dataColheitaPrevista || `Em ${lf.daysRemaining} dias`}
+                    {lf.lot.dataColheitaPrevista
+                      ? en
+                        ? translate(lf.lot.dataColheitaPrevista, 'en')
+                        : lf.lot.dataColheitaPrevista
+                      : en
+                      ? `In ${lf.daysRemaining} days`
+                      : `Em ${lf.daysRemaining} dias`}
                   </Text>
                   <Text style={[styles.metricHint, { color: theme.textMuted }]}>
-                    Plantado há {lf.lot.tempoPlantadaDias}d / ciclo {lf.cycleDays}d
+                    {en
+                      ? `Planted ${lf.lot.tempoPlantadaDias}d ago / cycle ${lf.cycleDays}d`
+                      : `Plantado há ${lf.lot.tempoPlantadaDias}d / ciclo ${lf.cycleDays}d`}
                   </Text>
                 </View>
 
                 <View style={styles.metricCell}>
                   <Text style={[styles.metricLabel, { color: theme.textMuted }]}>
-                    RETORNO ESTIMADO
+                    {en ? 'ESTIMATED REVENUE' : 'RETORNO ESTIMADO'}
                   </Text>
                   <Text style={[styles.metricValue, { color: '#16A34A' }]}>
-                    R$ {lf.estimatedRevenueBRL.toLocaleString('pt-BR')}
+                    R$ {lf.estimatedRevenueBRL.toLocaleString(en ? 'en-US' : 'pt-BR')}
                   </Text>
                   <Text style={[styles.metricHint, { color: theme.textMuted }]}>
                     Kc FAO-56: {lf.kcMedio.toFixed(2)}
@@ -630,10 +700,14 @@ export const SatellitePlantationForecastSubscreen: React.FC<
               <View style={styles.progressSection}>
                 <View style={styles.progressHeader}>
                   <Text style={[styles.progressLabel, { color: theme.text }]}>
-                    Desenvolvimento no Satélite (NDVI/GDD): {lf.lot.progressoRealPct}%
+                    {en
+                      ? `Satellite Growth (NDVI/GDD): ${lf.lot.progressoRealPct}%`
+                      : `Desenvolvimento no Satélite (NDVI/GDD): ${lf.lot.progressoRealPct}%`}
                   </Text>
                   <Text style={[styles.progressExpected, { color: theme.textMuted }]}>
-                    Meta fenológica: {lf.lot.progressoEsperadoPct}%
+                    {en
+                      ? `Phenological target: ${lf.lot.progressoEsperadoPct}%`
+                      : `Meta fenológica: ${lf.lot.progressoEsperadoPct}%`}
                   </Text>
                 </View>
                 <View
@@ -658,7 +732,9 @@ export const SatellitePlantationForecastSubscreen: React.FC<
                 💡 {lf.forecastSummaryPt}
               </Text>
               <Text style={[styles.rotationNote, { color: theme.textMuted }]}>
-                🔄 Manejo / Sucessão no lote: {lf.lot.cronogramaPlantacao}
+                {en
+                  ? `🔄 Plot Management / Succession: ${translate(lf.lot.cronogramaPlantacao, 'en')}`
+                  : `🔄 Manejo / Sucessão no lote: ${lf.lot.cronogramaPlantacao}`}
               </Text>
             </Pressable>
           );
@@ -681,12 +757,14 @@ export const SatellitePlantationForecastSubscreen: React.FC<
                 { color: theme.text, fontSize: 15 * theme.scale },
               ]}
             >
-              Previsão Agroclimática 7 Dias + Balanço Hídrico (NASA POWER)
+              {en
+                ? '7-Day Agroclimate Forecast + Water Balance (NASA POWER)'
+                : 'Previsão Agroclimática 7 Dias + Balanço Hídrico (NASA POWER)'}
             </Text>
             <Text style={{ fontSize: 11, color: theme.textMuted }}>
-              Chuva (IMERG): {activeFarm.diagnostico.modeloA.chuvaImergMm} mm •
-              ET0 (NASA POWER): {activeFarm.diagnostico.modeloA.et0PowerMm} mm •
-              Risco de veranico: {veranicoRiskPct}%
+              {en
+                ? `Rain (IMERG): ${activeFarm.diagnostico.modeloA.chuvaImergMm} mm • ET0 (NASA POWER): ${activeFarm.diagnostico.modeloA.et0PowerMm} mm • Dry spell risk: ${veranicoRiskPct}%`
+                : `Chuva (IMERG): ${activeFarm.diagnostico.modeloA.chuvaImergMm} mm • ET0 (NASA POWER): ${activeFarm.diagnostico.modeloA.et0PowerMm} mm • Risco de veranico: ${veranicoRiskPct}%`}
             </Text>
           </View>
         </View>
@@ -722,10 +800,10 @@ export const SatellitePlantationForecastSubscreen: React.FC<
                 {day.chuvaMm.toFixed(1)} mm
               </Text>
               <Text style={[styles.dayMeta, { color: theme.textMuted }]}>
-                Umid {day.umidadePct.toFixed(0)}%
+                {en ? `Hum ${day.umidadePct.toFixed(0)}%` : `Umid ${day.umidadePct.toFixed(0)}%`}
               </Text>
               <Text style={[styles.dayMeta, { color: theme.textMuted }]}>
-                Máx {day.calorC.toFixed(0)}°C
+                {en ? `Max ${day.calorC.toFixed(0)}°C` : `Máx ${day.calorC.toFixed(0)}°C`}
               </Text>
             </View>
           ))}
@@ -738,10 +816,14 @@ export const SatellitePlantationForecastSubscreen: React.FC<
           ]}
         >
           <Text style={{ fontSize: 12, fontWeight: '800', color: theme.text }}>
-            📅 Janela de Plantio e Clima ({activeFarm.diagnostico.modeloC.titulo}):
+            {en
+              ? `📅 Planting Window & Climate (${translate(activeFarm.diagnostico.modeloC.titulo, 'en')}):`
+              : `📅 Janela de Plantio e Clima (${activeFarm.diagnostico.modeloC.titulo}):`}
           </Text>
           <Text style={{ fontSize: 12, color: theme.textMuted, lineHeight: 17 }}>
-            {activeFarm.diagnostico.modeloC.explicacaoAcessivel}
+            {en
+              ? translate(activeFarm.diagnostico.modeloC.explicacaoAcessivel, 'en')
+              : activeFarm.diagnostico.modeloC.explicacaoAcessivel}
           </Text>
         </View>
 
@@ -752,7 +834,9 @@ export const SatellitePlantationForecastSubscreen: React.FC<
           >
             <Ionicons name="analytics-outline" size={18} color="#FFFFFF" />
             <Text style={styles.openRoxoBtnText}>
-              Abrir Diagnóstico Completo de Manchas NDVI 10m e Auditoria NASA
+              {en
+                ? 'Open Full 10m NDVI Spot Diagnosis & NASA Audit'
+                : 'Abrir Diagnóstico Completo de Manchas NDVI 10m e Auditoria NASA'}
             </Text>
           </Pressable>
         )}

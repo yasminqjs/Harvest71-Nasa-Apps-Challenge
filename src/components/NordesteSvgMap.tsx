@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useLanguage } from '../i18n/Language';
 import { Pressable, Text } from '../i18n/native';
 import Svg, {
   Circle,
@@ -135,7 +136,17 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
   theme,
 }) => {
   const { isOnline } = useAccessibility();
+  const { language } = useLanguage();
+  const en = language === 'en';
   const [preferOfflineSvg, setPreferOfflineSvg] = useState(false);
+  const chipsScrollRef = useRef<React.ComponentRef<typeof ScrollView> | null>(null);
+  const chipsScrollXRef = useRef(0);
+
+  const scrollChipsBy = (delta: number) => {
+    const nextX = Math.max(0, chipsScrollXRef.current + delta);
+    chipsScrollXRef.current = nextX;
+    chipsScrollRef.current?.scrollTo({ x: nextX, animated: true });
+  };
 
   const canUseInteractiveMap = isOnline && !preferOfflineSvg;
   const isHighContrastDark = theme.bg === '#0D1117';
@@ -481,40 +492,72 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
         Toque no mapa ou escolha seu polo regional abaixo:
       </Text>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.regionChipsScroll}
-      >
-        {NORDESTE_REGIONS.map((reg) => {
-          const active = selectedRegionName === reg.nome;
-          const isGps = gpsDetectedRegionId === reg.id;
-          return (
-            <Pressable
-              key={reg.id}
-              onPress={() => onSelectRegion(reg)}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: active ? theme.primary : theme.surface,
-                  borderColor: active ? theme.primary : isGps ? '#1D6FA5' : theme.border,
-                },
-              ]}
-            >
-              <Ionicons
-                name={isGps ? 'navigate' : active ? 'location' : 'location-outline'}
-                size={14}
-                color={active ? theme.primaryText : isGps ? '#1D6FA5' : theme.primary}
-              />
-              <Text
-                style={[styles.chipText, { color: active ? theme.primaryText : theme.text }]}
+      <View style={styles.regionChipsBar}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={en ? 'Scroll regions left' : 'Rolar regiões para a esquerda'}
+          onPress={() => scrollChipsBy(-220)}
+          style={[
+            styles.scrollArrowBtn,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+        >
+          <Ionicons name="chevron-back" size={16} color={theme.text} />
+        </Pressable>
+
+        <ScrollView
+          ref={chipsScrollRef}
+          horizontal
+          style={styles.regionChipsScroller}
+          showsHorizontalScrollIndicator={Platform.OS === 'web'}
+          scrollEventThrottle={16}
+          onScroll={(e) => {
+            chipsScrollXRef.current = e.nativeEvent.contentOffset.x;
+          }}
+          contentContainerStyle={styles.regionChipsScroll}
+        >
+          {NORDESTE_REGIONS.map((reg) => {
+            const active = selectedRegionName === reg.nome;
+            const isGps = gpsDetectedRegionId === reg.id;
+            return (
+              <Pressable
+                key={reg.id}
+                onPress={() => onSelectRegion(reg)}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: active ? theme.primary : theme.surface,
+                    borderColor: active ? theme.primary : isGps ? '#1D6FA5' : theme.border,
+                  },
+                ]}
               >
-                {reg.estado} • {reg.nome}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+                <Ionicons
+                  name={isGps ? 'navigate' : active ? 'location' : 'location-outline'}
+                  size={14}
+                  color={active ? theme.primaryText : isGps ? '#1D6FA5' : theme.primary}
+                />
+                <Text
+                  style={[styles.chipText, { color: active ? theme.primaryText : theme.text }]}
+                >
+                  {reg.estado} • {reg.nome}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={en ? 'Scroll regions right' : 'Rolar regiões para a direita'}
+          onPress={() => scrollChipsBy(220)}
+          style={[
+            styles.scrollArrowBtn,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+        >
+          <Ionicons name="chevron-forward" size={16} color={theme.text} />
+        </Pressable>
+      </View>
     </View>
   );
 };
@@ -522,6 +565,7 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
 const styles = StyleSheet.create({
   wrap: {
     width: '100%',
+    maxWidth: '100%',
     alignItems: 'center',
     gap: 8,
   },
@@ -552,9 +596,33 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     alignSelf: 'flex-start',
   },
+  regionChipsBar: {
+    width: '100%',
+    maxWidth: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    overflow: 'hidden',
+  },
+  regionChipsScroller: {
+    flex: 1,
+    minWidth: 0,
+    width: '100%',
+  },
   regionChipsScroll: {
-    paddingVertical: 2,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
     gap: 8,
+    alignItems: 'center',
+  },
+  scrollArrowBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   chip: {
     flexDirection: 'row',
@@ -564,6 +632,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 14,
     borderWidth: 1.5,
+    flexShrink: 0,
   },
   chipText: {
     fontSize: 12,

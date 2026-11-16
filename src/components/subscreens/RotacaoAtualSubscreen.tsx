@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
+import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text } from '../../i18n/native';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { analyzeLeafImageOffline } from '../../services/leafAnalyzer';
@@ -31,6 +32,8 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
     saveLeafAnalysis,
     speak,
   } = useAccessibility();
+  const { language } = useLanguage();
+  const en = language === 'en';
   const theme = getAppTheme(accessibility);
 
   const lots =
@@ -70,7 +73,12 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
 
       if (!res.canceled && res.assets?.[0]?.uri) {
         const asset = res.assets[0];
-        const leafRes = await analyzeLeafImageOffline(asset.uri, undefined, asset.base64);
+        const leafRes = await analyzeLeafImageOffline(
+          asset.uri,
+          undefined,
+          asset.base64,
+          en ? 'en' : 'pt'
+        );
         await saveLeafAnalysis(leafRes);
         const existingPhotos = activeLot.fotosValidacao ?? [];
         await updateLotDetails(activeLot.id, {
@@ -84,12 +92,21 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
             ...existingPhotos,
           ],
         });
-        speak(`Foto da plantação validada no ${activeLot.nome}: ${leafRes.titulo}`);
+        speak(
+          en
+            ? `Crop photo validated in ${activeLot.nome}: ${leafRes.titulo}`
+            : `Foto da plantação validada no ${activeLot.nome}: ${leafRes.titulo}`
+        );
       }
     } catch {
-      const fallback = await analyzeLeafImageOffline('local-sample://lot', 'saudavel');
+      const fallback = await analyzeLeafImageOffline(
+        'local-sample://lot',
+        'saudavel',
+        undefined,
+        en ? 'en' : 'pt'
+      );
       await saveLeafAnalysis(fallback);
-      speak('Foto simulada validada no lote.');
+      speak(en ? 'Sample photo validated for plot.' : 'Foto simulada validada no lote.');
     } finally {
       setPhotoBusy(false);
     }
@@ -99,7 +116,11 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
     if (!activeLot) return;
     const clamped = Math.max(0, Math.min(100, nextPct));
     await updateLotDetails(activeLot.id, { progressoRealPct: clamped });
-    speak(`Progresso do ${activeLot.nome} atualizado para ${clamped}%.`);
+    speak(
+      en
+        ? `${activeLot.nome} progress updated to ${clamped} percent.`
+        : `Progresso do ${activeLot.nome} atualizado para ${clamped}%.`
+    );
   };
 
   const progressDiff = activeLot
@@ -124,7 +145,9 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
             onPress={() =>
               activeLot &&
               speak(
-                `${activeLot.nome}, plantio de ${activeLot.culturaAtual}. Progresso informado de ${activeLot.progressoRealPct}%, expectativa de ${activeLot.progressoEsperadoPct}%.`
+                en
+                  ? `${activeLot.nome}, ${activeLot.culturaAtual}. Reported progress ${activeLot.progressoRealPct} percent, expected ${activeLot.progressoEsperadoPct} percent.`
+                  : `${activeLot.nome}, plantio de ${activeLot.culturaAtual}. Progresso informado de ${activeLot.progressoRealPct}%, expectativa de ${activeLot.progressoEsperadoPct}%.`
               )
             }
             style={[styles.voiceBtn, { backgroundColor: theme.surfaceMuted }]}

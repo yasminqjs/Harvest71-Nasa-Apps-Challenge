@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useLanguage } from '../i18n/Language';
 import {
   PILOT_AREAS_AUDITED,
   analyzeCropQualityRemoteOrFallback,
@@ -18,20 +19,21 @@ import { GeoPoint } from '../types/domain';
 import { calculatePolygonMetrics } from '../utils/geoprocessing';
 import { useAccessibility } from './AccessibilityContext';
 
-/**
- * Contexto da feature ROXA (Visualizador de qualidade da plantação atual).
- *
- * Fica montado na raiz do App (acima das abas) para que a busca de satélite
- * (NASA POWER + Sentinel-2 + Landsat TIRS + NASADEM) continue rodando em 2º plano
- * mesmo quando o agricultor troca de aba (Resumo / Plantação / Comunidade).
- */
-
-export const SATELLITE_LOADING_STAGES = [
+export const SATELLITE_LOADING_STAGES_PT = [
   'Conectando ao Planetary Computer STAC (Sentinel-2 L2A 10m)...',
   'Processando sensor térmico Landsat C2 TIRS (Banda lwir11 30m)...',
   'Consultando NASA POWER Agroclimatologia (GWETROOT, ET0, Chuva)...',
   'Cruzando ISRIC SoilGrids, NASADEM & FAO EcoCrop/GAEZ v4...',
 ];
+
+export const SATELLITE_LOADING_STAGES_EN = [
+  'Connecting to Planetary Computer STAC (Sentinel-2 L2A 10m)...',
+  'Processing Landsat C2 TIRS thermal sensor (lwir11 30m band)...',
+  'Querying NASA POWER Agroclimatology (GWETROOT, ET0, Rain)...',
+  'Cross-referencing ISRIC SoilGrids, NASADEM & FAO EcoCrop/GAEZ v4...',
+];
+
+export const SATELLITE_LOADING_STAGES = SATELLITE_LOADING_STAGES_EN;
 
 export interface CropQualityTarget {
   key: string;
@@ -68,7 +70,7 @@ interface CropQualityContextValue {
 
 const CropQualityContext = createContext<CropQualityContextValue | null>(null);
 
-function pilotToTarget(pilotId: string): CropQualityTarget {
+function pilotToTarget(pilotId: string, en: boolean): CropQualityTarget {
   const pilot = PILOT_AREAS_AUDITED.find((p) => p.id === pilotId) ?? PILOT_AREAS_AUDITED[0];
   const uniqueCoords =
     pilot.polygon_coordinates.length > 3
@@ -80,7 +82,9 @@ function pilotToTarget(pilotId: string): CropQualityTarget {
   }));
   return {
     key: `pilot:${pilot.id}`,
-    label: `${pilot.municipality}-${pilot.state} (Área piloto)`,
+    label: en
+      ? `${pilot.municipality}-${pilot.state} (Pilot area)`
+      : `${pilot.municipality}-${pilot.state} (Área piloto)`,
     polygon,
     centroid: { latitude: pilot.centroid.lat, longitude: pilot.centroid.lon },
     cropName: pilot.crop_name,
@@ -91,6 +95,8 @@ function pilotToTarget(pilotId: string): CropQualityTarget {
 export const CropQualityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { activeFarm, accessibility, isOnline, simulatedOffline, setSimulatedOffline } =
     useAccessibility();
+  const { language } = useLanguage();
+  const en = language === 'en';
 
   const [userTarget, setUserTarget] = useState<CropQualityTarget | null>(null);
   const [selectedPilotId, setSelectedPilotId] = useState<string | null>(null);
@@ -124,9 +130,9 @@ export const CropQualityProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [activeFarm]);
 
   const target = useMemo<CropQualityTarget | null>(() => {
-    if (selectedPilotId) return pilotToTarget(selectedPilotId);
+    if (selectedPilotId) return pilotToTarget(selectedPilotId, en);
     return userTarget ?? farmTarget;
-  }, [selectedPilotId, userTarget, farmTarget]);
+  }, [selectedPilotId, userTarget, farmTarget, en]);
 
   // Diagnóstico instantâneo (< 300 ms) a partir do Cache Auditado NASA quando ainda não há
   // análise ao vivo para o alvo atual.
@@ -200,18 +206,19 @@ export const CropQualityProvider: React.FC<{ children: React.ReactNode }> = ({ c
         dismissTimerRef.current = null;
       }
 
+      const stages = en ? SATELLITE_LOADING_STAGES_EN : SATELLITE_LOADING_STAGES_PT;
       const startMs = Date.now();
       setElapsedSec(0);
       setLoadingProgressPct(isLive ? 10 : 50);
-      setLoadingStage(SATELLITE_LOADING_STAGES[0]);
+      setLoadingStage(stages[0]);
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
       if (isLive) {
         let tick = 0;
         progressTimerRef.current = setInterval(() => {
           tick += 1;
           setElapsedSec(Math.floor((Date.now() - startMs) / 1000));
-          const stageIdx = Math.min(SATELLITE_LOADING_STAGES.length - 1, Math.floor(tick / 3));
-          setLoadingStage(SATELLITE_LOADING_STAGES[stageIdx]);
+          const stageIdx = Math.min(stages.length - 1, Math.floor(tick / 3));
+          setLoadingStage(stages[stageIdx]);
           setLoadingProgressPct((prev) => Math.min(94, prev + 7));
         }, 300);
       }
@@ -232,7 +239,11 @@ export const CropQualityProvider: React.FC<{ children: React.ReactNode }> = ({ c
         ]);
         setAnalysisByKey((prev) => ({ ...prev, [requestTarget.key]: result }));
         setLoadingProgressPct(100);
-        setLoadingStage('Diagnóstico NASA & Copernicus concluído!');
+        setLoadingStage(
+          en
+            ? 'NASA & Copernicus diagnosis complete!'
+            : 'Diagnóstico NASA & Copernicus concluído!'
+        );
         if (isLive) {
           setLastCompletedAt(new Date().toISOString());
           dismissTimerRef.current = setTimeout(() => setLastCompletedAt(null), 8000);
@@ -246,7 +257,7 @@ export const CropQualityProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setIsAnalyzing(false);
       }
     },
-    [target, communityPestAlert, simulatedOffline, setSimulatedOffline, isOnline]
+    [target, communityPestAlert, simulatedOffline, setSimulatedOffline, isOnline, en]
   );
 
   const toggleCommunityPestAlert = useCallback(async () => {

@@ -101,6 +101,8 @@ export const Chip: React.FC<{
   disabled?: boolean;
   tone?: 'normal' | 'compatible' | 'incompatible';
 }> = ({ theme, label, selected, onPress, warn, disabled, tone = 'normal' }) => {
+  const { language } = useLanguage();
+  const en = language === 'en';
   const isCompat = !selected && !warn && tone === 'compatible';
   const isIncompat = !selected && !warn && tone === 'incompatible';
   return (
@@ -109,7 +111,13 @@ export const Chip: React.FC<{
       disabled={disabled}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: selected, disabled }}
-      accessibilityLabel={warn ? `${label}, sem par habilitado nesta seleção` : label}
+      accessibilityLabel={
+        warn
+          ? en
+            ? `${label}, no enabled pair in this selection`
+            : `${label}, sem par habilitado nesta seleção`
+          : label
+      }
       style={[
         styles.chip,
         {
@@ -237,20 +245,33 @@ export const PointInfo: React.FC<{ theme: AppTheme; farm: FarmProperty }> = ({ t
   );
 };
 
-/** Selo de origem: deixa claro que é DSSAT e não o diagnóstico local do app. */
-export const SourceBadge: React.FC<{ theme: AppTheme; text?: string }> = ({ theme, text }) => (
-  <View style={[styles.badge, { borderColor: theme.accent }]}>
-    <Ionicons name="cloud-done-outline" size={14} color={theme.accent} />
-    <Text style={{ fontSize: 11.5 * theme.scale, color: theme.accent, fontWeight: '800', flexShrink: 1 }}>
-      {text ?? 'Resultado DSSAT (nuvem) • clima histórico NASA POWER • solo estimado PronaSolos'}
-    </Text>
-  </View>
-);
+/** Origin badge: clarifies results come from DSSAT rather than local app diagnosis. */
+export const SourceBadge: React.FC<{ theme: AppTheme; text?: string }> = ({ theme, text }) => {
+  const { language } = useLanguage();
+  const en = language === 'en';
+  return (
+    <View style={[styles.badge, { borderColor: theme.accent }]}>
+      <Ionicons name="cloud-done-outline" size={14} color={theme.accent} />
+      <Text style={{ fontSize: 11.5 * theme.scale, color: theme.accent, fontWeight: '800', flexShrink: 1 }}>
+        {text ??
+          (en
+            ? 'DSSAT output (cloud) • NASA POWER historical weather • PronaSolos soil estimate'
+            : 'Resultado DSSAT (nuvem) • clima histórico NASA POWER • solo estimado PronaSolos')}
+      </Text>
+    </View>
+  );
+};
 
-const PHASE_TEXT: Record<string, string> = {
+const PHASE_TEXT_PT: Record<string, string> = {
   submitting: 'Enviando o pedido…',
   queued: 'Pedido recebido. Na fila do simulador…',
   running: 'Simulando as safras no DSSAT…',
+};
+
+const PHASE_TEXT_EN: Record<string, string> = {
+  submitting: 'Submitting request…',
+  queued: 'Request received. Queued in simulator…',
+  running: 'Simulating seasons in DSSAT…',
 };
 
 /** Estado do Job: andamento, erro com ação e opção de nova consulta. */
@@ -261,6 +282,8 @@ export const JobStatusBox: React.FC<{
   onReset: () => void;
   runningExtra?: string;
 }> = ({ theme, state, onRetry, onReset, runningExtra }) => {
+  const { language } = useLanguage();
+  const en = language === 'en';
   if (state.phase === 'idle' || state.phase === 'done') return null;
   if (state.phase === 'error' || state.phase === 'failed') {
     return (
@@ -268,11 +291,17 @@ export const JobStatusBox: React.FC<{
         <View style={styles.row}>
           <Ionicons name="warning-outline" size={18} color={theme.dangerText} />
           <Text style={{ color: theme.dangerText, fontWeight: '900', fontSize: 14 * theme.scale }}>
-            {state.phase === 'failed' ? 'A simulação não terminou' : 'Não foi possível concluir'}
+            {state.phase === 'failed'
+              ? en
+                ? 'Simulation did not finish'
+                : 'A simulação não terminou'
+              : en
+              ? 'Could not complete request'
+              : 'Não foi possível concluir'}
           </Text>
         </View>
         <Text accessibilityLiveRegion="polite" style={{ color: theme.dangerText, fontSize: 13 * theme.scale }}>
-          {state.error || 'Erro desconhecido.'}
+          {state.error || (en ? 'Unknown error.' : 'Erro desconhecido.')}
         </Text>
         {state.errorFields?.length ? (
           <View style={{ gap: 2 }}>
@@ -286,11 +315,15 @@ export const JobStatusBox: React.FC<{
         <View style={styles.row}>
           {state.job && state.phase === 'error' ? (
             <Pressable onPress={onRetry} accessibilityRole="button" style={[styles.smallBtn, { borderColor: theme.dangerBorder }]}>
-              <Text style={{ color: theme.dangerText, fontWeight: '800' }}>Tentar de novo</Text>
+              <Text style={{ color: theme.dangerText, fontWeight: '800' }}>
+                {en ? 'Try again' : 'Tentar de novo'}
+              </Text>
             </Pressable>
           ) : null}
           <Pressable onPress={onReset} accessibilityRole="button" style={[styles.smallBtn, { borderColor: theme.dangerBorder }]}>
-            <Text style={{ color: theme.dangerText, fontWeight: '800' }}>Voltar ao formulário</Text>
+            <Text style={{ color: theme.dangerText, fontWeight: '800' }}>
+              {en ? 'Back to form' : 'Voltar ao formulário'}
+            </Text>
           </Pressable>
         </View>
       </Card>
@@ -301,18 +334,24 @@ export const JobStatusBox: React.FC<{
       <View style={styles.row}>
         <ActivityIndicator color={theme.warningText} />
         <Text accessibilityLiveRegion="polite" style={{ color: theme.warningText, fontWeight: '900', fontSize: 14 * theme.scale, flexShrink: 1 }}>
-          {PHASE_TEXT[state.phase]}
+          {(en ? PHASE_TEXT_EN : PHASE_TEXT_PT)[state.phase]}
         </Text>
       </View>
       <Text style={{ color: theme.warningText, fontSize: 12 * theme.scale }}>
-        Leva em geral de 30 s a 2 min. Pode sair desta tela: ao voltar, o acompanhamento continua.
+        {en
+          ? 'Usually takes 30s to 2 min. You can leave this screen and tracking continues when you return.'
+          : 'Leva em geral de 30 s a 2 min. Pode sair desta tela: ao voltar, o acompanhamento continua.'}
         {runningExtra ? ` ${runningExtra}` : ''}
       </Text>
       {state.job ? (
-        <Text style={{ color: theme.warningText, fontSize: 11 * theme.scale }}>Pedido {state.job.id}</Text>
+        <Text style={{ color: theme.warningText, fontSize: 11 * theme.scale }}>
+          {en ? `Job ${state.job.id}` : `Pedido ${state.job.id}`}
+        </Text>
       ) : null}
       <Pressable onPress={onReset} accessibilityRole="button" style={[styles.smallBtn, { borderColor: theme.warningBorder }]}>
-        <Text style={{ color: theme.warningText, fontWeight: '800' }}>Parar de acompanhar</Text>
+        <Text style={{ color: theme.warningText, fontWeight: '800' }}>
+          {en ? 'Stop tracking' : 'Parar de acompanhar'}
+        </Text>
       </Pressable>
     </Card>
   );
@@ -332,8 +371,8 @@ export const dssatStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   backBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6,
-    borderRadius: 10, borderWidth: 1,
+    flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingVertical: 7,
+    borderRadius: 12, borderWidth: 1,
   },
   backText: { fontSize: 13, fontWeight: '800' },
   title: { flex: 1, textAlign: 'center', fontWeight: '900' },
@@ -346,36 +385,47 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  card: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, gap: 6 },
-  compactStrip: {
-    borderRadius: 8,
+  card: {
+    borderRadius: 16,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 7,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  compactStrip: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     gap: 4,
   },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 7,
     borderRadius: 999, borderWidth: 1,
   },
   primaryBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 10,
-    paddingVertical: 11, paddingHorizontal: 14, minHeight: 44,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14,
+    paddingVertical: 12, paddingHorizontal: 16, minHeight: 48,
   },
   badge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 6,
-    paddingHorizontal: 7, paddingVertical: 3, alignSelf: 'flex-start',
+    flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start',
   },
-  smallBtn: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start' },
+  smallBtn: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 7, alignSelf: 'flex-start' },
   expandBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
     borderWidth: 1,
   },
   expandBody: {

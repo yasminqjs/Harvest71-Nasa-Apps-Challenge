@@ -168,8 +168,10 @@ export const VoiceOnboardingScreen: React.FC = () => {
 
   return (
     <ScrollView
+      style={{ flex: 1, backgroundColor: theme.bg }}
       contentContainerStyle={[styles.container, { backgroundColor: theme.bg }]}
     >
+      <View style={styles.innerWrap}>
       <View style={styles.brandBox}>
         <View style={[styles.logoCircle, { backgroundColor: theme.primary }]}>
           <Ionicons name="leaf" size={38} color={theme.primaryText} />
@@ -262,10 +264,12 @@ export const VoiceOnboardingScreen: React.FC = () => {
           onPress={() => handleManualChoice(true)}
           style={[
             styles.choiceBtn,
-            { backgroundColor: theme.primary, borderColor: theme.border },
+            { backgroundColor: theme.primary, borderColor: theme.primary },
           ]}
         >
-          <Ionicons name="mic" size={26} color={theme.primaryText} />
+          <View style={[styles.choiceIconCircle, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
+            <Ionicons name="mic" size={24} color={theme.primaryText} />
+          </View>
           <View style={styles.choiceTextWrap}>
             <Text
               style={[
@@ -288,7 +292,9 @@ export const VoiceOnboardingScreen: React.FC = () => {
             { backgroundColor: theme.surface, borderColor: theme.border },
           ]}
         >
-          <Ionicons name="book-outline" size={26} color={theme.text} />
+          <View style={[styles.choiceIconCircle, { backgroundColor: theme.surfaceMuted }]}>
+            <Ionicons name="book-outline" size={24} color={theme.text} />
+          </View>
           <View style={styles.choiceTextWrap}>
             <Text
               style={[
@@ -304,6 +310,7 @@ export const VoiceOnboardingScreen: React.FC = () => {
           </View>
         </Pressable>
       </View>
+      </View>
     </ScrollView>
   );
 };
@@ -313,6 +320,12 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 20,
     justifyContent: 'center',
+    gap: 20,
+  },
+  innerWrap: {
+    maxWidth: 640,
+    width: '100%',
+    alignSelf: 'center',
     gap: 20,
   },
   brandBox: {
@@ -335,10 +348,15 @@ const styles = StyleSheet.create({
   },
   questionCard: {
     borderRadius: 22,
-    borderWidth: 2,
+    borderWidth: 1.5,
     padding: 20,
     alignItems: 'center',
     gap: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   questionText: {
     fontWeight: '800',
@@ -401,7 +419,20 @@ const styles = StyleSheet.create({
     minHeight: 74,
     padding: 16,
     borderRadius: 20,
-    borderWidth: 2,
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  choiceIconCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   choiceTextWrap: {
     flex: 1,

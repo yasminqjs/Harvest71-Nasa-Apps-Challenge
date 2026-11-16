@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useLanguage } from '../i18n/Language';
 import { Pressable, Text } from '../i18n/native';
+import { translate } from '../i18n/translate';
 import { AppTheme } from '../theme/tokens';
 import {
   CropQualityAnalysisResponse,
@@ -106,14 +108,14 @@ function mapActionCardEmoji(iconName: string): string {
   }
 }
 
-function trafficPalette(status: 'RED' | 'YELLOW' | 'GREEN') {
+function trafficPalette(status: 'RED' | 'YELLOW' | 'GREEN', en: boolean) {
   if (status === 'RED') {
     return {
       bg: '#FEF2F2',
       border: '#DC2626',
       badgeBg: '#DC2626',
       text: '#7F1D1D',
-      label: 'VERMELHO • AÇÃO IMEDIATA',
+      label: en ? 'RED • IMMEDIATE ACTION' : 'VERMELHO • AÇÃO IMEDIATA',
     };
   }
   if (status === 'YELLOW') {
@@ -122,7 +124,7 @@ function trafficPalette(status: 'RED' | 'YELLOW' | 'GREEN') {
       border: '#D97706',
       badgeBg: '#D97706',
       text: '#78350F',
-      label: 'AMARELO • ATENÇÃO NA ROÇA',
+      label: en ? 'YELLOW • FIELD ATTENTION' : 'AMARELO • ATENÇÃO NA ROÇA',
     };
   }
   return {
@@ -130,25 +132,25 @@ function trafficPalette(status: 'RED' | 'YELLOW' | 'GREEN') {
     border: '#16A34A',
     badgeBg: '#16A34A',
     text: '#14532D',
-    label: 'VERDE • LAVOURA SAUDÁVEL',
+    label: en ? 'GREEN • HEALTHY CROP' : 'VERDE • LAVOURA SAUDÁVEL',
   };
 }
 
-function translateConditionCodePt(code: string): string {
+function translateConditionCodePt(code: string, en: boolean): string {
   switch (code) {
     case 'OPTIMAL_VIGOR':
-      return 'Vigor Ótimo';
+      return en ? 'Optimal Vigor' : 'Vigor Ótimo';
     case 'WATER_DEFICIT_STRESS':
-      return 'Déficit Hídrico (Seca)';
+      return en ? 'Water Deficit (Drought)' : 'Déficit Hídrico (Seca)';
     case 'PHYTOSANITARY_ANOMALY':
-      return 'Anomalia Fitossanitária (Praga/Doença)';
+      return en ? 'Phytosanitary Anomaly (Pest/Disease)' : 'Anomalia Fitossanitária (Praga/Doença)';
     case 'THERMAL_HEAT_SHOCK':
-      return 'Estresse Térmico na Florada';
+      return en ? 'Flowering Heat Stress' : 'Estresse Térmico na Florada';
     case 'SOIL_EROSION_EXPOSURE':
-      return 'Exposição de Solo / Risco RUSLE';
+      return en ? 'Soil Exposure / RUSLE Risk' : 'Exposição de Solo / Risco RUSLE';
     case 'INSUFFICIENT_OBSERVATION':
     default:
-      return 'Cobertura de Nuvens (>40%)';
+      return en ? 'Cloud Cover (>40%)' : 'Cobertura de Nuvens (>40%)';
   }
 }
 
@@ -163,15 +165,15 @@ function formatYmdDateBr(raw: string): string {
   return clean;
 }
 
-function formatWindowBr(windowStr: string): string {
+function formatWindowBr(windowStr: string, en: boolean): string {
   const parts = windowStr.split('..');
   if (parts.length === 2) {
-    return `${formatYmdDateBr(parts[0])} a ${formatYmdDateBr(parts[1])}`;
+    return `${formatYmdDateBr(parts[0])} ${en ? 'to' : 'a'} ${formatYmdDateBr(parts[1])}`;
   }
   return windowStr;
 }
 
-function extractProvenanceSummary(analysis: CropQualityAnalysisResponse) {
+function extractProvenanceSummary(analysis: CropQualityAnalysisResponse, en: boolean) {
   const list = analysis.scientific_telemetry.data_provenance ?? [];
   const findByDataset = (substr: string) =>
     list.find(
@@ -184,7 +186,11 @@ function extractProvenanceSummary(analysis: CropQualityAnalysisResponse) {
   const nasadem = findByDataset('NASADEM');
 
   const powerWindow =
-    typeof power?.window === 'string' ? formatWindowBr(power.window) : 'Últimos 30 dias';
+    typeof power?.window === 'string'
+      ? formatWindowBr(power.window, en)
+      : en
+      ? 'Last 30 days'
+      : 'Últimos 30 dias';
   const powerSource =
     typeof power?.source === 'string' ? power.source : 'power.larc.nasa.gov (API AG)';
   const s2Date =
@@ -193,6 +199,8 @@ function extractProvenanceSummary(analysis: CropQualityAnalysisResponse) {
   const landsatDate =
     typeof landsat?.acquisition_date === 'string' && landsat.acquisition_date !== 'N/A'
       ? formatYmdDateBr(landsat.acquisition_date)
+      : en
+      ? '30 m thermal derivative'
       : 'Derivado térmico 30 m';
   const landsatScene =
     typeof landsat?.scene_id === 'string' ? landsat.scene_id : 'Landsat C2 TIRS';
@@ -200,7 +208,9 @@ function extractProvenanceSummary(analysis: CropQualityAnalysisResponse) {
     typeof nasadem?.tile_id === 'string' ? nasadem.tile_id : 'NASADEM 30 m';
 
   const evalDate = analysis.evaluated_at_utc
-    ? `${formatYmdDateBr(analysis.evaluated_at_utc)} às ${analysis.evaluated_at_utc.slice(11, 19)} UTC`
+    ? `${formatYmdDateBr(analysis.evaluated_at_utc)} ${en ? 'at' : 'às'} ${analysis.evaluated_at_utc.slice(11, 19)} UTC`
+    : en
+    ? 'Now'
     : 'Agora';
 
   return {
@@ -215,6 +225,35 @@ function extractProvenanceSummary(analysis: CropQualityAnalysisResponse) {
   };
 }
 
+export function buildCropQualityEnglishVoiceScript(analysis: CropQualityAnalysisResponse): string {
+  const view = analysis.farmer_accessible_view;
+  const bio = analysis.scientific_telemetry.biophysical_indices;
+  const baseline = analysis.crop_agronomic_baseline;
+  const rainMm = Math.round(bio.precip_gpm_power_30d_mm);
+  const soilMoisturePct = Math.round(bio.nasa_gwetroot_0_to_1 * 100);
+  const cropName = translate(baseline.common_name_pt, 'en');
+  const statusEn =
+    view.overall_traffic_light === 'GREEN'
+      ? 'healthy condition'
+      : view.overall_traffic_light === 'YELLOW'
+        ? 'attention needed'
+        : 'high stress alert';
+
+  const topDiagnostic = analysis.scientific_telemetry.diagnostic_assessments?.[0]?.condition_code;
+  const conditionText =
+    topDiagnostic === 'WATER_DEFICIT_STRESS'
+      ? 'Root-zone soil moisture is dropping and leaves show water stress.'
+      : topDiagnostic === 'PHYTOSANITARY_ANOMALY'
+        ? 'One sector of the field shows reduced vigor and warmer canopy temperature, indicating possible pest or disease pressure.'
+        : topDiagnostic === 'THERMAL_HEAT_SHOCK'
+          ? 'High canopy temperature indicates heat stress.'
+          : topDiagnostic === 'SOIL_EROSION_EXPOSURE'
+            ? 'Bare soil exposure raises erosion risk.'
+            : 'Crop vigor is stable for this growth stage.';
+
+  return `Field health summary for ${cropName}. Overall score is ${view.health_score_0_to_100} out of 100, status ${statusEn}. Over the last 30 days, NASA satellites recorded ${rainMm} millimeters of rainfall, ${soilMoisturePct} percent root-zone soil moisture, and mean N D V I of ${bio.ndvi_mean.toFixed(2)}. ${conditionText} Check the recommended action cards below for what to do next.`;
+}
+
 export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = ({
   analysis,
   theme,
@@ -224,7 +263,7 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
   selectedPilotId,
   selectedZoneId,
   isAnalyzing = false,
-  loadingStage = 'Conectando à NASA POWER & Planetary Computer STAC...',
+  loadingStage,
   loadingProgressPct = 0,
   loadingElapsedSec = 0,
   communityPestAlert = false,
@@ -236,10 +275,12 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
   onStopAudio,
   onSelectZone,
 }) => {
+  const { language } = useLanguage();
+  const en = language === 'en';
   const [showJudgeData, setShowJudgeData] = useState(false);
 
   const view = analysis.farmer_accessible_view;
-  const palette = trafficPalette(view.overall_traffic_light);
+  const palette = trafficPalette(view.overall_traffic_light, en);
   const bio = analysis.scientific_telemetry.biophysical_indices;
   const baseline = analysis.crop_agronomic_baseline;
   const dssat = analysis.dssat_state_vector;
@@ -254,9 +295,18 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
     null;
 
   const isFallback = Boolean(cacheMeta?.fallback_used);
-  const provSummary = extractProvenanceSummary(analysis);
+  const provSummary = extractProvenanceSummary(analysis, en);
+  const resolvedLoadingStage =
+    loadingStage ??
+    (en
+      ? 'Connecting to NASA POWER & Planetary Computer STAC...'
+      : 'Conectando à NASA POWER & Planetary Computer STAC...');
   const sourceBadge = isFallback
-    ? `⚡ Cache Auditado NASA (${cacheMeta?.latency_ms ?? 4}ms)`
+    ? en
+      ? `⚡ NASA Audited Cache (${cacheMeta?.latency_ms ?? 4}ms)`
+      : `⚡ Cache Auditado NASA (${cacheMeta?.latency_ms ?? 4}ms)`
+    : en
+    ? `🟢 LIVE • Queried from NASA (${cacheMeta?.latency_ms ?? 0}ms)`
     : `🟢 AO VIVO • Consultado na NASA (${cacheMeta?.latency_ms ?? 0}ms)`;
 
   return (
@@ -296,12 +346,16 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
                 { color: palette.text, fontSize: 18 * fontScale },
               ]}
             >
-              {view.status_badge_title}
+              {en ? translate(view.status_badge_title, 'en') : view.status_badge_title}
             </Text>
             <Text style={[styles.heroSub, { color: palette.text }]}>
-              {baseline.common_name_pt} ({baseline.scientific_name}) •{' '}
+              {en ? translate(baseline.common_name_pt, 'en') : baseline.common_name_pt} ({baseline.scientific_name}) •{' '}
               {baseline.fao_gaez_v4_suitability.water_supply_regime === 'IRRIGATED'
-                ? 'Irrigado'
+                ? en
+                  ? 'Irrigated'
+                  : 'Irrigado'
+                : en
+                ? 'Rainfed'
                 : 'Sequeiro'}
             </Text>
           </View>
@@ -310,10 +364,10 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
         <Text style={[styles.provenancePill, { color: palette.text }]}>{sourceBadge}</Text>
         <View style={styles.datesVerifyBox}>
           <Text style={styles.datesVerifyTitle}>
-            📅 Datas Reais dos Dados NASA &amp; Satélite:
+            {en ? '📅 NASA & Satellite Data Timestamps:' : '📅 Datas Reais dos Dados NASA & Satélite:'}
           </Text>
           <Text style={styles.datesVerifyLine}>
-            • Consulta executada: {provSummary.evalDate}
+            • {en ? 'Evaluated at' : 'Consulta executada'}: {provSummary.evalDate}
           </Text>
           <Text style={styles.datesVerifyLine}>
             • NASA POWER / MERRA-2: {provSummary.powerWindow} ({provSummary.powerSource})
@@ -327,17 +381,19 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
         </View>
       </View>
 
-      {/* Botão de Destaque Web Speech API / Expo Speech (pt-BR) */}
+      {/* Botão de Destaque Web Speech API / Expo Speech */}
       <Pressable
         onPress={() => {
           if (isPlayingAudio) {
             onStopAudio?.();
           } else {
-            onPlayVoiceScript?.(view.voice_tts_script_pt);
+            onPlayVoiceScript?.(
+              en ? buildCropQualityEnglishVoiceScript(analysis) : view.voice_tts_script_pt
+            );
           }
         }}
         accessibilityRole="button"
-        accessibilityLabel="Ouvir Diagnóstico da Roça"
+        accessibilityLabel={en ? 'Listen to Farm Diagnosis' : 'Ouvir Diagnóstico da Roça'}
         style={({ pressed }) => [
           styles.voiceMainBtn,
           {
@@ -349,12 +405,22 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
         <Text style={styles.voiceBtnEmoji}>{isPlayingAudio ? '⏹️' : '🔊'}</Text>
         <View style={styles.flexOne}>
           <Text style={[styles.voiceBtnTitle, { fontSize: 16 * fontScale }]}>
-            {isPlayingAudio ? 'Tocando Diagnóstico (Toque para Parar)' : 'Ouvir Diagnóstico da Roça'}
+            {isPlayingAudio
+              ? en
+                ? 'Playing Diagnosis (Tap to Stop)'
+                : 'Tocando Diagnóstico (Toque para Parar)'
+              : en
+                ? 'Listen to Farm Diagnosis'
+                : 'Ouvir Diagnóstico da Roça'}
           </Text>
           <Text style={styles.voiceBtnSub}>
             {isPlayingAudio
-              ? '🎙️ Narrando em Português claro (pt-BR)...'
-              : 'Explicação falada em linguagem simples da sua lavoura'}
+              ? en
+                ? '🎙️ Speaking in clear English (en-US)...'
+                : '🎙️ Narrando em Português claro (pt-BR)...'
+              : en
+                ? 'Spoken summary of your crop health in simple language'
+                : 'Explicação falada em linguagem simples da sua lavoura'}
           </Text>
         </View>
       </Pressable>
@@ -363,7 +429,9 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
       {(onSelectPilotArea || onRefreshLive) && (
         <View style={styles.controlsBox}>
           <Text style={[styles.sectionMiniTitle, { color: theme.textMuted }]}>
-            ÁREAS PILOTO DO SEMIÁRIDO (&lt; 5 ha) &amp; SATÉLITE AO VIVO
+            {en
+              ? 'SEMIARID PILOT AREAS (< 5 ha) & LIVE SATELLITE'
+              : 'ÁREAS PILOTO DO SEMIÁRIDO (< 5 ha) & SATÉLITE AO VIVO'}
           </Text>
           {onSelectPilotArea && (
             <View style={styles.chipsRow}>
@@ -412,11 +480,13 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
                   <View style={styles.liveBtnLoadingRow}>
                     <ActivityIndicator size="small" color="#FFFFFF" />
                     <Text style={styles.liveBtnText}>
-                      Sincronizando ({loadingProgressPct}%)...
+                      {en ? `Syncing (${loadingProgressPct}%)...` : `Sincronizando (${loadingProgressPct}%)...`}
                     </Text>
                   </View>
                 ) : (
-                  <Text style={styles.liveBtnText}>🛰️ Atualizar Satélite Ao Vivo</Text>
+                  <Text style={styles.liveBtnText}>
+                    {en ? '🛰️ Refresh Live Satellite' : '🛰️ Atualizar Satélite Ao Vivo'}
+                  </Text>
                 )}
               </Pressable>
             )}
@@ -438,7 +508,9 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
                     { color: communityPestAlert ? '#991B1B' : theme.text },
                   ]}
                 >
-                  🐛 Alerta Praga Vizinha: {communityPestAlert ? 'SIM' : 'NÃO'}
+                  {en
+                    ? `🐛 Neighbor Pest Alert: ${communityPestAlert ? 'YES' : 'NO'}`
+                    : `🐛 Alerta Praga Vizinha: ${communityPestAlert ? 'SIM' : 'NÃO'}`}
                 </Text>
               </Pressable>
             )}
@@ -449,7 +521,9 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
               <View style={styles.loadingHeaderRow}>
                 <ActivityIndicator size="small" color="#1D4ED8" />
                 <Text style={styles.loadingTitle}>
-                  Baixando Satélite NASA &amp; Copernicus Ao Vivo
+                  {en
+                    ? 'Downloading Live NASA & Copernicus Satellite Data'
+                    : 'Baixando Satélite NASA & Copernicus Ao Vivo'}
                 </Text>
                 <Text style={styles.loadingPctBadge}>
                   {loadingProgressPct}% • {loadingElapsedSec}s
@@ -463,9 +537,11 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
                   ]}
                 />
               </View>
-              <Text style={styles.loadingStageText}>{loadingStage}</Text>
+              <Text style={styles.loadingStageText}>{resolvedLoadingStage}</Text>
               <Text style={styles.loadingBgNote}>
-                🔄 Carregando em 2º plano: você pode mudar de aba (Mapa, Início, PANCs) que a busca do satélite continua rodando sem interromper!
+                {en
+                  ? '🔄 Loading in background: you can switch tabs (Map, Overview, Crops) while the satellite search keeps running!'
+                  : '🔄 Carregando em 2º plano: você pode mudar de aba (Mapa, Início, PANCs) que a busca do satélite continua rodando sem interromper!'}
               </Text>
             </View>
           )}
@@ -475,10 +551,14 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
       {/* Mapa Embutido da Plantação com Marcadores de Qualidade do Satélite */}
       <View style={styles.mapBlock}>
         <Text style={[styles.sectionTitle, { color: theme.text, fontSize: 15 * fontScale }]}>
-          🗺️ Mapa da Plantação &amp; Marcadores de Qualidade (Satélite 10m)
+          {en
+            ? '🗺️ Field Map & Quality Markers (10m Satellite)'
+            : '🗺️ Mapa da Plantação & Marcadores de Qualidade (Satélite 10m)'}
         </Text>
         <Text style={[styles.mapHintText, { color: theme.textMuted }]}>
-          Cada marcador colorido mostra a condição real encontrada por Sentinel-2 e Landsat dentro do seu talhão.
+          {en
+            ? 'Each colored marker shows actual conditions detected by Sentinel-2 and Landsat within your plot.'
+            : 'Cada marcador colorido mostra a condição real encontrada por Sentinel-2 e Landsat dentro do seu talhão.'}
         </Text>
 
         <CropQualityFieldMap
@@ -507,21 +587,25 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
               </Text>
               <View style={styles.flexOne}>
                 <Text style={[styles.selectedZoneTitle, { color: theme.text }]}>
-                  {activeZone.location_label_pt}
+                  {en ? translate(activeZone.location_label_pt, 'en') : activeZone.location_label_pt}
                 </Text>
                 <Text style={[styles.selectedZoneSub, { color: activeZone.color_hex }]}>
-                  {activeZone.short_label_pt}
+                  {en ? translate(activeZone.short_label_pt, 'en') : activeZone.short_label_pt}
                 </Text>
               </View>
               <Pressable
                 onPress={() =>
                   onPlayVoiceScript?.(
-                    `${activeZone.location_label_pt}: ${activeZone.short_label_pt}`
+                    en
+                      ? `${translate(activeZone.location_label_pt, 'en')}: ${translate(activeZone.short_label_pt, 'en')}`
+                      : `${activeZone.location_label_pt}: ${activeZone.short_label_pt}`
                   )
                 }
                 style={styles.miniAudioBtn}
               >
-                <Text style={styles.miniAudioText}>🔊 Ouvir esta zona</Text>
+                <Text style={styles.miniAudioText}>
+                  {en ? '🔊 Listen to zone' : '🔊 Ouvir esta zona'}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -531,7 +615,7 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
       {/* Zonas do Terreno (Talhões 10m clusterizados) */}
       <View style={styles.zonesBlock}>
         <Text style={[styles.sectionTitle, { color: theme.text, fontSize: 15 * fontScale }]}>
-          Manchas da Sua Roça no Satélite
+          {en ? 'Field Patches on Satellite' : 'Manchas da Sua Roça no Satélite'}
         </Text>
         <View style={styles.zonesList}>
           {view.visual_field_zones.map((zone) => {
@@ -552,10 +636,10 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
                 <Text style={styles.zoneEmoji}>{mapFieldZoneIconToEmoji(zone.icon_name)}</Text>
                 <View style={styles.flexOne}>
                   <Text style={[styles.zoneLocation, { color: theme.text }]}>
-                    {zone.location_label_pt}
+                    {en ? translate(zone.location_label_pt, 'en') : zone.location_label_pt}
                   </Text>
                   <Text style={[styles.zoneShortLabel, { color: zone.color_hex }]}>
-                    {zone.short_label_pt}
+                    {en ? translate(zone.short_label_pt, 'en') : zone.short_label_pt}
                   </Text>
                 </View>
                 <View style={[styles.zoneDot, { backgroundColor: zone.color_hex }]} />
@@ -568,10 +652,12 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
       {/* Passo-a-Passo Simples de Alto Contraste para Leitura sob Sol Forte */}
       <View style={styles.actionsBlock}>
         <Text style={[styles.sectionTitle, { color: theme.text, fontSize: 15 * fontScale }]}>
-          O Que Fazer Hoje na Lavoura
+          {en ? 'What to Do in the Field Today' : 'O Que Fazer Hoje na Lavoura'}
         </Text>
         {view.action_cards.map((card: FarmerActionCard) => {
-          const cardPalette = trafficPalette(card.urgency_color);
+          const cardPalette = trafficPalette(card.urgency_color, en);
+          const localizedTitle = en ? translate(card.title_pt, 'en') : card.title_pt;
+          const localizedInstr = en ? translate(card.instruction_pt, 'en') : card.instruction_pt;
           return (
             <View
               key={`step-${card.step_number}`}
@@ -585,21 +671,23 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
             >
               <View style={styles.actionHeader}>
                 <View style={[styles.stepBadge, { backgroundColor: cardPalette.badgeBg }]}>
-                  <Text style={styles.stepBadgeText}>Passo {card.step_number}</Text>
+                  <Text style={styles.stepBadgeText}>
+                    {en ? `Step ${card.step_number}` : `Passo ${card.step_number}`}
+                  </Text>
                 </View>
                 <Text style={styles.actionEmoji}>{mapActionCardEmoji(card.icon_name)}</Text>
                 <Pressable
-                  onPress={() => onPlayVoiceScript?.(`${card.title_pt}. ${card.instruction_pt}`)}
+                  onPress={() => onPlayVoiceScript?.(`${localizedTitle}. ${localizedInstr}`)}
                   style={styles.miniAudioBtn}
                 >
-                  <Text style={styles.miniAudioText}>🔊 Ouvir</Text>
+                  <Text style={styles.miniAudioText}>{en ? '🔊 Listen' : '🔊 Ouvir'}</Text>
                 </Pressable>
               </View>
               <Text style={[styles.actionTitle, { fontSize: 15 * fontScale }]}>
-                {card.title_pt}
+                {localizedTitle}
               </Text>
               <Text style={[styles.actionBody, { fontSize: 14 * fontScale }]}>
-                {card.instruction_pt}
+                {localizedInstr}
               </Text>
             </View>
           );
@@ -610,7 +698,7 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
       <Pressable
         onPress={() => setShowJudgeData((prev) => !prev)}
         accessibilityRole="button"
-        accessibilityLabel="Dados Científicos NASA e DSSAT"
+        accessibilityLabel={en ? 'NASA and DSSAT Scientific Data' : 'Dados Científicos NASA e DSSAT'}
         style={[
           styles.judgeToggleBtn,
           {
@@ -625,17 +713,23 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
             { color: showJudgeData ? '#FFFFFF' : '#1E3A8A', fontSize: 14 * fontScale },
           ]}
         >
-          🛰️ Dados Científicos NASA &amp; DSSAT {showJudgeData ? '▲' : '▼'}
+          {en
+            ? `🛰️ NASA & DSSAT Scientific Data ${showJudgeData ? '▲' : '▼'}`
+            : `🛰️ Dados Científicos NASA & DSSAT ${showJudgeData ? '▲' : '▼'}`}
         </Text>
       </Pressable>
 
       {showJudgeData && (
         <View style={styles.judgePanel}>
-          <Text style={styles.judgeHeading}>1. Telemetria Biofísica (Sentinel-2 / Landsat / POWER)</Text>
+          <Text style={styles.judgeHeading}>
+            {en
+              ? '1. Biophysical Telemetry (Sentinel-2 / Landsat / POWER)'
+              : '1. Telemetria Biofísica (Sentinel-2 / Landsat / POWER)'}
+          </Text>
           <View style={styles.metricsGrid}>
-            <MetricChip label="NDVI Médio (10m)" value={bio.ndvi_mean.toFixed(3)} />
+            <MetricChip label={en ? 'Mean NDVI (10m)' : 'NDVI Médio (10m)'} value={bio.ndvi_mean.toFixed(3)} />
             <MetricChip
-              label="NDVI Z-Score Hist."
+              label={en ? 'Hist. NDVI Z-Score' : 'NDVI Z-Score Hist.'}
               value={bio.ndvi_phenological_z_score.toFixed(2)}
               highlight={bio.ndvi_phenological_z_score <= -1.5}
             />
@@ -644,7 +738,7 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
             <MetricChip label="NDWI (Gao)" value={bio.ndwi_gao_mean.toFixed(3)} />
             <MetricChip label="NDWI Z-Score" value={bio.ndwi_z_score.toFixed(2)} />
             <MetricChip label="BSI (Rikimaru)" value={bio.bsi_rikimaru_mean.toFixed(3)} />
-            <MetricChip label="Tc Folha (Landsat)" value={`${bio.canopy_temp_celsius.toFixed(1)} °C`} />
+            <MetricChip label={en ? 'Canopy Tc (Landsat)' : 'Tc Folha (Landsat)'} value={`${bio.canopy_temp_celsius.toFixed(1)} °C`} />
             <MetricChip
               label="CWSI (Jackson 1981)"
               value={bio.cwsi_jackson_index.toFixed(3)}
@@ -660,42 +754,48 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
               value={bio.fao56_ks_water_stress_coeff.toFixed(3)}
               highlight={bio.fao56_ks_water_stress_coeff < 0.55}
             />
-            <MetricChip label="GDD Acumulado" value={`${bio.gdd_accumulated_c_day.toFixed(0)} °C·d`} />
+            <MetricChip label={en ? 'Accumulated GDD' : 'GDD Acumulado'} value={`${bio.gdd_accumulated_c_day.toFixed(0)} °C·d`} />
             <MetricChip label="ET0 FAO-56 (30d)" value={`${bio.et0_fao56_30d_mm.toFixed(1)} mm`} />
-            <MetricChip label="Chuva POWER (30d)" value={`${bio.precip_gpm_power_30d_mm.toFixed(1)} mm`} />
+            <MetricChip label={en ? 'POWER Rain (30d)' : 'Chuva POWER (30d)'} value={`${bio.precip_gpm_power_30d_mm.toFixed(1)} mm`} />
             <MetricChip label="RUSLE C" value={bio.rusle_c_factor.toFixed(3)} />
             <MetricChip label="RUSLE LS (NASADEM)" value={bio.rusle_ls_factor.toFixed(2)} />
           </View>
 
-          <Text style={styles.judgeHeading}>2. Matriz Multi-Cenário &amp; Equações Acionadas</Text>
+          <Text style={styles.judgeHeading}>
+            {en ? '2. Multi-Scenario Matrix & Triggered Equations' : '2. Matriz Multi-Cenário & Equações Acionadas'}
+          </Text>
           {analysis.scientific_telemetry.diagnostic_assessments.map((ass, i) => (
             <View key={`${ass.condition_code}-${i}`} style={styles.assessmentBox}>
               <Text style={styles.assessmentTitle}>
-                {translateConditionCodePt(ass.condition_code)} • {ass.severity} (Confiança{' '}
+                {translateConditionCodePt(ass.condition_code, en)} • {ass.severity} ({en ? 'Confidence' : 'Confiança'}{' '}
                 {Math.round(ass.confidence * 100)}%)
               </Text>
               <Text style={styles.monoCode}>{ass.equation_triggered}</Text>
             </View>
           ))}
 
-          <Text style={styles.judgeHeading}>3. FAO EcoCrop &amp; Aptidão FAO GAEZ v4</Text>
+          <Text style={styles.judgeHeading}>
+            {en ? '3. FAO EcoCrop & FAO GAEZ v4 Suitability' : '3. FAO EcoCrop & Aptidão FAO GAEZ v4'}
+          </Text>
           <View style={styles.assessmentBox}>
             <Text style={styles.assessmentBody}>
-              Espécie: {baseline.scientific_name} ({baseline.common_name_pt}){'\n'}
+              {en ? 'Species' : 'Espécie'}: {baseline.scientific_name} ({en ? translate(baseline.common_name_pt, 'en') : baseline.common_name_pt}){'\n'}
               EcoCrop: Tbase={baseline.fao_ecocrop_parameters.t_base_c}°C • Topt=
               {baseline.fao_ecocrop_parameters.t_opt_min_c}–
               {baseline.fao_ecocrop_parameters.t_opt_max_c}°C • Tmax=
-              {baseline.fao_ecocrop_parameters.t_max_lethal_c}°C • Ciclo=
+              {baseline.fao_ecocrop_parameters.t_max_lethal_c}°C • {en ? 'Cycle' : 'Ciclo'}=
               {baseline.fao_ecocrop_parameters.cycle_days_min}–
-              {baseline.fao_ecocrop_parameters.cycle_days_max} dias • Rmin=
+              {baseline.fao_ecocrop_parameters.cycle_days_max} {en ? 'days' : 'dias'} • Rmin=
               {baseline.fao_ecocrop_parameters.r_min_mm} mm{'\n'}
-              GAEZ v4: Índice {baseline.fao_gaez_v4_suitability.suitability_index_0_100}/100 •
-              Produtividade Baixo Insumo:{' '}
+              GAEZ v4: {en ? 'Index' : 'Índice'} {baseline.fao_gaez_v4_suitability.suitability_index_0_100}/100 •
+              {en ? 'Low-Input Attainable Yield:' : 'Produtividade Baixo Insumo:'}{' '}
               {baseline.fao_gaez_v4_suitability.attainable_yield_low_input_kg_ha.toFixed(0)} kg/ha
             </Text>
           </View>
 
-          <Text style={styles.judgeHeading}>4. Vetor de Estado DSSAT (Módulo de Rotação)</Text>
+          <Text style={styles.judgeHeading}>
+            {en ? '4. DSSAT State Vector (Rotation Module)' : '4. Vetor de Estado DSSAT (Módulo de Rotação)'}
+          </Text>
           <View style={styles.assessmentBox}>
             <Text style={styles.monoCode}>
               observed_lai_m2_m2: {dssat.observed_lai_m2_m2}{'\n'}
@@ -708,7 +808,9 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
             </Text>
           </View>
 
-          <Text style={styles.judgeHeading}>5. Proveniência das Cenas &amp; Escala</Text>
+          <Text style={styles.judgeHeading}>
+            {en ? '5. Scene Provenance & Scale' : '5. Proveniência das Cenas & Escala'}
+          </Text>
           {analysis.scientific_telemetry.data_provenance.map((prov, idx) => (
             <View key={`prov-${idx}`} style={styles.provenanceBox}>
               <Text style={styles.monoCode}>{JSON.stringify(prov)}</Text>
@@ -717,12 +819,17 @@ export const CropQualityAnalysisCard: React.FC<CropQualityAnalysisCardProps> = (
 
           {analysis.scale_disclaimers.map((disc, idx) => (
             <Text key={`disc-${idx}`} style={styles.disclaimerText}>
-              ℹ️ {disc}
+              ℹ️ {en ? translate(disc, 'en') : disc}
             </Text>
           ))}
 
           <View style={styles.hitlBox}>
-            <Text style={styles.hitlText}>👩🏽‍🌾 {analysis.human_in_the_loop_notice}</Text>
+            <Text style={styles.hitlText}>
+              👩🏽‍🌾{' '}
+              {en
+                ? translate(analysis.human_in_the_loop_notice, 'en')
+                : analysis.human_in_the_loop_notice}
+            </Text>
           </View>
         </View>
       )}

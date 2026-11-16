@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, ScrollView, StyleSheet, View } from 'react-native';
+import { BackHandler, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useLanguage } from '../i18n/Language';
 import { Pressable, Text } from '../i18n/native';
-import { FeatureBadge } from '../components/FeatureBadge';
+import { translate } from '../i18n/translate';
 import { VoiceReadBar } from '../components/VoiceReadBar';
 import { DssatAreaSimulation } from '../components/dssat/DssatAreaSimulation';
 import { DssatRotationSearch } from '../components/dssat/DssatRotationSearch';
@@ -41,6 +41,8 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
   openCurrentRotation = false,
 }) => {
   const { accessibility, activeFarmer, activeFarm, farmArchitecture, speak } = useAccessibility();
+  const { width } = useWindowDimensions();
+  const isWideWeb = width >= 820;
   const { openQualityRequested, clearOpenQualityRequest } = useCropQuality();
   const { language } = useLanguage();
   const en = language === 'en';
@@ -54,7 +56,10 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
   const autoSpokenRef = useRef(false);
 
   const hubPlantacoes = farmArchitecture?.plantacoes ?? [];
-  const hubCropsText = hubPlantacoes.map((p) => p.culturaAtual.culturaNome).filter(Boolean).join(', ');
+  const hubCropsText = hubPlantacoes
+    .map((p) => (en ? translate(p.culturaAtual.culturaNome, 'en') : p.culturaAtual.culturaNome))
+    .filter(Boolean)
+    .join(', ');
   const cropsVoiceText = activeFarm
     ? en
       ? `Crops tab for ${activeFarm.nome}, ${formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)}, with ${hubPlantacoes.length} plantings${hubCropsText ? `: ${hubCropsText}` : ''}. Choose Update farm details, Plan rotation with DSSAT, My Plot in DSSAT, Current crop quality, or Live Satellite & Crop Forecasts.`
@@ -98,7 +103,6 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
   if (!activeFarm || !activeFarmer || !farmArchitecture) return null;
 
   const verde = FEATURE_COLOR_STYLES.verde;
-  const roxo = FEATURE_COLOR_STYLES.roxo;
   const plantacoes = farmArchitecture.plantacoes;
   const ha = activeFarm.areaHectares;
   const historyCount =
@@ -109,7 +113,7 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <ScrollView
         style={{ flex: 1, backgroundColor: theme.bg }}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[styles.container, isWideWeb && styles.containerWide]}
       >
         {effectiveBlock === 'atualizar_lotes' ? (
           <RotacaoAtualSubscreen
@@ -186,69 +190,92 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
               }
             />
 
-            <View style={[styles.listSheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={[styles.cardsStack, isWideWeb && styles.cardsGridWide]}>
               <Pressable
                 onPress={() => setActiveBlock('atualizar_lotes')}
-                style={[styles.choiceRow, { borderBottomWidth: 1, borderBottomColor: theme.border, borderLeftColor: verde.border }]}
+                style={[styles.choiceRow, isWideWeb && styles.choiceCardWide, { backgroundColor: theme.surface, borderColor: theme.border, borderLeftColor: verde.border }]}
               >
-                <Ionicons name="leaf-outline" size={20} color={verde.text} />
+                <View style={[styles.choiceIconBadge, { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : verde.bg }]}>
+                  <Ionicons name="leaf-outline" size={21} color={accessibility.highContrast ? theme.primary : verde.text} />
+                </View>
                 <View style={styles.choiceBody}>
                   <Text style={[styles.choiceTitle, { color: theme.text }]}>
                     Cultura atual e rotações planejadas
                   </Text>
-                  <Text style={{ fontSize: 11.5, color: theme.textMuted }} numberOfLines={1}>
+                  <Text style={[styles.choiceSub, { color: theme.textMuted }]} numberOfLines={2}>
                     {plantacoes.length} plantação{plantacoes.length === 1 ? '' : 'ões'} • NASA/FAO EcoCrop
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={verde.text} />
+                <View style={[styles.chevronCircle, { backgroundColor: theme.surfaceMuted }]}>
+                  <Ionicons name="chevron-forward" size={16} color={accessibility.highContrast ? theme.primary : verde.text} />
+                </View>
               </Pressable>
 
               <Pressable
                 onPress={() => setActiveBlock('atualizar_mapa')}
-                style={[styles.choiceRow, { borderBottomWidth: 1, borderBottomColor: theme.border, borderLeftColor: verde.border }]}
+                style={[styles.choiceRow, isWideWeb && styles.choiceCardWide, { backgroundColor: theme.surface, borderColor: theme.border, borderLeftColor: verde.border }]}
               >
-                <Ionicons name="map-outline" size={20} color={verde.text} />
+                <View style={[styles.choiceIconBadge, { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : verde.bg }]}>
+                  <Ionicons name="map-outline" size={21} color={accessibility.highContrast ? theme.primary : verde.text} />
+                </View>
                 <View style={styles.choiceBody}>
                   <Text style={[styles.choiceTitle, { color: theme.text }]}>
                     Demarcar terreno da fazenda no mapa
                   </Text>
-                  <Text style={{ fontSize: 11.5, color: theme.textMuted }} numberOfLines={1}>
-                    Área atual: {formatArea(ha, activeFarm.areaTarefasBa)}
+                  <Text style={[styles.choiceSub, { color: theme.textMuted }]} numberOfLines={2}>
+                    {en ? 'Current area: ' : 'Área atual: '}{formatArea(ha, activeFarm.areaTarefasBa)}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={verde.text} />
+                <View style={[styles.chevronCircle, { backgroundColor: theme.surfaceMuted }]}>
+                  <Ionicons name="chevron-forward" size={16} color={accessibility.highContrast ? theme.primary : verde.text} />
+                </View>
               </Pressable>
 
               <Pressable
                 onPress={() => setActiveBlock('atualizar_variaveis')}
-                style={[styles.choiceRow, { borderBottomWidth: 1, borderBottomColor: theme.border, borderLeftColor: verde.border }]}
+                style={[styles.choiceRow, isWideWeb && styles.choiceCardWide, { backgroundColor: theme.surface, borderColor: theme.border, borderLeftColor: verde.border }]}
               >
-                <Ionicons name="options-outline" size={20} color={verde.text} />
+                <View style={[styles.choiceIconBadge, { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : verde.bg }]}>
+                  <Ionicons name="options-outline" size={21} color={accessibility.highContrast ? theme.primary : verde.text} />
+                </View>
                 <View style={styles.choiceBody}>
                   <Text style={[styles.choiceTitle, { color: theme.text }]}>
                     Variáveis da fazenda (usuário)
                   </Text>
-                  <Text style={{ fontSize: 11.5, color: theme.textMuted }} numberOfLines={1}>
-                    {activeFarmer.waterAccess} • {activeFarmer.laborType} • {activeFarmer.objective}
+                  <Text style={[styles.choiceSub, { color: theme.textMuted }]} numberOfLines={2}>
+                    {translate(activeFarmer.waterAccess, language)} •{' '}
+                    {translate(activeFarmer.laborType, language)} •{' '}
+                    {translate(activeFarmer.objective, language)}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={verde.text} />
+                <View style={[styles.chevronCircle, { backgroundColor: theme.surfaceMuted }]}>
+                  <Ionicons name="chevron-forward" size={16} color={accessibility.highContrast ? theme.primary : verde.text} />
+                </View>
               </Pressable>
 
               <Pressable
                 onPress={() => setActiveBlock('atualizar_historico')}
-                style={[styles.choiceRow, { borderLeftColor: verde.border }]}
+                style={[styles.choiceRow, isWideWeb && styles.choiceCardWide, { backgroundColor: theme.surface, borderColor: theme.border, borderLeftColor: verde.border }]}
               >
-                <Ionicons name="calendar-outline" size={20} color={verde.text} />
+                <View style={[styles.choiceIconBadge, { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : verde.bg }]}>
+                  <Ionicons name="calendar-outline" size={21} color={accessibility.highContrast ? theme.primary : verde.text} />
+                </View>
                 <View style={styles.choiceBody}>
                   <Text style={[styles.choiceTitle, { color: theme.text }]}>
                     Histórico da terra e safras anteriores
                   </Text>
-                  <Text style={{ fontSize: 11.5, color: theme.textMuted }} numberOfLines={1}>
-                    {historyCount} registro{historyCount === 1 ? '' : 's'}
+                  <Text style={[styles.choiceSub, { color: theme.textMuted }]} numberOfLines={2}>
+                    {historyCount}{' '}
+                    {en
+                      ? historyCount === 1
+                        ? 'record'
+                        : 'records'
+                      : `registro${historyCount === 1 ? '' : 's'}`}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={verde.text} />
+                <View style={[styles.chevronCircle, { backgroundColor: theme.surfaceMuted }]}>
+                  <Ionicons name="chevron-forward" size={16} color={accessibility.highContrast ? theme.primary : verde.text} />
+                </View>
               </Pressable>
             </View>
           </View>
@@ -276,15 +303,25 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
             theme={theme}
           />
         ) : (
-          /* HUB DA ABA PLANTAÇÃO — lista enxuta sem quadrados espaçados */
+          /* HUB DA ABA PLANTAÇÃO — cartões interativos claros e fáceis de tocar */
           <View style={{ gap: 10 }}>
-            <View style={[styles.headerStrip, { borderBottomColor: theme.border }]}>
+            <View
+              style={[
+                styles.headerStrip,
+                { backgroundColor: theme.surface, borderColor: theme.border },
+              ]}
+            >
               <Text style={[styles.hubTitle, { color: theme.text, fontSize: 18 * theme.scale }]}>
                 Plantação e Modelagem da Fazenda
               </Text>
-              <Text style={{ fontSize: 12, color: theme.textMuted }}>
+              <Text style={{ fontSize: 12, color: theme.textMuted, fontWeight: '600' }}>
                 {activeFarm.nome} • {formatArea(ha, activeFarm.areaTarefasBa)} •{' '}
-                {plantacoes.length} plantação{plantacoes.length === 1 ? '' : 'ões'}
+                {plantacoes.length}{' '}
+                {en
+                  ? plantacoes.length === 1
+                    ? 'crop'
+                    : 'crops'
+                  : `plantação${plantacoes.length === 1 ? '' : 'ões'}`}
               </Text>
               <Pressable
                 onPress={() => setShowDataLayers((v) => !v)}
@@ -293,20 +330,26 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
               >
                 <Ionicons name="layers-outline" size={14} color={theme.primary} />
                 <Text style={{ fontSize: 11.5, fontWeight: '800', color: theme.primary, flex: 1 }}>
-                  Camadas de dados ativas nesta fazenda
+                  {en ? 'Active data layers on this farm' : 'Camadas de dados ativas nesta fazenda'}
                 </Text>
                 <Ionicons name={showDataLayers ? 'chevron-up' : 'chevron-down'} size={14} color={theme.primary} />
               </Pressable>
               {showDataLayers && (
-                <View style={[styles.dataModelStrip, { backgroundColor: theme.surface }]}>
+                <View style={[styles.dataModelStrip, { backgroundColor: theme.bg, borderColor: theme.border }]}>
                   <Text style={{ fontSize: 11, color: theme.textMuted }}>
-                    • Histórico da terra: NASA POWER + SRTM + Landsat C2 L2 TIRS (30 m)
+                    {en
+                      ? '• Land history: NASA POWER + SRTM + Landsat C2 L2 TIRS (30 m)'
+                      : '• Histórico da terra: NASA POWER + SRTM + Landsat C2 L2 TIRS (30 m)'}
                   </Text>
                   <Text style={{ fontSize: 11, color: theme.textMuted }}>
-                    • Cultura atual: seleção do usuário + NASA/FAO GAEZ EcoCrop
+                    {en
+                      ? '• Current crop: user selection + NASA/FAO GAEZ EcoCrop'
+                      : '• Cultura atual: seleção do usuário + NASA/FAO GAEZ EcoCrop'}
                   </Text>
                   <Text style={{ fontSize: 11, color: theme.textMuted }}>
-                    • Culturas futuras: registro do agricultor ou planejamento de rotações
+                    {en
+                      ? '• Future crops: farmer records or rotation planning'
+                      : '• Culturas futuras: registro do agricultor ou planejamento de rotações'}
                   </Text>
                 </View>
               )}
@@ -318,22 +361,26 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
               label={en ? 'Read Crops tab aloud' : 'Ouvir leitura da aba Plantação'}
             />
 
-            <View style={[styles.listSheet, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={[styles.cardsStack, isWideWeb && styles.cardsGridWide]}>
               {/* 1. VERDE: Atualizar dados */}
               <Pressable
                 onPress={() => setActiveBlock('atualizar_hub')}
-                style={[styles.choiceRow, { borderBottomWidth: 1, borderBottomColor: theme.border, borderLeftColor: verde.border }]}
+                style={[styles.choiceRow, isWideWeb && styles.choiceCardWide, { backgroundColor: theme.surface, borderColor: theme.border, borderLeftColor: verde.border }]}
               >
-                <Ionicons name="create-outline" size={22} color={verde.text} />
+                <View style={[styles.choiceIconBadge, { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : verde.bg }]}>
+                  <Ionicons name="create-outline" size={22} color={accessibility.highContrast ? theme.primary : verde.text} />
+                </View>
                 <View style={styles.choiceBody}>
                   <Text style={[styles.choiceTitle, { color: theme.text }]}>
                     Atualizar dados da plantação e da fazenda
                   </Text>
-                  <Text style={{ fontSize: 11.5, color: theme.textMuted }} numberOfLines={1}>
+                  <Text style={[styles.choiceSub, { color: theme.textMuted }]} numberOfLines={2}>
                     Editar terreno, lotes, cultura atual, variáveis da fazenda e histórico
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={verde.text} />
+                <View style={[styles.chevronCircle, { backgroundColor: theme.surfaceMuted }]}>
+                  <Ionicons name="chevron-forward" size={16} color={accessibility.highContrast ? theme.primary : verde.text} />
+                </View>
               </Pressable>
 
               {([
@@ -344,55 +391,93 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
                   key={block}
                   accessibilityRole="button"
                   onPress={() => setActiveBlock(block)}
-                  style={[styles.choiceRow, { borderBottomWidth: 1, borderBottomColor: theme.border, borderLeftColor: theme.accent }]}
+                  style={[styles.choiceRow, isWideWeb && styles.choiceCardWide, { backgroundColor: theme.surface, borderColor: theme.border, borderLeftColor: theme.accent }]}
                 >
-                  <Ionicons name={icon} size={22} color={theme.accent} />
+                  <View style={[styles.choiceIconBadge, { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : '#CCFBF1' }]}>
+                    <Ionicons name={icon} size={22} color={theme.accent} />
+                  </View>
                   <View style={styles.choiceBody}>
                     <Text style={[styles.choiceTitle, { color: theme.text }]}>{title}</Text>
-                    <Text style={{ fontSize: 11.5, color: theme.textMuted }} numberOfLines={1}>{description}</Text>
+                    <Text style={[styles.choiceSub, { color: theme.textMuted }]} numberOfLines={2}>{description}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={theme.accent} />
+                  <View style={[styles.chevronCircle, { backgroundColor: theme.surfaceMuted }]}>
+                    <Ionicons name="chevron-forward" size={16} color={theme.accent} />
+                  </View>
                 </Pressable>
               ))}
 
-              {/* 4. ROXO (Implementado): Ver qualidade da plantação atual */}
+              {/* 4. Ver qualidade da plantação atual */}
               <Pressable
                 onPress={() => setActiveBlock('qualidade_atual')}
-                style={[styles.choiceRow, { borderBottomWidth: 1, borderBottomColor: theme.border, borderLeftColor: roxo.border, backgroundColor: roxo.bg }]}
+                style={[
+                  styles.choiceRow,
+                  isWideWeb && styles.choiceCardWide,
+                  {
+                    backgroundColor: theme.surface,
+                    borderColor: theme.border,
+                    borderLeftColor: theme.accent,
+                  },
+                ]}
               >
-                <Ionicons name="pulse-outline" size={22} color={roxo.text} />
+                <View
+                  style={[
+                    styles.choiceIconBadge,
+                    { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : '#CCFBF1' },
+                  ]}
+                >
+                  <Ionicons name="pulse-outline" size={22} color={theme.accent} />
+                </View>
                 <View style={styles.choiceBody}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <Text style={[styles.choiceTitle, { color: roxo.text }]}>
-                      Ver qualidade da plantação atual
-                    </Text>
-                    <FeatureBadge color="roxo" customText="ROXO • Implementado" />
-                  </View>
-                  <Text style={{ fontSize: 11.5, color: roxo.text }} numberOfLines={1}>
-                    NASA POWER + Sentinel-2 L2A + Landsat TIRS + manchas no mapa + áudio
+                  <Text style={[styles.choiceTitle, { color: theme.text }]}>
+                    Ver qualidade da plantação atual
+                  </Text>
+                  <Text style={[styles.choiceSub, { color: theme.textMuted }]} numberOfLines={2}>
+                    {en
+                      ? 'NASA POWER, Sentinel-2, leaf photo test, patches & audio'
+                      : 'NASA POWER, Sentinel-2, exame da folha por foto, manchas e áudio'}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={roxo.text} />
+                <View style={[styles.chevronCircle, { backgroundColor: theme.surfaceMuted }]}>
+                  <Ionicons name="chevron-forward" size={16} color={theme.accent} />
+                </View>
               </Pressable>
 
               {/* 5. SATÉLITE + PREVISÕES POR GRÃO */}
               <Pressable
                 onPress={() => setActiveBlock('satelite_previsoes')}
-                style={[styles.choiceRow, { borderLeftColor: '#0284C7', backgroundColor: '#F0F9FF' }]}
+                style={[
+                  styles.choiceRow,
+                  isWideWeb && styles.choiceCardWide,
+                  {
+                    backgroundColor: theme.surface,
+                    borderColor: theme.border,
+                    borderLeftColor: theme.accent,
+                  },
+                ]}
               >
-                <Ionicons name="planet-outline" size={22} color="#0369A1" />
+                <View
+                  style={[
+                    styles.choiceIconBadge,
+                    { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : '#CCFBF1' },
+                  ]}
+                >
+                  <Ionicons name="planet-outline" size={22} color={theme.accent} />
+                </View>
                 <View style={styles.choiceBody}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <Text style={[styles.choiceTitle, { color: '#0C4A6E' }]}>
-                      Satélite da Plantação + Previsões por Grão
-                    </Text>
-                    <FeatureBadge color="roxo" customText="SATÉLITE REAL • FAO/NASA" />
-                  </View>
-                  <Text style={{ fontSize: 11.5, color: '#0369A1' }} numberOfLines={1}>
-                    Terreno em imagem real, produtividade estimada (sc/ha), risco climático e clima 7 dias
+                  <Text style={[styles.choiceTitle, { color: theme.text }]}>
+                    {en
+                      ? 'Plantation Satellite + Grain Forecasts'
+                      : 'Satélite da Plantação + Previsões por Grão'}
+                  </Text>
+                  <Text style={[styles.choiceSub, { color: theme.textMuted }]} numberOfLines={2}>
+                    {en
+                      ? 'Real terrain imagery, estimated yield (sc/ha), climate risk, and 7-day weather'
+                      : 'Terreno em imagem real, produtividade estimada (sc/ha), risco climático e clima 7 dias'}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color="#0369A1" />
+                <View style={[styles.chevronCircle, { backgroundColor: theme.surfaceMuted }]}>
+                  <Ionicons name="chevron-forward" size={16} color={theme.accent} />
+                </View>
               </Pressable>
             </View>
           </View>
@@ -404,14 +489,27 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
 
 const styles = StyleSheet.create({
   container: {
-    padding: 12,
+    maxWidth: 1160,
+    width: '100%',
+    alignSelf: 'center',
+    padding: 14,
     gap: 10,
-    paddingBottom: 22,
+    paddingBottom: 24,
+  },
+  containerWide: {
+    padding: 24,
+    gap: 16,
   },
   headerStrip: {
-    borderBottomWidth: 1,
-    paddingBottom: 8,
-    gap: 4,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 14,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   hubTitle: {
     fontWeight: '900',
@@ -423,32 +521,66 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   dataModelStrip: {
-    borderRadius: 8,
-    padding: 8,
-    gap: 3,
-    marginTop: 4,
-  },
-  listSheet: {
     borderRadius: 12,
     borderWidth: 1,
-    overflow: 'hidden',
+    padding: 10,
+    gap: 4,
+    marginTop: 4,
+  },
+  cardsStack: {
+    gap: 10,
+  },
+  cardsGridWide: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+  },
+  choiceCardWide: {
+    width: '48.8%',
+    flexGrow: 1,
   },
   choiceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    minHeight: 62,
-    borderLeftWidth: 3,
+    gap: 12,
+    padding: 14,
+    minHeight: 74,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  choiceIconBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   choiceBody: {
     flex: 1,
-    gap: 2,
+    gap: 3,
   },
   choiceTitle: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: '900',
+  },
+  choiceSub: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  chevronCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   topRow: {
     flexDirection: 'row',
@@ -460,9 +592,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 12,
     borderWidth: 1,
   },
   backText: {

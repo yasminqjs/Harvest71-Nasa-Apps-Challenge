@@ -109,7 +109,7 @@ const Harvest71Root: React.FC = () => {
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg }]} edges={['top', 'bottom']}>
       <StatusBar style={accessibility.highContrast ? 'light' : 'dark'} />
       {(!accessibility.voiceOnboardingCompleted || !nordesteMapCompleted) && (
-        <View style={{ alignItems: 'flex-end', paddingHorizontal: 12, paddingVertical: 4 }}>
+        <View style={styles.onboardingLangBar}>
           <LanguageMenu theme={theme} />
         </View>
       )}
@@ -121,6 +121,8 @@ const Harvest71Root: React.FC = () => {
       ) : (
         <View style={styles.shell}>
           <AppHeader
+            activeTab={activeTab}
+            onChangeTab={navigateTab}
             onOpenSettings={() => openSettingsAt('perfil')}
             onOpenTutorial={openTutorial}
           />
@@ -191,5 +193,13 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+  },
+  onboardingLangBar: {
+    alignItems: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    maxWidth: 1160,
+    width: '100%',
+    alignSelf: 'center',
   },
 });

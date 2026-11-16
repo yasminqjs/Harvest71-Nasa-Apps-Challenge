@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useLanguage } from '../i18n/Language';
 import { Pressable, Text, TextInput } from '../i18n/native';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { startVoiceCapture } from '../services/voiceAssistant';
@@ -10,17 +11,20 @@ import { AppFeedbackItem } from '../types/domain';
 const CATEGORIES: {
   id: AppFeedbackItem['categoria'];
   label: string;
+  labelEn: string;
   icon: keyof typeof Ionicons.glyphMap;
 }[] = [
-  { id: 'previsao', label: 'Previsão / Chuva', icon: 'rainy-outline' },
-  { id: 'folha', label: 'Exame da Folha', icon: 'camera-outline' },
-  { id: 'mapa_pocos', label: 'Mapa e Poços', icon: 'map-outline' },
-  { id: 'voz_clareza', label: 'Voz e Clareza', icon: 'volume-high-outline' },
-  { id: 'sugestao', label: 'Sugestão / Erro', icon: 'bulb-outline' },
+  { id: 'previsao', label: 'Previsão / Chuva', labelEn: 'Forecast / Rain', icon: 'rainy-outline' },
+  { id: 'folha', label: 'Exame da Folha', labelEn: 'Leaf Scan', icon: 'camera-outline' },
+  { id: 'mapa_pocos', label: 'Mapa e Poços', labelEn: 'Map & Wells', icon: 'map-outline' },
+  { id: 'voz_clareza', label: 'Voz e Clareza', labelEn: 'Voice & Clarity', icon: 'volume-high-outline' },
+  { id: 'sugestao', label: 'Sugestão / Erro', labelEn: 'Suggestion / Bug', icon: 'bulb-outline' },
 ];
 
 export const FeedbackSection: React.FC = () => {
   const { accessibility, feedbacks, submitAppFeedback, speak } = useAccessibility();
+  const { language } = useLanguage();
+  const en = language === 'en';
   const theme = getAppTheme(accessibility);
 
   const [categoria, setCategoria] = useState<AppFeedbackItem['categoria']>('previsao');
@@ -61,8 +65,9 @@ export const FeedbackSection: React.FC = () => {
         onExpoGoFallback: () => {
           setTimeout(() => commentInputRef.current?.focus(), 100);
         },
-        unsupportedMessage:
-          'No Expo Go, toque no microfone (🎤) do teclado para ditar seu feedback.',
+        unsupportedMessage: en
+          ? 'In Expo Go, tap the keyboard microphone (🎤) to dictate your feedback.'
+          : 'No Expo Go, toque no microfone (🎤) do teclado para ditar seu feedback.',
       }
     );
   };
@@ -74,11 +79,21 @@ export const FeedbackSection: React.FC = () => {
       nota,
       comentario:
         comentario.trim() ||
-        `Avaliação ${nota}/5 sobre ${categoria} (bateu com a roça: ${previsaoBateu})`,
+        (en
+          ? `Rating ${nota}/5 for ${categoria} (matched field: ${previsaoBateu})`
+          : `Avaliação ${nota}/5 sobre ${categoria} (bateu com a roça: ${previsaoBateu})`),
     });
     setComentario('');
-    setStatusMsg('Obrigado! Sua opinião foi registrada com sucesso.');
-    speak('Obrigado! Sua opinião foi salva no aplicativo.');
+    setStatusMsg(
+      en
+        ? 'Thank you! Your feedback has been recorded.'
+        : 'Obrigado! Sua opinião foi registrada com sucesso.'
+    );
+    speak(
+      en
+        ? 'Thank you! Your feedback was saved in the app.'
+        : 'Obrigado! Sua opinião foi salva no aplicativo.'
+    );
   };
 
   return (
@@ -187,7 +202,7 @@ export const FeedbackSection: React.FC = () => {
                     color: active ? theme.primaryText : theme.text,
                   }}
                 >
-                  {cat.label}
+                  {en ? cat.labelEn : cat.label}
                 </Text>
               </Pressable>
             );

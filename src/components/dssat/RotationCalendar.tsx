@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { loadRotationPlan, saveRotationPlan } from '../../database/sqlite';
 import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text } from '../../i18n/native';
+import { translate } from '../../i18n/translate';
 import { useDssatJob } from '../../hooks/useDssatJob';
 import { createRotationCompare, friendlyMessage, planRotationCalendar, type RotationCalendarResult } from '../../services/dssatApi';
 import type { getAppTheme } from '../../theme/tokens';
@@ -57,10 +58,18 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
     let active = true;
     loadRotationPlan(farmId, lotId)
       .then((plan) => { if (active) setSaved(plan); })
-      .catch(() => { if (active) setSaveError('Não foi possível ler o plano salvo neste dispositivo.'); })
+      .catch(() => {
+        if (active) {
+          setSaveError(
+            en
+              ? 'Could not read the saved plan on this device.'
+              : 'Não foi possível ler o plano salvo neste dispositivo.'
+          );
+        }
+      })
       .finally(() => { if (active) setLoadingSaved(false); });
     return () => { active = false; };
-  }, [farmId, lotId]);
+  }, [farmId, lotId, en]);
 
   const start = tomorrow();
   const end = start + 365 * DAY;
@@ -68,7 +77,10 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
     (i === 0 || date > dates[i - 1]));
   const windowCount = selected.length * dates.length;
   const suggestions = suggestKnownCrops(knownPlants, crops);
-  const cropName = (code: string) => crops.find((crop) => crop.code === code)?.name ?? code;
+  const cropName = (code: string) => {
+    const raw = crops.find((crop) => crop.code === code)?.name ?? code;
+    return en ? translate(raw, 'en') : raw;
+  };
   const invalidateCalendar = () => { setResult(undefined); setError(''); };
 
   // Precompute DSSAT sequence pairing info directly from capabilities so selection is crystal-clear.
@@ -101,7 +113,10 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
   const eligibleSize = eligible.size;
 
   const pairedLabels = useMemo(() => {
-    const labelFor = (code: string) => crops.find((crop) => crop.code === code)?.name ?? code;
+    const labelFor = (code: string) => {
+      const raw = crops.find((crop) => crop.code === code)?.name ?? code;
+      return en ? translate(raw, 'en') : raw;
+    };
     const pairs: string[] = [];
     const seen = new Set<string>();
     for (const [a, b] of caps?.sequence_pairs ?? []) {
@@ -114,7 +129,7 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
       }
     }
     return pairs;
-  }, [caps, selected, crops]);
+  }, [caps, selected, crops, en]);
 
   const suggestedPartners = useMemo(() => {
     if (selectedDssat.length === 0 || eligibleSize >= 2) return [];
@@ -181,7 +196,11 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
       await saveRotationPlan(farmId, lotId, plan);
       setSaved(plan);
     } catch {
-      setSaveError('Não foi possível salvar o plano neste dispositivo.');
+      setSaveError(
+        en
+          ? 'Could not save the plan on this device.'
+          : 'Não foi possível salvar o plano neste dispositivo.'
+      );
     } finally {
       setSaving(false);
     }
@@ -196,12 +215,31 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
     const years = cycles.map((cycle) => Number(cycle.planting_date.slice(0, 4)));
     const canCompare = caps && allPairsEnabled(codes, caps) && years[years.length - 1] - years[0] <= 1;
     if (!canCompare) {
-      return <P theme={theme} muted>Para comparar ordens, escolha dois ou três cultivos distintos com pares habilitados no DSSAT.</P>;
+      return (
+        <P theme={theme} muted>
+          {en
+            ? 'To compare sequences, select two or three distinct crops with enabled DSSAT pairs.'
+            : 'Para comparar ordens, escolha dois ou três cultivos distintos com pares habilitados no DSSAT.'}
+        </P>
+      );
     }
-    return <PrimaryButton theme={theme} label="Comparar ordens no DSSAT" disabled={comparison.busy}
-      onPress={() => void comparison.submit(() => createRotationCompare({
-        lat: point.latitude, lon: point.longitude, crops: codes, planting_dates: referenceDates(cycles),
-      }))} />;
+    return (
+      <PrimaryButton
+        theme={theme}
+        label={en ? 'Compare orders in DSSAT' : 'Comparar ordens no DSSAT'}
+        disabled={comparison.busy}
+        onPress={() =>
+          void comparison.submit(() =>
+            createRotationCompare({
+              lat: point.latitude,
+              lon: point.longitude,
+              crops: codes,
+              planting_dates: referenceDates(cycles),
+            })
+          )
+        }
+      />
+    );
   }
 
   const futureSaved = saved?.cycles.filter((cycle) => Date.parse(cycle.planting_date) >= start) ?? [];
@@ -270,13 +308,17 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
         >
           {showCycles(futureSaved)}
           {futureSaved.length < saved.cycles.length && (
-            <P theme={theme}>Alguns plantios salvos já passaram. Monte um novo calendário para atualizar o plano.</P>
+            <P theme={theme}>
+              {en
+                ? 'Some saved plantings have already passed. Build a new calendar to update the plan.'
+                : 'Alguns plantios salvos já passaram. Monte um novo calendário para atualizar o plano.'}
+            </P>
           )}
           {futureSaved.length >= 2 && compareButton(futureSaved)}
           {futureSaved.length >= 2 && futureSaved.every((cycle) => Date.parse(cycle.planting_date) <= end) && (
             <PrimaryButton
               theme={theme}
-              label="Usar plano salvo para ajustar datas"
+              label={en ? 'Use saved plan to adjust dates' : 'Usar plano salvo para ajustar datas'}
               disabled={busy}
               onPress={() => {
                 invalidateCalendar();
@@ -339,7 +381,7 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
                   <Chip
                     key={crop.code}
                     theme={theme}
-                    label={crop.name}
+                    label={en ? translate(crop.name, 'en') : crop.name}
                     selected={isSel}
                     warn={isUnpairedSelected}
                     tone={tone}
@@ -377,7 +419,7 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
               <Chip
                 key={crop.code}
                 theme={theme}
-                label={crop.name}
+                label={en ? translate(crop.name, 'en') : crop.name}
                 selected={selected.includes(crop.code)}
                 disabled={busy}
                 onPress={() => handleToggleCrop(crop.code)}
@@ -400,7 +442,7 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
                 <Chip
                   key={crop.code}
                   theme={theme}
-                  label={crop.name}
+                  label={en ? translate(crop.name, 'en') : crop.name}
                   selected={selected.includes(crop.code)}
                   warn={selected.includes(crop.code)}
                   disabled={busy}
@@ -449,7 +491,7 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
         {dates.map((date, index) => (
           <FuturePlantingDate
             key={index}
-            label={`Plantio ${index + 1}`}
+            label={en ? `Planting ${index + 1}` : `Plantio ${index + 1}`}
             value={date}
             min={Math.max(start, index === 0 ? start : Date.parse(dates[index - 1]) + DAY)}
             max={Math.min(end, index === dates.length - 1 ? end : Date.parse(dates[index + 1]) - DAY)}
@@ -464,12 +506,16 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
         {!valid && (
           <PrimaryButton
             theme={theme}
-            label="Atualizar para datas futuras"
+            label={en ? 'Reset to future dates' : 'Atualizar para datas futuras'}
             disabled={busy}
             onPress={() => { invalidateCalendar(); setDates(defaultDates()); }}
           />
         )}
-        {windowCount > 60 && <P theme={theme}>Com três datas, selecione até 20 culturas.</P>}
+        {windowCount > 60 && (
+          <P theme={theme}>
+            {en ? 'With three dates, select up to 20 crops.' : 'Com três datas, selecione até 20 culturas.'}
+          </P>
+        )}
       </Card>
 
       {/* PRIMARY MODE: DSSAT Goal Search promoted right below crops/dates */}
@@ -493,15 +539,33 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
         <>
           <PrimaryButton
             theme={theme}
-            label={busy ? 'Montando calendário…' : 'Ver opções de plantio'}
+            label={
+              busy
+                ? en
+                  ? 'Building calendar…'
+                  : 'Montando calendário…'
+                : en
+                ? 'View planting options'
+                : 'Ver opções de plantio'
+            }
             disabled={busy || !valid || selected.length < 2 || windowCount > 60}
             onPress={submit}
           />
           {error ? <Card theme={theme} tone="danger"><P theme={theme}>{error}</P></Card> : null}
           {result && valid && (
             <Card theme={theme}>
-              <H theme={theme}>Calendários possíveis ({result.candidates.length})</H>
-              {result.candidates.length === 0 && <P theme={theme}>Nenhum ciclo coube nas datas informadas.</P>}
+              <H theme={theme}>
+                {en
+                  ? `Possible calendars (${result.candidates.length})`
+                  : `Calendários possíveis (${result.candidates.length})`}
+              </H>
+              {result.candidates.length === 0 && (
+                <P theme={theme}>
+                  {en
+                    ? 'No crop cycle fit within the selected dates.'
+                    : 'Nenhum ciclo coube nas datas informadas.'}
+                </P>
+              )}
               {result.candidates.map(({ cycles }, index) => (
                 <View
                   key={index}
@@ -512,31 +576,60 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
                     borderBottomColor: theme.border,
                   }}
                 >
-                  <P theme={theme} bold>{`Opção ${index + 1}`}</P>
+                  <P theme={theme} bold>
+                    {en ? `Option ${index + 1}` : `Opção ${index + 1}`}
+                  </P>
                   {showCycles(cycles)}
                   <PrimaryButton
                     theme={theme}
-                    label={saving ? 'Salvando…' : saved ? 'Substituir plano salvo' : 'Salvar este plano'}
+                    label={
+                      saving
+                        ? en
+                          ? 'Saving…'
+                          : 'Salvando…'
+                        : saved
+                        ? en
+                          ? 'Replace saved plan'
+                          : 'Substituir plano salvo'
+                        : en
+                        ? 'Save this plan'
+                        : 'Salvar este plano'
+                    }
                     disabled={saving || loadingSaved}
                     onPress={() => void save(cycles)}
                   />
                   {cycles.length >= 2 && compareButton(cycles)}
                 </View>
               ))}
-              <ExpandableDetails theme={theme} label="Como as datas são calculadas">
+              <ExpandableDetails
+                theme={theme}
+                label={en ? 'How dates are calculated' : 'Como as datas são calculadas'}
+              >
                 <P theme={theme} muted>
-                  As datas de fim usam a duração de referência das culturas. Para avaliar as ordens, o DSSAT usa clima histórico da área.
+                  {en
+                    ? 'End dates use reference crop cycle durations. To evaluate crop orders, DSSAT runs historical local weather.'
+                    : 'As datas de fim usam a duração de referência das culturas. Para avaliar as ordens, o DSSAT usa clima histórico da área.'}
                 </P>
-                {result.truncated && <P theme={theme} muted>Existem outras opções além das exibidas.</P>}
+                {result.truncated && (
+                  <P theme={theme} muted>
+                    {en
+                      ? 'Additional options exist beyond those shown.'
+                      : 'Existem outras opções além das exibidas.'}
+                  </P>
+                )}
               </ExpandableDetails>
             </Card>
           )}
           <JobStatusBox theme={theme} state={comparison.state} onRetry={comparison.retry} onReset={comparison.reset} />
           {comparison.state.phase === 'done' && comparison.state.result && (
             <Card theme={theme}>
-              <H theme={theme}>Comparação com clima histórico</H>
+              <H theme={theme}>
+                {en ? 'Comparison with historical weather' : 'Comparação com clima histórico'}
+              </H>
               <P theme={theme} muted>
-                Produção exploratória em kg/ha de matéria seca. A ordem marcada foi a do calendário escolhido.
+                {en
+                  ? 'Exploratory dry-matter production in kg/ha. Highlighted order matches the selected calendar.'
+                  : 'Produção exploratória em kg/ha de matéria seca. A ordem marcada foi a do calendário escolhido.'}
               </P>
               {comparison.state.result.alternatives && (
                 <RotationCompareBarChart
@@ -549,7 +642,11 @@ export function RotationCalendar({ crops, caps, theme, point, farmId, lotId, kno
               )}
               {comparison.state.result.failed_alternatives?.map((item) => (
                 <P key={item.id} theme={theme}>
-                  {item.order.map(cropName).join(' → ')}: {item.reason ?? 'plantios incompletos na simulação.'}
+                  {item.order.map(cropName).join(' → ')}:{' '}
+                  {item.reason ??
+                    (en
+                      ? 'incomplete plantings in simulation.'
+                      : 'plantios incompletos na simulação.')}
                 </P>
               ))}
             </Card>

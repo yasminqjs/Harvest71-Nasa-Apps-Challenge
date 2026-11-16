@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { Pressable, Text } from '../i18n/native';
+import { translate } from '../i18n/translate';
 import { FeedbackSection } from '../components/FeedbackSection';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { OFFICIAL_DATA_SOURCES } from '../data/seedData';
@@ -22,6 +23,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
 }) => {
   const { language } = useLanguage();
+  const en = language === 'en';
   const {
     accessibility,
     farmers,
@@ -54,8 +56,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   if (!visible || !activeFarmer) return null;
 
   return (
-    <View style={[styles.overlayRoot, { backgroundColor: theme.bg }]}>
-      <View style={[styles.root, { backgroundColor: theme.bg }]}>
+    <View style={styles.overlayRoot}>
+      <View style={[styles.root, { backgroundColor: theme.bg, borderColor: theme.border }]}>
         <View
           style={[
             styles.header,
@@ -414,7 +416,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         {al.titulo}
                       </Text>
                       <Pressable
-                        onPress={() => speak(`${al.titulo}. ${body}`, true)}
+                        onPress={() =>
+                          speak(
+                            language === 'en'
+                              ? `${translate(al.titulo, 'en')}. ${translate(body, 'en')}`
+                              : `${al.titulo}. ${body}`,
+                            true
+                          )
+                        }
                         accessibilityLabel="Ouvir alerta"
                       >
                         <Ionicons name="volume-high" size={20} color={theme.text} />
@@ -438,7 +447,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             color: theme.successText,
                           }}
                         >
-                          Você confirmou estar ciente
+                          {en ? 'You acknowledged this alert' : 'Você confirmou estar ciente'}
                           {al.confirmadoCienteEm
                             ? ` (${new Date(al.confirmadoCienteEm).toLocaleDateString(language === 'pt' ? 'pt-BR' : 'en-US')})`
                             : ''}
@@ -448,7 +457,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <Pressable
                         onPress={() => {
                           markAlertRead(al.id);
-                          speak('Confirmado que você está ciente deste alerta.');
+                          speak(
+                            en
+                              ? 'Confirmed that you are aware of this alert.'
+                              : 'Confirmado que você está ciente deste alerta.'
+                          );
                         }}
                         style={[styles.ackBtn, { backgroundColor: border }]}
                       >
@@ -556,9 +569,19 @@ const styles = StyleSheet.create({
     left: 0,
     zIndex: 999,
     elevation: 24,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
   },
   root: {
     flex: 1,
+    width: '100%',
+    maxWidth: 680,
+    maxHeight: '92%',
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',

@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text, TextInput } from '../../i18n/native';
+import { translate } from '../../i18n/translate';
 import { useDssatJob } from '../../hooks/useDssatJob';
 import { createRotationSearch } from '../../services/dssatApi';
 import type { getAppTheme } from '../../theme/tokens';
@@ -46,7 +47,10 @@ export function RotationGoalSearch({
   const leapOffset = leapDate ? Number(leapDate.slice(0, 4)) - Number(dates[0].slice(0, 4)) : 0;
   const years = leapDate ? [2012 - leapOffset, 2020 - leapOffset] : [2015, 2020];
   const errors = validateSearchForm({ selected, eligible, dates, years, targets });
-  const name = (code: string) => crops.find((crop) => crop.code === code)?.name ?? code;
+  const name = (code: string) => {
+    const raw = crops.find((crop) => crop.code === code)?.name ?? code;
+    return language === 'en' ? translate(raw, 'en') : raw;
+  };
   const biomass = [...eligible].filter((code) => targetMetric(code, caps) === 'biomass_kg_ha');
   const result = job.state.phase === 'done' ? job.state.result : undefined;
 
@@ -78,7 +82,7 @@ export function RotationGoalSearch({
     const recs = result.recommendations ?? [];
     if (recs.length > 0) {
       const top = recs[0];
-      const topNames = top.order.map((c) => crops.find((cr) => cr.code === c)?.name ?? c).join(', ');
+      const topNames = top.order.map(name).join(', ');
       const pct = Math.round((top.mean_target_attainment ?? 0) * 100);
       return en
         ? `DSSAT tested ${tested} orders and found ${recs.length} complete rotations. Best option: ${topNames}, reaching ${pct} percent of goals.`
@@ -165,11 +169,18 @@ export function RotationGoalSearch({
       {hasThreeDates && hasPairs && (
         <View style={{ gap: 6 }}>
           {[...eligible].map((code) => {
+            const rawProd = crops.find((crop) => crop.code === code)?.product;
             const metric = biomass.includes(code)
               ? en
                 ? 'dry biomass'
                 : 'biomassa seca'
-              : crops.find((crop) => crop.code === code)?.product ?? (en ? 'yield' : 'produto');
+              : rawProd
+              ? en
+                ? translate(rawProd, 'en')
+                : rawProd
+              : en
+              ? 'yield'
+              : 'produto';
             const label = `${name(code)} · ${metric} (kg/ha)`;
             return (
               <View key={code} style={styles.goalRow}>
@@ -214,7 +225,9 @@ export function RotationGoalSearch({
       )}
 
       {hasThreeDates && hasPairs && errors[0] && (
-        <Text style={{ fontSize: 11.5 * theme.scale, color: theme.textMuted }}>{errors[0]}</Text>
+        <Text style={{ fontSize: 11.5 * theme.scale, color: theme.textMuted }}>
+          {en ? translate(errors[0], 'en') : errors[0]}
+        </Text>
       )}
 
       <PrimaryButton
@@ -322,9 +335,14 @@ export function RotationGoalSearch({
         <GoalAttainmentCard key={option.id} theme={theme} option={option} cropName={name} />
       ))}
 
-      <ExpandableDetails theme={theme} label="Como funciona a busca por metas">
+      <ExpandableDetails
+        theme={theme}
+        label={en ? 'How goal search works' : 'Como funciona a busca por metas'}
+      >
         <P theme={theme} muted>
-          O DSSAT testa até oito ordens com clima histórico, usando o mês e o dia dos plantios do plano.
+          {en
+            ? 'DSSAT tests up to eight crop orders using local historical weather and the month and day from your planting dates.'
+            : 'O DSSAT testa até oito ordens com clima histórico, usando o mês e o dia dos plantios do plano.'}
         </P>
       </ExpandableDetails>
     </Card>

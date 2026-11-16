@@ -61,8 +61,15 @@ export const FarmVariablesEditorSubscreen: React.FC<FarmVariablesEditorSubscreen
       financialTier,
       objective,
     });
-    setSavedMsg('Variáveis da fazenda atualizadas no modelo da propriedade.');
-    speak('Variáveis da fazenda atualizadas com sucesso.', true);
+    setSavedMsg(
+      en
+        ? 'Farm variables updated in the property model.'
+        : 'Variáveis da fazenda atualizadas no modelo da propriedade.'
+    );
+    speak(
+      en ? 'Farm variables updated successfully.' : 'Variáveis da fazenda atualizadas com sucesso.',
+      true
+    );
   };
 
   return (

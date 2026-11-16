@@ -69,7 +69,7 @@ export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps>
       setDuracaoTexto('');
       setMaisInfos('');
       setStatusMsg('Rotação adicionada ao histórico cadastrado!');
-      speak(`Histórico salvo: ${nomeCultura}.`);
+      speak(en ? `History saved: ${nomeCultura}.` : `Histórico salvo: ${nomeCultura}.`);
     } finally {
       setSaving(false);
     }

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
+import { useLanguage } from '../i18n/Language';
 import { Pressable, Text } from '../i18n/native';
+import { translate } from '../i18n/translate';
 import Svg, { Circle, Line, Polygon, Rect } from 'react-native-svg';
 import { AppTheme } from '../theme/tokens';
 import { VisualFieldZone } from '../types/cropQuality';
@@ -38,9 +40,12 @@ export function mapFieldZoneIconToEmoji(iconName: string): string {
   }
 }
 
-function summarizeZoneShortLabel(label: string): string {
-  if (label.length <= 18) return label;
-  const trimmed = label.replace('Olhar folhas (Suspeita de Praga)', 'Suspeita de Praga');
+function summarizeZoneShortLabel(label: string, en: boolean): string {
+  const localized = en ? translate(label, 'en') : label;
+  if (localized.length <= 18) return localized;
+  const trimmed = localized
+    .replace('Olhar folhas (Suspeita de Praga)', 'Suspeita de Praga')
+    .replace('Inspect leaves (Possible Pest)', 'Possible Pest');
   if (trimmed.length <= 18) return trimmed;
   return `${trimmed.slice(0, 16)}…`;
 }
@@ -64,6 +69,8 @@ export const CropQualityFieldMap: React.FC<CropQualityFieldMapProps> = ({
   theme,
   height = 235,
 }) => {
+  const { language } = useLanguage();
+  const en = language === 'en';
   const [size, setSize] = useState({ width: 340, height });
 
   // Enquadramento: usa o polígono do lote + vértices das zonas para garantir que tudo caiba.
@@ -219,7 +226,7 @@ export const CropQualityFieldMap: React.FC<CropQualityFieldMapProps> = ({
               numberOfLines={1}
               style={[styles.zonePinText, { color: isSelected ? '#FFFFFF' : '#0F172A' }]}
             >
-              {summarizeZoneShortLabel(zone.short_label_pt)}
+              {summarizeZoneShortLabel(zone.short_label_pt, en)}
             </Text>
           </Pressable>
         );
@@ -235,7 +242,9 @@ export const CropQualityFieldMap: React.FC<CropQualityFieldMapProps> = ({
       {projectedFieldZones.length > 0 && (
         <View style={styles.legendBar} pointerEvents="none">
           <Text numberOfLines={1} style={styles.legendText}>
-            🟢 Saudável • 🟡 Atenção • 🔴 Crítico — Toque nos marcadores
+            {en
+              ? '🟢 Healthy • 🟡 Attention • 🔴 Critical — Tap markers'
+              : '🟢 Saudável • 🟡 Atenção • 🔴 Crítico — Toque nos marcadores'}
           </Text>
         </View>
       )}

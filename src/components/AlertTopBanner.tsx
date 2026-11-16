@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useLanguage } from '../i18n/Language';
 import { Pressable, Text } from '../i18n/native';
+import { translate } from '../i18n/translate';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { getAppTheme } from '../theme/tokens';
 import { ProactiveAlertItem } from '../types/domain';
@@ -20,6 +22,8 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
   onOpenAllAlerts,
 }) => {
   const { accessibility, alerts, markAlertRead, speak } = useAccessibility();
+  const { language } = useLanguage();
+  const en = language === 'en';
   const theme = getAppTheme(accessibility);
   const [expanded, setExpanded] = useState(true);
 
@@ -63,9 +67,15 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
     : 'notifications';
 
   const severityLabel = isUrgent
-    ? 'ALERTA URGENTE'
+    ? en
+      ? 'URGENT ALERT'
+      : 'ALERTA URGENTE'
     : isAttention
-    ? 'ATENÇÃO NA ROÇA'
+    ? en
+      ? 'FIELD ATTENTION'
+      : 'ATENÇÃO NA ROÇA'
+    : en
+    ? 'IMPORTANT NOTICE'
     : 'AVISO IMPORTANTE';
 
   const bodyMsg =
@@ -75,19 +85,24 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
 
   const handleConfirmAware = async () => {
     await markAlertRead(activeAlert.id);
-    speak('Alerta confirmado. Você registrou que está ciente da situação.');
+    speak(
+      en
+        ? 'Alert confirmed. You acknowledged this situation.'
+        : 'Alerta confirmado. Você registrou que está ciente da situação.'
+    );
   };
 
   return (
-    <View
-      style={[
-        styles.bannerWrap,
-        {
-          backgroundColor: bg,
-          borderBottomColor: borderColor,
-        },
-      ]}
-    >
+    <View style={styles.bannerOuter}>
+      <View
+        style={[
+          styles.bannerWrap,
+          {
+            backgroundColor: bg,
+            borderColor: borderColor,
+          },
+        ]}
+      >
       <Pressable
         onPress={() => setExpanded((e) => !e)}
         accessibilityRole="button"
@@ -106,7 +121,9 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
             {pendingAlerts.length > 1 && (
               <View style={[styles.countPill, { backgroundColor: borderColor }]}>
                 <Text style={styles.countText}>
-                  1 de {pendingAlerts.length} pendentes
+                  {en
+                    ? `1 of ${pendingAlerts.length} pending`
+                    : `1 de ${pendingAlerts.length} pendentes`}
                 </Text>
               </View>
             )}
@@ -155,7 +172,14 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
             </Pressable>
 
             <Pressable
-              onPress={() => speak(`${activeAlert.titulo}. ${bodyMsg}`, true)}
+              onPress={() =>
+                speak(
+                  en
+                    ? `${translate(activeAlert.titulo, 'en')}. ${translate(bodyMsg, 'en')}`
+                    : `${activeAlert.titulo}. ${bodyMsg}`,
+                  true
+                )
+              }
               style={[
                 styles.secondaryBtn,
                 { backgroundColor: theme.surface, borderColor },
@@ -183,16 +207,33 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
           </View>
         </View>
       )}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  bannerWrap: {
-    borderBottomWidth: 2,
+  bannerOuter: {
+    width: '100%',
+    maxWidth: 1184,
+    alignSelf: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    marginTop: 8,
+  },
+  bannerWrap: {
+    width: '100%',
+    maxWidth: 1160,
+    alignSelf: 'center',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     gap: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   topRow: {
     flexDirection: 'row',

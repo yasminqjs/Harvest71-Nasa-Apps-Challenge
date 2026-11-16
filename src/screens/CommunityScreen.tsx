@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useLanguage } from '../i18n/Language';
 import { Pressable, Text, TextInput } from '../i18n/native';
+import { translate } from '../i18n/translate';
 import { CommunityReportGraph } from '../components/CommunityReportGraph';
 import { FeatureBadge } from '../components/FeatureBadge';
 import { VoiceReadBar } from '../components/VoiceReadBar';
@@ -33,6 +34,8 @@ export const CommunityScreen: React.FC = () => {
   } = useAccessibility();
   const { language } = useLanguage();
   const en = language === 'en';
+  const { width } = useWindowDimensions();
+  const isWideWeb = width >= 920;
   const theme = getAppTheme(accessibility);
   const blue = FEATURE_COLOR_STYLES.azul;
   const salmon = FEATURE_COLOR_STYLES.salmao;
@@ -76,7 +79,11 @@ export const CommunityScreen: React.FC = () => {
     const nearbyCount = Math.max(0, graph.nodes.length - 1);
     const headlines = filteredPosts
       .slice(0, 3)
-      .map((p) => `${p.autor} de ${p.municipio}: ${p.titulo}. ${p.mensagem}`)
+      .map((p) =>
+        en
+          ? `${p.autor} from ${p.municipio}: ${translate(p.titulo, 'en')}. ${translate(p.mensagem, 'en')}`
+          : `${p.autor} de ${p.municipio}: ${p.titulo}. ${p.mensagem}`
+      )
       .join(' ');
     if (en) {
       return `Community tab for ${activeFarm.regiaoNome}. ${filteredPosts.length} local reports shown across ${nearbyCount} nearby poles. ${headlines}`;
@@ -111,7 +118,12 @@ export const CommunityScreen: React.FC = () => {
     setSelectedNodeId(null);
     setTopicFilter('todos');
     setOpenThreadId(created.id);
-    speak(`Seu relato de acontecimento foi salvo na comunidade de ${activeFarm.regiaoNome}.`, true);
+    speak(
+      en
+        ? `Your local report was saved for the ${activeFarm.regiaoNome} community.`
+        : `Seu relato de acontecimento foi salvo na comunidade de ${activeFarm.regiaoNome}.`,
+      true
+    );
   };
 
   const handleToggleLike = (postId: string) => {
@@ -123,130 +135,273 @@ export const CommunityScreen: React.FC = () => {
     if (!text) return;
     addCommunityReply(postId, text);
     setReplyDrafts((prev) => ({ ...prev, [postId]: '' }));
-    speak('Resposta enviada para a comunidade.', true);
+    speak(en ? 'Reply sent to the community.' : 'Resposta enviada para a comunidade.', true);
   };
 
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.bg }}
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[styles.container, isWideWeb && styles.containerWide]}
     >
-      {/* Cabeçalho Comunidade + Ação AZUL */}
-      <View
-        style={[
-          styles.heroCard,
-          { backgroundColor: theme.surface, borderColor: blue.border },
-        ]}
-      >
-        <View style={styles.heroTop}>
-          <View style={{ flex: 1, gap: 4 }}>
-            <FeatureBadge color="azul" />
-            <Text style={[styles.heroTitle, { color: theme.text, fontSize: 19 * theme.scale }]}>
-              Comunidade da Roça
-            </Text>
-            <Text style={{ fontSize: 12, color: theme.textMuted }}>
-              Relate acontecimentos locais (pragas, mudanças de preço, desastres naturais) e veja
-              usuários próximos no grafo.
-            </Text>
-          </View>
-          <Pressable
-            onPress={() =>
-              speak(
-                `Comunidade da Roça. Existem ${posts.length} acontecimentos e relatos publicados entre ${graph.nodes.length - 1} regiões próximas no grafo.`,
-                true
-              )
-            }
-            style={[styles.voiceBtn, { backgroundColor: theme.surfaceMuted }]}
+      <View style={isWideWeb ? styles.columnsWide : styles.columnsStack}>
+        <View style={isWideWeb ? styles.leftColWide : styles.colStack}>
+          {/* Cabeçalho Comunidade + Ação AZUL */}
+          <View
+            style={[
+              styles.heroCard,
+              { backgroundColor: theme.surface, borderColor: blue.border },
+            ]}
           >
-            <Ionicons name="volume-high" size={20} color={theme.primary} />
-          </Pressable>
-        </View>
-
-        <Pressable
-          onPress={() => setComposerOpen((v) => !v)}
-          style={[styles.askBtn, { backgroundColor: blue.border }]}
-        >
-          <Ionicons
-            name={composerOpen ? 'close-circle-outline' : 'megaphone-outline'}
-            size={20}
-            color="#FFFFFF"
-          />
-          <Text style={{ fontWeight: '900', color: '#FFFFFF', fontSize: 13 }}>
-            {composerOpen
-              ? 'Fechar formulário'
-              : '+ Relatar acontecimento (pragas, preço, desastre)'}
-          </Text>
-        </Pressable>
-      </View>
-
-      <VoiceReadBar
-        text={communityVoiceText}
-        theme={theme}
-        label={en ? 'Read Community tab aloud' : 'Ouvir leitura da aba Comunidade'}
-      />
-
-      {/* Formulário AZUL: relatar acontecimentos */}
-      {composerOpen && (
-        <View
-          style={[
-            styles.composerCard,
-            { backgroundColor: theme.surface, borderColor: '#2563EB' },
-          ]}
-        >
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Relatar acontecimento ou fazer pergunta
-          </Text>
-
-          <View style={styles.rowBtns}>
-            {(
-              [
-                { id: 'relato', label: 'Relato de acontecimento' },
-                { id: 'pergunta', label: 'Pergunta para agricultores' },
-              ] as const
-            ).map((opt) => (
+            <View style={styles.heroTop}>
+              <View style={{ flex: 1, gap: 4 }}>
+                <FeatureBadge color="azul" />
+                <Text style={[styles.heroTitle, { color: theme.text, fontSize: 19 * theme.scale }]}>
+                  Comunidade da Roça
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.textMuted }}>
+                  Relate acontecimentos locais (pragas, mudanças de preço, desastres naturais) e veja
+                  usuários próximos no grafo.
+                </Text>
+              </View>
               <Pressable
-                key={opt.id}
-                onPress={() => setPostTipo(opt.id)}
+                onPress={() =>
+                  speak(
+                    en
+                      ? `Farm Community. ${posts.length} local reports and events published across ${graph.nodes.length - 1} nearby regions.`
+                      : `Comunidade da Roça. Existem ${posts.length} acontecimentos e relatos publicados entre ${graph.nodes.length - 1} regiões próximas no grafo.`,
+                    true
+                  )
+                }
+                style={[styles.voiceBtn, { backgroundColor: theme.surfaceMuted }]}
+              >
+                <Ionicons name="volume-high" size={20} color={theme.primary} />
+              </Pressable>
+            </View>
+
+            <Pressable
+              onPress={() => setComposerOpen((v) => !v)}
+              style={[styles.askBtn, { backgroundColor: blue.border }]}
+            >
+              <Ionicons
+                name={composerOpen ? 'close-circle-outline' : 'megaphone-outline'}
+                size={20}
+                color="#FFFFFF"
+              />
+              <Text style={{ fontWeight: '900', color: '#FFFFFF', fontSize: 13 }}>
+                {composerOpen
+                  ? 'Fechar formulário'
+                  : '+ Relatar acontecimento (pragas, preço, desastre)'}
+              </Text>
+            </Pressable>
+          </View>
+
+          {!isWideWeb && (
+            <VoiceReadBar
+              text={communityVoiceText}
+              theme={theme}
+              label={en ? 'Read Community tab aloud' : 'Ouvir leitura da aba Comunidade'}
+            />
+          )}
+
+          {/* Formulário AZUL: relatar acontecimentos */}
+          {composerOpen && (
+            <View
+              style={[
+                styles.composerCard,
+                { backgroundColor: theme.surface, borderColor: '#2563EB' },
+              ]}
+            >
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                Relatar acontecimento ou fazer pergunta
+              </Text>
+
+              <View style={styles.rowBtns}>
+                {(
+                  [
+                    { id: 'relato', label: 'Relato de acontecimento' },
+                    { id: 'pergunta', label: 'Pergunta para agricultores' },
+                  ] as const
+                ).map((opt) => (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setPostTipo(opt.id)}
+                    style={[
+                      styles.typeBtn,
+                      {
+                        backgroundColor: postTipo === opt.id ? '#2563EB' : theme.surfaceMuted,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '900',
+                        color: postTipo === opt.id ? '#FFFFFF' : theme.text,
+                      }}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <View style={styles.chipWrap}>
+                {(Object.keys(TOPIC_META) as CommunityTopic[]).map((top) => {
+                  const info = TOPIC_META[top];
+                  const active = postTopico === top;
+                  return (
+                    <Pressable
+                      key={top}
+                      onPress={() => setPostTopico(top)}
+                      style={[
+                        styles.topicChip,
+                        {
+                          backgroundColor: active ? info.color : theme.surfaceMuted,
+                          borderColor: info.color,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: '800',
+                          color: active ? '#FFFFFF' : theme.text,
+                        }}
+                      >
+                        {info.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <TextInput
+                value={postTitulo}
+                onChangeText={setPostTitulo}
+                placeholder="Título resumido (ex.: Dúvida sobre sorgo no veranico)"
+                placeholderTextColor={theme.textMuted}
                 style={[
-                  styles.typeBtn,
+                  styles.input,
+                  { backgroundColor: theme.bg, borderColor: theme.border, color: theme.text },
+                ]}
+              />
+              <TextInput
+                value={postMensagem}
+                onChangeText={setPostMensagem}
+                placeholder="Escreva sua pergunta ou conte o que observou no seu lote..."
+                placeholderTextColor={theme.textMuted}
+                multiline
+                style={[
+                  styles.input,
                   {
-                    backgroundColor: postTipo === opt.id ? '#2563EB' : theme.surfaceMuted,
+                    backgroundColor: theme.bg,
                     borderColor: theme.border,
+                    color: theme.text,
+                    minHeight: 72,
                   },
                 ]}
+              />
+
+              <Pressable
+                onPress={handleCreatePost}
+                style={[styles.publishBtn, { backgroundColor: theme.primary }]}
               >
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontWeight: '900',
-                    color: postTipo === opt.id ? '#FFFFFF' : theme.text,
-                  }}
-                >
-                  {opt.label}
+                <Ionicons name="send" size={18} color={theme.primaryText} />
+                <Text style={{ fontWeight: '900', color: theme.primaryText }}>
+                  Publicar na Comunidade
                 </Text>
               </Pressable>
-            ))}
+            </View>
+          )}
+
+          {/* Seção SALMÃO: Ver usuários próximos + Receber relatos de outros usuários */}
+          <View
+            style={[
+              styles.heroCard,
+              {
+                backgroundColor: accessibility.highContrast ? theme.surface : salmon.bg,
+                borderColor: salmon.border,
+                paddingVertical: 11,
+              },
+            ]}
+          >
+            <FeatureBadge color="salmao" />
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: '800',
+                color: accessibility.highContrast ? theme.text : salmon.text,
+              }}
+            >
+              Ver usuários próximos ({graph.nodes.filter((n) => !n.isUserFarm).length} polos) e receber
+              relatos de outros usuários na sua região
+            </Text>
           </View>
 
-          <View style={styles.chipWrap}>
+          {/* Sistema de Grafo de Relatos Regionais (Ver usuários próximos) */}
+          <CommunityReportGraph
+            nodes={graph.nodes}
+            edges={graph.edges}
+            selectedNodeId={selectedNodeId}
+            onSelectNode={(id) => setSelectedNodeId(id)}
+            theme={theme}
+          />
+        </View>
+
+        <View style={isWideWeb ? styles.rightColWide : styles.colStack}>
+          {isWideWeb && (
+            <VoiceReadBar
+              text={communityVoiceText}
+              theme={theme}
+              label={en ? 'Read Community tab aloud' : 'Ouvir leitura da aba Comunidade'}
+            />
+          )}
+
+          {/* Filtros por tópico */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterScroll}
+          >
+            <Pressable
+              onPress={() => setTopicFilter('todos')}
+              style={[
+                styles.topicChip,
+                {
+                  backgroundColor: topicFilter === 'todos' ? theme.primary : theme.surface,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '800',
+                  color: topicFilter === 'todos' ? theme.primaryText : theme.text,
+                }}
+              >
+                Todos ({posts.length})
+              </Text>
+            </Pressable>
             {(Object.keys(TOPIC_META) as CommunityTopic[]).map((top) => {
               const info = TOPIC_META[top];
-              const active = postTopico === top;
+              const active = topicFilter === top;
               return (
                 <Pressable
-                  key={top}
-                  onPress={() => setPostTopico(top)}
+                  key={`flt-${top}`}
+                  onPress={() => setTopicFilter(top)}
                   style={[
                     styles.topicChip,
                     {
-                      backgroundColor: active ? info.color : theme.surfaceMuted,
+                      backgroundColor: active ? info.color : theme.surface,
                       borderColor: info.color,
                     },
                   ]}
                 >
                   <Text
                     style={{
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: '800',
                       color: active ? '#FFFFFF' : theme.text,
                     }}
@@ -256,126 +411,9 @@ export const CommunityScreen: React.FC = () => {
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
 
-          <TextInput
-            value={postTitulo}
-            onChangeText={setPostTitulo}
-            placeholder="Título resumido (ex.: Dúvida sobre sorgo no veranico)"
-            placeholderTextColor={theme.textMuted}
-            style={[
-              styles.input,
-              { backgroundColor: theme.bg, borderColor: theme.border, color: theme.text },
-            ]}
-          />
-          <TextInput
-            value={postMensagem}
-            onChangeText={setPostMensagem}
-            placeholder="Escreva sua pergunta ou conte o que observou no seu lote..."
-            placeholderTextColor={theme.textMuted}
-            multiline
-            style={[
-              styles.input,
-              {
-                backgroundColor: theme.bg,
-                borderColor: theme.border,
-                color: theme.text,
-                minHeight: 72,
-              },
-            ]}
-          />
-
-          <Pressable
-            onPress={handleCreatePost}
-            style={[styles.publishBtn, { backgroundColor: theme.primary }]}
-          >
-            <Ionicons name="send" size={18} color={theme.primaryText} />
-            <Text style={{ fontWeight: '900', color: theme.primaryText }}>
-              Publicar na Comunidade
-            </Text>
-          </Pressable>
-        </View>
-      )}
-
-      {/* Seção SALMÃO: Ver usuários próximos + Receber relatos de outros usuários */}
-      <View
-        style={[
-          styles.heroCard,
-          { backgroundColor: salmon.bg, borderColor: salmon.border, paddingVertical: 10 },
-        ]}
-      >
-        <FeatureBadge color="salmao" />
-        <Text style={{ fontSize: 12, fontWeight: '800', color: salmon.text }}>
-          Ver usuários próximos ({graph.nodes.filter((n) => !n.isUserFarm).length} polos) e receber
-          relatos de outros usuários na sua região
-        </Text>
-      </View>
-
-      {/* Sistema de Grafo de Relatos Regionais (Ver usuários próximos) */}
-      <CommunityReportGraph
-        nodes={graph.nodes}
-        edges={graph.edges}
-        selectedNodeId={selectedNodeId}
-        onSelectNode={(id) => setSelectedNodeId(id)}
-        theme={theme}
-      />
-
-      {/* Filtros por tópico */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroll}
-      >
-        <Pressable
-          onPress={() => setTopicFilter('todos')}
-          style={[
-            styles.topicChip,
-            {
-              backgroundColor: topicFilter === 'todos' ? theme.primary : theme.surface,
-              borderColor: theme.border,
-            },
-          ]}
-        >
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: '800',
-              color: topicFilter === 'todos' ? theme.primaryText : theme.text,
-            }}
-          >
-            Todos ({posts.length})
-          </Text>
-        </Pressable>
-        {(Object.keys(TOPIC_META) as CommunityTopic[]).map((top) => {
-          const info = TOPIC_META[top];
-          const active = topicFilter === top;
-          return (
-            <Pressable
-              key={`flt-${top}`}
-              onPress={() => setTopicFilter(top)}
-              style={[
-                styles.topicChip,
-                {
-                  backgroundColor: active ? info.color : theme.surface,
-                  borderColor: info.color,
-                },
-              ]}
-            >
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: '800',
-                  color: active ? '#FFFFFF' : theme.text,
-                }}
-              >
-                {info.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-
-      {/* Feed de perguntas e relatos */}
+          {/* Feed de perguntas e relatos */}
       {filteredPosts.length === 0 ? (
         <View
           style={[
@@ -400,7 +438,7 @@ export const CommunityScreen: React.FC = () => {
               ]}
             >
               <View style={styles.postHeader}>
-                <View style={{ flex: 1, gap: 2 }}>
+                <View style={{ flex: 1, gap: 6 }}>
                   <View style={styles.badgeRow}>
                     <View style={[styles.badgePill, { backgroundColor: tMeta.bg }]}>
                       <Text style={{ fontSize: 10, fontWeight: '900', color: tMeta.color }}>
@@ -430,9 +468,19 @@ export const CommunityScreen: React.FC = () => {
                       {post.haQuantoTempo}
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: theme.textMuted }}>
-                    {post.autor} • 📍 {post.municipio} - {post.estado} ({post.regiaoNome})
-                  </Text>
+                  <View style={styles.authorRow}>
+                    <View
+                      style={[
+                        styles.authorAvatar,
+                        { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
+                      ]}
+                    >
+                      <Ionicons name="person" size={14} color={theme.primary} />
+                    </View>
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: theme.textMuted, flex: 1 }}>
+                      {post.autor} • 📍 {post.municipio} - {post.estado} ({post.regiaoNome})
+                    </Text>
+                  </View>
                 </View>
                 <Pressable
                   onPress={() =>
@@ -542,13 +590,56 @@ export const CommunityScreen: React.FC = () => {
           );
         })
       )}
+        </View>
+      </View>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 14, gap: 12, paddingBottom: 28 },
-  heroCard: { borderRadius: 20, borderWidth: 2, padding: 14, gap: 10 },
+  container: {
+    maxWidth: 1160,
+    width: '100%',
+    alignSelf: 'center',
+    padding: 14,
+    gap: 12,
+    paddingBottom: 28,
+  },
+  containerWide: {
+    padding: 24,
+    gap: 16,
+  },
+  columnsStack: {
+    gap: 12,
+  },
+  columnsWide: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 20,
+  },
+  colStack: {
+    gap: 12,
+  },
+  leftColWide: {
+    width: 400,
+    gap: 12,
+  },
+  rightColWide: {
+    flex: 1,
+    minWidth: 0,
+    gap: 12,
+  },
+  heroCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 15,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
   heroTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   heroTitle: { fontWeight: '900' },
   voiceBtn: {
@@ -566,46 +657,76 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  composerCard: { borderRadius: 18, borderWidth: 2, padding: 14, gap: 10 },
+  composerCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 15,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
   sectionTitle: { fontSize: 15, fontWeight: '900' },
   rowBtns: { flexDirection: 'row', gap: 8 },
   typeBtn: {
     flex: 1,
-    minHeight: 40,
-    borderRadius: 10,
-    borderWidth: 1.5,
+    minHeight: 42,
+    borderRadius: 12,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
   },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   topicChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1.5,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
   },
   input: {
-    borderRadius: 10,
-    borderWidth: 1.5,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     fontSize: 13,
   },
   publishBtn: {
-    minHeight: 44,
-    borderRadius: 12,
+    minHeight: 46,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
   },
   filterScroll: { gap: 8, paddingVertical: 2 },
-  emptyBox: { borderRadius: 16, borderWidth: 1.5, padding: 18, alignItems: 'center' },
-  postCard: { borderRadius: 18, borderWidth: 1.5, padding: 14, gap: 8 },
+  emptyBox: { borderRadius: 16, borderWidth: 1, padding: 18, alignItems: 'center' },
+  postCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 15,
+    gap: 9,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
   postHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  authorAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
-  badgePill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  badgePill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   listenMini: {
     width: 34,
     height: 34,
@@ -613,16 +734,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  postTitle: { fontSize: 15, fontWeight: '900' },
-  postBody: { fontSize: 13, lineHeight: 19 },
+  postTitle: { fontSize: 15.5, fontWeight: '900' },
+  postBody: { fontSize: 13.5, lineHeight: 20 },
   postActions: { flexDirection: 'row', gap: 8, marginTop: 2 },
   actionChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 10,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
     borderWidth: 1,
   },
   threadBox: {

@@ -46,6 +46,293 @@ let speechResumeTimer: ReturnType<typeof setTimeout> | null = null;
 let speechStartTimer: ReturnType<typeof setTimeout> | null = null;
 let globalUtteranceCounter = 0;
 
+let cachedNativeVoices: Speech.Voice[] = [];
+let nativeVoicesLoaded = false;
+
+if (Platform.OS !== 'web') {
+  Speech.getAvailableVoicesAsync()
+    .then((voices) => {
+      cachedNativeVoices = voices;
+      nativeVoicesLoaded = true;
+    })
+    .catch(() => {});
+}
+
+let cachedWebVoices: SpeechSynthesisVoice[] = [];
+
+function refreshWebVoices(): SpeechSynthesisVoice[] {
+  if (Platform.OS !== 'web' || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    return [];
+  }
+  try {
+    const list = window.speechSynthesis.getVoices();
+    if (list && list.length > 0) {
+      cachedWebVoices = list;
+    }
+    return cachedWebVoices;
+  } catch {
+    return [];
+  }
+}
+
+if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  refreshWebVoices();
+  try {
+    window.speechSynthesis.addEventListener?.('voiceschanged', refreshWebVoices);
+  } catch {
+    // Some browsers only support property assignment or omit addEventListener
+  }
+}
+
+function scoreVoiceQuality(nameRaw: string, langRaw: string, targetPrefix: 'en' | 'pt', isLocal?: boolean): number {
+  const name = nameRaw.toLowerCase();
+  const lang = langRaw.toLowerCase().replace('_', '-');
+  let score = 0;
+
+  if (targetPrefix === 'en') {
+    if (lang === 'en-us') score += 45;
+    else if (lang === 'en-gb') score += 30;
+    else if (lang.startsWith('en-')) score += 20;
+  } else {
+    if (lang === 'pt-br') score += 45;
+    else if (lang.startsWith('pt-')) score += 25;
+  }
+
+  if (/natural|online|neural|studio|enhanced|premium/.test(name)) score += 55;
+  else if (/google/.test(name)) score += 32;
+  if (/aria|jenny|guy|ava|andrew|emma|brian|samantha|allison|alex|karen|zira|david|mark/.test(name) && targetPrefix === 'en') score += 20;
+  if (/francisca|antonio|thalita|fernanda|luciana|raquel|maria|daniel/.test(name) && targetPrefix === 'pt') score += 20;
+  if (isLocal === true) score += 8;
+  if (/espeak|compact|eloquence/.test(name)) score -= 40;
+
+  return score;
+}
+
+function pickBestWebVoice(targetPrefix: 'en' | 'pt'): SpeechSynthesisVoice | null {
+  const voices = refreshWebVoices();
+  const matching = voices.filter((v) =>
+    v.lang.toLowerCase().replace('_', '-').startsWith(targetPrefix)
+  );
+  if (matching.length === 0) return null;
+
+  return [...matching].sort(
+    (a, b) =>
+      scoreVoiceQuality(b.name, b.lang, targetPrefix, b.localService) -
+      scoreVoiceQuality(a.name, a.lang, targetPrefix, a.localService)
+  )[0];
+}
+
+function pickBestNativeVoice(targetPrefix: 'en' | 'pt'): string | undefined {
+  if (!nativeVoicesLoaded || cachedNativeVoices.length === 0) return undefined;
+  const matching = cachedNativeVoices.filter((v) =>
+    v.language.toLowerCase().replace('_', '-').startsWith(targetPrefix)
+  );
+  if (matching.length === 0) return undefined;
+  const best = [...matching].sort(
+    (a, b) =>
+      scoreVoiceQuality(b.name || b.identifier, b.language, targetPrefix) -
+      scoreVoiceQuality(a.name || a.identifier, a.language, targetPrefix)
+  )[0];
+  return best?.identifier;
+}
+
+function isLikelyPortugueseText(text: string): boolean {
+  const ptMatches = text.match(
+    /\b(não|você|para|com|pelo|pela|dos|das|uma|roça|chuva|plantação|fazenda|folha|umidade|hoje|ontem|amanhã|está|são|tem|foi|ser|mais|muito|entre|exibindo|relatos|milímetros|graus|quilômetros|agricultor|companheiro)\b/gi
+  );
+  const enMatches = text.match(
+    /\b(the|and|with|for|your|crop|farm|plot|weather|today|rain|rainfall|soil|percent|humidity|millimeters|hectares|kilometers|degrees|overview|community|forecast|satellite|region)\b/gi
+  );
+  const ptCount = ptMatches?.length ?? 0;
+  const enCount = enMatches?.length ?? 0;
+  return ptCount >= 3 && ptCount > enCount * 1.5;
+}
+
+const PT_TO_EN_SPEECH_FALLBACKS: [RegExp, string][] = [
+  [/\bmil[ií]metros\b/gi, 'millimeters'],
+  [/\bquil[oô]metros\b/gi, 'kilometers'],
+  [/\bhectares\b/gi, 'hectares'],
+  [/\bhectare\b/gi, 'hectare'],
+  [/\bsacas por hectare\b/gi, 'sacks per hectare'],
+  [/\bquilos por hectare\b/gi, 'kilograms per hectare'],
+  [/\bpor cento\b/gi, 'percent'],
+  [/\bgraus Celsius\b/gi, 'degrees Celsius'],
+  [/\bgraus\b/gi, 'degrees'],
+  [/\bFeij[aã]o-[Cc]aupi\b/g, 'cowpea'],
+  [/\bFeij[aã]o\b/g, 'beans'],
+  [/\bMilho\b/g, 'corn'],
+  [/\bMandioca\b/g, 'cassava'],
+  [/\bSorgo\b/g, 'sorghum'],
+  [/\bPalma\b/g, 'prickly pear'],
+  [/\bSequeiro\b/gi, 'rainfed'],
+  [/\bIrrigado\b/gi, 'irrigated'],
+  [/\bpontos pretos\b/gi, 'black spots'],
+  [/\bfolha verde\b/gi, 'green leaf'],
+  [/\bfolha seca\b/gi, 'dry leaf'],
+  [/\bamarelada\b/gi, 'yellowed'],
+  [/\bsaud[aá]vel\b/gi, 'healthy'],
+];
+
+function translateAtom(segment: string): string {
+  const trimmed = segment.trim();
+  if (!trimmed) return '';
+
+  const exact = translate(trimmed, 'en');
+  if (exact !== trimmed) return exact;
+
+  // Dictionary keys frequently omit trailing punctuation (e.g. alert titles joined with ". ")
+  const m = trimmed.match(/^(.*?)([.!?]+)$/);
+  if (m && m[1]) {
+    const base = m[1].trim();
+    const punct = m[2];
+    const baseTranslated = translate(base, 'en');
+    if (baseTranslated !== base) {
+      const cleanedTarget = baseTranslated.replace(/[.!?]+$/, '');
+      return `${cleanedTarget}${punct}`;
+    }
+  }
+
+  let out = trimmed;
+  for (const [pattern, replacement] of PT_TO_EN_SPEECH_FALLBACKS) {
+    out = out.replace(pattern, replacement);
+  }
+  return out;
+}
+
+function translateForSpeech(rawText: string): string {
+  const direct = translate(rawText, 'en');
+  if (direct !== rawText) return direct;
+
+  const sentences = rawText
+    .split(/(?<=[.!?])\s+|\s*\n+\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (sentences.length === 0) return rawText;
+
+  // Match multi-sentence dictionary entries (up to 3 sentences combined) before single sentences
+  const translatedChunks: string[] = [];
+  let i = 0;
+  while (i < sentences.length) {
+    let matched = false;
+    const maxSpan = Math.min(3, sentences.length - i);
+    for (let span = maxSpan; span >= 2; span--) {
+      const combined = sentences.slice(i, i + span).join(' ');
+      const t = translate(combined, 'en');
+      if (t !== combined) {
+        translatedChunks.push(t);
+        i += span;
+        matched = true;
+        break;
+      }
+    }
+    if (matched) continue;
+
+    const seg = sentences[i];
+    const single = translateAtom(seg);
+    if (single !== seg) {
+      translatedChunks.push(single);
+    } else if (/[•|]/.test(seg)) {
+      translatedChunks.push(
+        seg
+          .split(/\s*[•|]\s*/)
+          .map((part) => translateAtom(part))
+          .filter(Boolean)
+          .join('. ')
+      );
+    } else {
+      translatedChunks.push(single);
+    }
+    i += 1;
+  }
+
+  return translatedChunks.join(' ');
+}
+
+function prepareTextForSpeech(text: string, targetPrefix: 'en' | 'pt'): string {
+  let out = text
+    // Remove emojis and variation selectors so TTS doesn't spell symbol names awkwardly
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\uFE0F]/gu, ' ')
+    .replace(/[•●▪▸►✓✔✕×]/g, ', ');
+
+  if (targetPrefix === 'en') {
+    out = out
+      .replace(/(\d+),(\d+)/g, '$1.$2')
+      .replace(/\bR\$\s*/g, 'Brazilian reais ')
+      .replace(/\bsc\/ha\b/gi, 'sacks per hectare')
+      .replace(/\bkg\/ha\b/gi, 'kilograms per hectare')
+      .replace(/\bt\/ha\b/gi, 'tons per hectare')
+      .replace(/\bg\/kg\b/gi, 'grams per kilogram')
+      .replace(/°\s*C\b/g, ' degrees Celsius')
+      .replace(/(\d+(?:\.\d+)?)\s*mm\b/gi, '$1 millimeters')
+      .replace(/(\d+(?:\.\d+)?)\s*ha\b/gi, '$1 hectares')
+      .replace(/(\d+(?:\.\d+)?)\s*km\b/gi, '$1 kilometers')
+      .replace(/(\d+(?:\.\d+)?)\s*m\b/g, '$1 meters')
+      .replace(/(\d+(?:\.\d+)?)\s*%/g, '$1 percent')
+      .replace(/\bNASA\/FAO\b/g, 'NASA and FAO')
+      .replace(/\bNASA\/USGS\b/g, 'NASA and USGS')
+      .replace(/\bPOWER\/MERRA-2\b/g, 'POWER and MERRA 2')
+      .replace(/\bIMERG\/POWER\/SMAP\b/g, 'IMERG, POWER, and SMAP')
+      .replace(/\s*\/\s*/g, ', ');
+  } else {
+    out = out
+      .replace(/\bsc\/ha\b/gi, 'sacas por hectare')
+      .replace(/\bkg\/ha\b/gi, 'quilos por hectare')
+      .replace(/\bt\/ha\b/gi, 'toneladas por hectare')
+      .replace(/°\s*C\b/g, ' graus Celsius')
+      .replace(/(\d+(?:[.,]\d+)?)\s*mm\b/gi, '$1 milímetros')
+      .replace(/(\d+(?:[.,]\d+)?)\s*ha\b/gi, '$1 hectares')
+      .replace(/(\d+(?:[.,]\d+)?)\s*km\b/gi, '$1 quilômetros')
+      .replace(/(\d+(?:[.,]\d+)?)\s*m\b/g, '$1 metros');
+  }
+
+  return out
+    .replace(/\s*[—–]\s*/g, ', ')
+    .replace(/\s+([.,!?;:])/g, '$1')
+    .replace(/,{2,}/g, ',')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function splitSpeechChunks(text: string, maxLen = 560): { text: string; offset: number }[] {
+  const chunks: { text: string; offset: number }[] = [];
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    while (cursor < text.length && /\s/.test(text[cursor])) cursor += 1;
+    if (cursor >= text.length) break;
+
+    if (text.length - cursor <= maxLen) {
+      const tail = text.slice(cursor).trim();
+      if (tail) chunks.push({ text: tail, offset: cursor });
+      break;
+    }
+
+    const slice = text.slice(cursor, cursor + maxLen);
+    let splitRel = -1;
+    const punctMatch = slice.match(/.*[.!?](?=\s|$)/);
+    if (punctMatch && punctMatch[0].length >= 40) {
+      splitRel = punctMatch[0].length;
+    } else {
+      const commaIdx = slice.lastIndexOf(', ');
+      if (commaIdx >= 50) {
+        splitRel = commaIdx + 1;
+      } else {
+        const spaceIdx = slice.lastIndexOf(' ');
+        splitRel = spaceIdx > 20 ? spaceIdx : maxLen;
+      }
+    }
+
+    const chunkText = text.slice(cursor, cursor + splitRel).trim();
+    if (chunkText) {
+      chunks.push({ text: chunkText, offset: cursor });
+    }
+    cursor += Math.max(1, splitRel);
+  }
+
+  return chunks;
+}
+
 function snapToWordStart(text: string, idx: number): number {
   const clamped = Math.max(0, Math.min(idx, text.length));
   if (clamped === 0 || clamped >= text.length) return clamped;
@@ -62,9 +349,10 @@ function snapToWordStart(text: string, idx: number): number {
 
 function cancelEngineSpeech(): void {
   try {
-    Speech.stop();
     if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
+    } else {
+      Speech.stop();
     }
   } catch {
     // Ignora se TTS não estiver inicializado
@@ -94,10 +382,89 @@ function startUtteranceFromSession(session: ActiveSpeechSession): void {
     session.utteranceId !== currentUtteranceId ||
     session.pausedByBackground;
 
+  const targetPrefix: 'en' | 'pt' = session.language.toLowerCase().startsWith('en') ? 'en' : 'pt';
+  // Web SAPI5 / browser TTS voices distort noticeably at rates slightly below 1.0 (e.g., 0.85 or 0.95).
+  // Keep normal default cadence at native 1.0 on Web while still supporting explicit 0.75 slow mode.
+  const effectiveRate =
+    Platform.OS === 'web'
+      ? session.rate >= 0.8 && session.rate <= 1.05
+        ? 1.0
+        : session.rate < 0.8
+          ? 0.85
+          : session.rate
+      : session.rate;
+
+  // On Web, drive window.speechSynthesis directly so we can pin a matching en-US / pt-BR voice
+  // and read sentence-by-sentence instead of hitting Windows/Chrome default pt-BR fallback.
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      const synth = window.speechSynthesis;
+      const pickedVoice = pickBestWebVoice(targetPrefix);
+      const chunks = splitSpeechChunks(remaining);
+      if (chunks.length === 0) {
+        const doneCb = session.onDone;
+        activeSpeechSession = null;
+        doneCb?.();
+        return;
+      }
+
+      const speakChunkAt = (chunkIdx: number) => {
+        if (isStale()) return;
+        if (chunkIdx >= chunks.length) {
+          const doneCb = session.onDone;
+          activeSpeechSession = null;
+          doneCb?.();
+          return;
+        }
+
+        const chunk = chunks[chunkIdx];
+        const utt = new SpeechSynthesisUtterance(chunk.text);
+        utt.lang = pickedVoice?.lang || session.language;
+        if (pickedVoice) {
+          utt.voice = pickedVoice;
+        }
+        utt.rate = effectiveRate;
+        utt.pitch = 1.0;
+
+        utt.onboundary = (ev) => {
+          if (isStale()) return;
+          if (typeof ev.charIndex === 'number' && ev.charIndex >= 0) {
+            session.lastCharIndex = Math.max(
+              session.lastCharIndex,
+              session.baseOffset + chunk.offset + ev.charIndex
+            );
+          }
+        };
+
+        utt.onend = () => {
+          if (isStale()) return;
+          session.lastCharIndex = session.baseOffset + chunk.offset + chunk.text.length;
+          speakChunkAt(chunkIdx + 1);
+        };
+
+        utt.onerror = () => {
+          if (isStale()) return;
+          const doneCb = session.onDone;
+          activeSpeechSession = null;
+          doneCb?.();
+        };
+
+        synth.speak(utt);
+      };
+
+      speakChunkAt(0);
+      return;
+    } catch {
+      // Fallback to expo-speech below if SpeechSynthesisUtterance fails
+    }
+  }
+
+  const nativeVoice = pickBestNativeVoice(targetPrefix);
   try {
     Speech.speak(remaining, {
       language: session.language,
-      rate: session.rate,
+      voice: nativeVoice,
+      rate: effectiveRate,
       pitch: 1.0,
       onBoundary: (ev: { charIndex?: number }) => {
         if (isStale()) return;
@@ -262,7 +629,20 @@ export function speakText(
 
   if (!enabled && !force) return;
 
-  const textoFinal = (interfaceLanguage === 'en' ? translate(rawText, 'en') : regionalizarTexto(rawText, languageLevel, tratamento)).trim();
+  const translatedOrRegional = (
+    interfaceLanguage === 'en'
+      ? translateForSpeech(rawText)
+      : regionalizarTexto(rawText, languageLevel, tratamento)
+  ).trim();
+
+  const resolvedPrefix: 'en' | 'pt' =
+    interfaceLanguage === 'en' && isLikelyPortugueseText(translatedOrRegional)
+      ? 'pt'
+      : interfaceLanguage === 'en'
+        ? 'en'
+        : 'pt';
+
+  const textoFinal = prepareTextForSpeech(translatedOrRegional, resolvedPrefix);
   if (!textoFinal) {
     onDone?.();
     return;
@@ -278,7 +658,7 @@ export function speakText(
 
   const session: ActiveSpeechSession = {
     fullText: textoFinal,
-    language: interfaceLanguage === 'en' ? 'en-US' : 'pt-BR',
+    language: resolvedPrefix === 'en' ? 'en-US' : 'pt-BR',
     baseOffset: 0,
     lastCharIndex: 0,
     rate,
@@ -290,14 +670,14 @@ export function speakText(
   };
   activeSpeechSession = session;
 
-  if (wasSpeakingWeb) {
-    // No Chrome/Edge, chamar speak() no mesmo tick de cancel() pode silenciar o áudio
+  if (Platform.OS === 'web' || wasSpeakingWeb) {
+    // Allow Chrome/Edge speechSynthesis.cancel() a brief tick to flush audio buffers cleanly
     const token = session.utteranceId;
     speechStartTimer = setTimeout(() => {
       speechStartTimer = null;
       if (activeSpeechSession !== session || session.utteranceId !== token) return;
       startUtteranceFromSession(session);
-    }, 35);
+    }, 55);
     return;
   }
 
@@ -381,8 +761,9 @@ export function answerFarmerVoiceQuery(
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
   const d = farm.diagnostico;
+  const en = interfaceLanguage === 'en';
   const formatReply = (text: string) => {
-    if (interfaceLanguage === 'pt') return regionalizarTexto(text, level, farmer.tratamento);
+    if (!en) return regionalizarTexto(text, level, farmer.tratamento);
     const translated = translate(text, 'en');
     return translated !== text ? translated : text.split(/(?<=[.!?])\s+/).map((part) => translate(part, 'en')).join(' ');
   };
@@ -392,7 +773,7 @@ export function answerFarmerVoiceQuery(
       level === 'acessivel' ? d.modeloA.resumoAcessivel : d.modeloA.resumoTecnico;
     return {
       intent: 'agua',
-      titulo: 'Água para a roça',
+      titulo: en ? 'Water for the field' : 'Água para a roça',
       texto: formatReply(raw),
     };
   }
@@ -412,7 +793,7 @@ export function answerFarmerVoiceQuery(
     }`;
     return {
       intent: 'plantar',
-      titulo: 'Janela de plantio',
+      titulo: en ? 'Planting window' : 'Janela de plantio',
       texto: formatReply(raw),
     };
   }
@@ -429,13 +810,20 @@ export function answerFarmerVoiceQuery(
       level === 'acessivel' ? d.modeloB.resumoAcessivel : d.modeloB.resumoTecnico;
     return {
       intent: 'seca',
-      titulo: 'Risco de seca e chuva',
+      titulo: en ? 'Drought & rainfall risk' : 'Risco de seca e chuva',
       texto: formatReply(raw),
     };
   }
 
   if (q.includes('well') || q.includes('poco') || q.includes('furar') || q.includes('subterr') || q.includes('cacimba')) {
     const w = d.wellSummary;
+    if (en) {
+      return {
+        intent: 'poco',
+        titulo: 'Where to drill a well (SIAGAS + NASA)',
+        texto: `In wells within ${farm.raioBuscaKm} kilometers, depth ranges from ${w.faixaProfundidadeMinM} to ${w.faixaProfundidadeMaxM} meters, with a ${w.taxaSucessoPct}% chance of water and ${translate(w.riscoSalinidade, 'en')} brackish-water risk. ${translate(w.orientacaoBaixaRenda, 'en')}`,
+      };
+    }
     const raw = `Nos poços da região em até ${farm.raioBuscaKm} quilômetros, a profundidade varia de ${w.faixaProfundidadeMinM} a ${w.faixaProfundidadeMaxM} metros, com ${w.taxaSucessoPct}% de chance de dar água e risco ${w.riscoSalinidade} de água salobra. ${w.orientacaoBaixaRenda}`;
     return {
       intent: 'poco',
@@ -446,6 +834,13 @@ export function answerFarmerVoiceQuery(
 
   if (q.includes('eros') || q.includes('lavar') || q.includes('enxurrada') || q.includes('soil') || q.includes('solo') || q.includes('terra')) {
     const solo = d.soloSoilGrids;
+    if (en) {
+      return {
+        intent: 'erosao',
+        titulo: 'Soil & erosion risk',
+        texto: `${formatReply(level === 'acessivel' ? d.modeloD.resumoAcessivel : d.modeloD.resumoTecnico)} Your plot soil has ${translate(solo.textura, 'en')} texture, pH ${solo.ph}, and organic carbon ${solo.carbonoOrganicoGKg} g/kg.`,
+      };
+    }
     const raw = `${
       level === 'acessivel' ? d.modeloD.resumoAcessivel : d.modeloD.resumoTecnico
     } O solo da sua área tem textura ${solo.textura}, pH ${solo.ph} e carbono orgânico ${solo.carbonoOrganicoGKg} g/kg.`;
@@ -461,7 +856,7 @@ export function answerFarmerVoiceQuery(
       level === 'acessivel' ? d.modeloE.resumoAcessivel : d.modeloE.resumoTecnico;
     return {
       intent: 'futuro',
-      titulo: 'Projeção 2030–2050',
+      titulo: en ? '2030–2050 climate outlook' : 'Projeção 2030–2050',
       texto: formatReply(raw),
     };
   }
@@ -479,8 +874,15 @@ export function answerFarmerVoiceQuery(
   ) {
     const topNames = pancs
       .slice(0, 3)
-      .map((p) => p.nomePopular)
+      .map((p) => (en ? translate(p.nomePopular, 'en') : p.nomePopular))
       .join(', ');
+    if (en) {
+      return {
+        intent: 'pancs',
+        titulo: 'Drought-resilient food crops',
+        texto: `To help secure reliable food even during dry spells, the offline catalog recommends for your soil: ${topNames}.`,
+      };
+    }
     const raw = `Para garantir comida forte mesmo na seca, o catálogo offline indica para o solo da sua terra: ${topNames}.`;
     return {
       intent: 'pancs',
@@ -489,6 +891,13 @@ export function answerFarmerVoiceQuery(
     };
   }
 
+  if (en) {
+    return {
+      intent: 'resumo',
+      titulo: 'Overall farm summary',
+      texto: `Today in ${farm.regiaoNome} temperatures reach up to ${d.climaDia.tempMaxC} degrees. ${formatReply(d.modeloB.resumoAcessivel)} ${d.rotacaoAtual.diasRestantes} days remaining until harvest of ${translate(d.rotacaoAtual.culturas, 'en')}.`,
+    };
+  }
   const fallback = `Hoje em ${farm.regiaoNome} faz até ${d.climaDia.tempMaxC} graus. ${d.modeloB.resumoAcessivel} Faltam ${d.rotacaoAtual.diasRestantes} dias para colher ${d.rotacaoAtual.culturas}.`;
   return {
     intent: 'resumo',
@@ -534,22 +943,37 @@ interface WebSpeechRecognitionInstance {
 }
 
 function mapWebSpeechError(errCode: string): string {
+  const en = interfaceLanguage === 'en';
   switch (errCode) {
     case 'not-allowed':
     case 'service-not-allowed':
-      return 'Permissão do microfone negada. Libere o microfone no navegador ou toque em um dos botões abaixo.';
+      return en
+        ? 'Microphone permission denied. Allow microphone access in your browser or tap one of the buttons below.'
+        : 'Permissão do microfone negada. Libere o microfone no navegador ou toque em um dos botões abaixo.';
     case 'no-speech':
-      return 'Não ouvi nenhuma fala. Toque no microfone e fale "Sim" ou "Não" mais perto.';
+      return en
+        ? 'No speech heard. Tap the microphone and say "Yes" or "No" closer to the mic.'
+        : 'Não ouvi nenhuma fala. Toque no microfone e fale "Sim" ou "Não" mais perto.';
     case 'audio-capture':
-      return 'Nenhum microfone ativo foi detectado ou outro aplicativo está usando o microfone.';
+      return en
+        ? 'No active microphone detected, or another app is using the microphone.'
+        : 'Nenhum microfone ativo foi detectado ou outro aplicativo está usando o microfone.';
     case 'network':
-      return 'O navegador não conseguiu acessar o reconhecimento de voz online (rede ou bloqueio de privacidade). Tente no Chrome/Edge com internet ou toque nos botões abaixo.';
+      return en
+        ? 'Your browser could not reach online speech recognition (network or privacy block). Try Chrome or Edge with internet, or tap the buttons below.'
+        : 'O navegador não conseguiu acessar o reconhecimento de voz online (rede ou bloqueio de privacidade). Tente no Chrome/Edge com internet ou toque nos botões abaixo.';
     case 'aborted':
-      return 'A escuta foi interrompida antes de capturar a fala. Toque no microfone para tentar novamente.';
+      return en
+        ? 'Listening was interrupted before capturing speech. Tap the microphone to try again.'
+        : 'A escuta foi interrompida antes de capturar a fala. Toque no microfone para tentar novamente.';
     case 'language-not-supported':
-      return 'O reconhecimento de voz deste navegador não oferece o idioma selecionado. Use os controles na tela.';
+      return en
+        ? 'Speech recognition in this browser does not support the selected language. Use the on-screen controls.'
+        : 'O reconhecimento de voz deste navegador não oferece o idioma selecionado. Use os controles na tela.';
     default:
-      return `Não foi possível ouvir o microfone (${errCode || 'erro desconhecido'}). Tente novamente ou toque em um dos botões.`;
+      return en
+        ? `Could not access the microphone (${errCode || 'unknown error'}). Try again or tap the buttons below.`
+        : `Não foi possível ouvir o microfone (${errCode || 'erro desconhecido'}). Tente novamente ou toque em um dos botões.`;
   }
 }
 
@@ -562,11 +986,13 @@ export function startVoiceCapture(
     unsupportedMessage?: string;
   } = {}
 ): () => void {
+  const en = interfaceLanguage === 'en';
   const {
     onEnd,
     onExpoGoFallback,
-    unsupportedMessage =
-      'O Expo Go não inclui o motor de reconhecimento de voz nativo. Use o microfone (🎤) do teclado do celular abaixo, ou gere um Development Build (eas build).',
+    unsupportedMessage = en
+      ? 'Expo Go does not include the native speech recognition engine. Use your phone keyboard microphone below, or build a Development Build (eas build).'
+      : 'O Expo Go não inclui o motor de reconhecimento de voz nativo. Use o microfone (🎤) do teclado do celular abaixo, ou gere um Development Build (eas build).',
   } = options;
 
   stopSpeaking();
@@ -575,7 +1001,11 @@ export function startVoiceCapture(
   // 1) Web (Chrome / Edge / Safari via Web Speech API)
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     if (window.isSecureContext === false) {
-      onError('Para usar o microfone na Web, acesse por http://localhost ou HTTPS.');
+      onError(
+        en
+          ? 'To use the microphone on the web, open this app over http://localhost or HTTPS.'
+          : 'Para usar o microfone na Web, acesse por http://localhost ou HTTPS.'
+      );
       onEnd?.();
       return () => {};
     }
@@ -770,7 +1200,11 @@ export function startVoiceCapture(
           }
 
           if (typeof mod.isRecognitionAvailable === 'function' && !mod.isRecognitionAvailable()) {
-            onError('Serviço de voz do Android indisponível neste aparelho. Ative o Google/Digitação por voz ou toque nos botões.');
+            onError(
+              en
+                ? 'Android voice service is unavailable on this device. Enable Google voice typing or tap the buttons.'
+                : 'Serviço de voz do Android indisponível neste aparelho. Ative o Google/Digitação por voz ou toque nos botões.'
+            );
             cleanup();
             return;
           }
@@ -796,15 +1230,35 @@ export function startVoiceCapture(
               }
               const err = String(event.error ?? '');
               if (err === 'no-speech') {
-                onError('Não ouvi nenhuma fala. Tente novamente mais perto do microfone.');
+                onError(
+                  en
+                    ? 'No speech heard. Try again closer to the microphone.'
+                    : 'Não ouvi nenhuma fala. Tente novamente mais perto do microfone.'
+                );
               } else if (err === 'not-allowed' || err === 'permissions') {
-                onError('Permissão do microfone negada. Libere nas configurações do aparelho.');
+                onError(
+                  en
+                    ? 'Microphone permission denied. Enable it in device settings.'
+                    : 'Permissão do microfone negada. Libere nas configurações do aparelho.'
+                );
               } else if (err === 'audio' || err === 'audio-capture') {
-                onError('Não foi possível acessar o microfone do aparelho agora. Verifique se outro app não está gravando.');
+                onError(
+                  en
+                    ? 'Could not access the device microphone right now. Check if another app is recording.'
+                    : 'Não foi possível acessar o microfone do aparelho agora. Verifique se outro app não está gravando.'
+                );
               } else if (err === 'network') {
-                onError('Reconhecimento de voz sem conexão com o serviço de voz. Verifique a internet ou use os botões.');
+                onError(
+                  en
+                    ? 'Voice recognition cannot reach the speech service. Check your connection or use the buttons.'
+                    : 'Reconhecimento de voz sem conexão com o serviço de voz. Verifique a internet ou use os botões.'
+                );
               } else {
-                onError('Não foi possível capturar a fala agora. Tente de novo ou use os botões.');
+                onError(
+                  en
+                    ? 'Could not capture speech right now. Try again or use the buttons.'
+                    : 'Não foi possível capturar a fala agora. Tente de novo ou use os botões.'
+                );
               }
               cleanup();
             }),
@@ -828,12 +1282,12 @@ export function startVoiceCapture(
                 continuous: false,
               });
             } catch {
-              onError('Falha ao iniciar o microfone nativo.');
+              onError(en ? 'Failed to start native microphone.' : 'Falha ao iniciar o microfone nativo.');
               cleanup();
             }
           }, 180);
         } catch {
-          onError('Falha ao iniciar o microfone nativo.');
+          onError(en ? 'Failed to start native microphone.' : 'Falha ao iniciar o microfone nativo.');
           cleanup();
         }
       })();
