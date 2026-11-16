@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, AppState, BackHandler, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, BackHandler, Image, StyleSheet, View } from 'react-native';
 import { Text } from './src/i18n/native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { AlertTopBanner } from './src/components/AlertTopBanner';
@@ -10,6 +10,7 @@ import { BottomTabBar, MainTabKey } from './src/components/BottomTabBar';
 import { MobileViewport } from './src/components/MobileViewport';
 import { LanguageMenu } from './src/components/LanguageMenu';
 import { SatelliteLoadingBanner } from './src/components/SatelliteLoadingBanner';
+import { WebSidebarNav } from './src/components/WebSidebarNav';
 import { LanguageProvider } from './src/i18n/Language';
 import {
   AccessibilityProvider,
@@ -27,7 +28,7 @@ import { getAppTheme } from './src/theme/tokens';
 import { useResponsiveLayout } from './src/theme/responsive';
 
 const Harvest71Root: React.FC = () => {
-  const { onboardingMaxWidth } = useResponsiveLayout();
+  const { onboardingMaxWidth, isDesktop } = useResponsiveLayout();
   const {
     ready,
     accessibility,
@@ -112,8 +113,19 @@ const Harvest71Root: React.FC = () => {
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg }]} edges={['top', 'bottom']}>
       <StatusBar style={accessibility.highContrast ? 'light' : 'dark'} />
       {(!accessibility.voiceOnboardingCompleted || !nordesteMapCompleted) && (
-        <View style={[styles.onboardingLangBar, { maxWidth: onboardingMaxWidth }]}>
-          <LanguageMenu theme={theme} />
+        <View style={[styles.onboardingTopOuter, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+          <View style={[styles.onboardingLangBar, { maxWidth: onboardingMaxWidth }]}>
+            <View style={styles.onboardingBrandRow}>
+              <Image
+                source={require('./assets/harvest71-logo.png')}
+                style={styles.onboardingLogo}
+                resizeMode="contain"
+                accessibilityLabel="Harvest71"
+              />
+              <Text style={[styles.onboardingWordmark, { color: theme.text }]}>Harvest71</Text>
+            </View>
+            <LanguageMenu theme={theme} />
+          </View>
         </View>
       )}
 
@@ -122,32 +134,43 @@ const Harvest71Root: React.FC = () => {
       ) : !nordesteMapCompleted ? (
         <NordesteOnboardingScreen />
       ) : (
-        <View style={styles.shell}>
-          <AppHeader
-            activeTab={activeTab}
-            onChangeTab={navigateTab}
-            onOpenSettings={() => openSettingsAt('perfil')}
-            onOpenTutorial={openTutorial}
-          />
-          <AlertTopBanner onOpenAllAlerts={() => openSettingsAt('alertas')} />
-          <SatelliteLoadingBanner onNavigateTab={navigateTab} />
-          <View style={styles.body}>
-            {activeTab === 'resumo' && (
-              <HomeScreen
-                onNavigateTab={navigateTab}
-                onOpenCurrentRotation={() => {
-                  setOpenCurrentRotation(true);
-                  setActiveTab('plantacao');
-                }}
-                onOpenFeedback={() => openSettingsAt('feedback')}
-                onOpenTutorial={openTutorial}
-              />
-            )}
-            {activeTab === 'plantacao' && <DecisionScreen openCurrentRotation={openCurrentRotation} />}
-            {activeTab === 'comunidade' && <CommunityScreen />}
-            {activeTab === 'metodologia' && <MethodologyScreen />}
+        <View style={isDesktop ? styles.webShellRow : styles.shell}>
+          {isDesktop && (
+            <WebSidebarNav
+              activeTab={activeTab}
+              onChangeTab={navigateTab}
+              onOpenAlerts={() => openSettingsAt('alertas')}
+              onOpenSettings={() => openSettingsAt('perfil')}
+              onOpenTutorial={openTutorial}
+            />
+          )}
+          <View style={styles.shell}>
+            <AppHeader
+              activeTab={activeTab}
+              onChangeTab={navigateTab}
+              onOpenSettings={() => openSettingsAt('perfil')}
+              onOpenTutorial={openTutorial}
+            />
+            <AlertTopBanner onOpenAllAlerts={() => openSettingsAt('alertas')} />
+            <SatelliteLoadingBanner onNavigateTab={navigateTab} />
+            <View style={styles.body}>
+              {activeTab === 'resumo' && (
+                <HomeScreen
+                  onNavigateTab={navigateTab}
+                  onOpenCurrentRotation={() => {
+                    setOpenCurrentRotation(true);
+                    setActiveTab('plantacao');
+                  }}
+                  onOpenFeedback={() => openSettingsAt('feedback')}
+                  onOpenTutorial={openTutorial}
+                />
+              )}
+              {activeTab === 'plantacao' && <DecisionScreen openCurrentRotation={openCurrentRotation} />}
+              {activeTab === 'comunidade' && <CommunityScreen />}
+              {activeTab === 'metodologia' && <MethodologyScreen />}
+            </View>
+            <BottomTabBar activeTab={activeTab} onChangeTab={navigateTab} />
           </View>
-          <BottomTabBar activeTab={activeTab} onChangeTab={navigateTab} />
           {settingsOpen && (
             <SettingsModal
               visible={settingsOpen}
@@ -192,18 +215,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  webShellRow: {
+    flex: 1,
+    flexDirection: 'row',
+    minHeight: 0,
+  },
   shell: {
     flex: 1,
+    minWidth: 0,
   },
   body: {
     flex: 1,
   },
+  onboardingTopOuter: {
+    width: '100%',
+    borderBottomWidth: 1,
+  },
   onboardingLangBar: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 8,
     maxWidth: 1160,
     width: '100%',
     alignSelf: 'center',
+  },
+  onboardingBrandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  onboardingLogo: {
+    width: 28,
+    height: 28,
+  },
+  onboardingWordmark: {
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: -0.3,
   },
 });

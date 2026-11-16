@@ -103,7 +103,7 @@ export const FarmVariablesEditorSubscreen: React.FC<FarmVariablesEditorSubscreen
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: green.border }]}>
         <FeatureBadge color="verde" />
         <Text style={{ fontSize: 12, color: theme.textMuted }}>
-          Fonte: usuário • {activeFarm.nome} ({activeFarm.municipio} - {activeFarm.estado})
+          {en ? 'Source: user' : 'Fonte: usuário'} • {activeFarm.nome} ({activeFarm.municipio} - {activeFarm.estado})
         </Text>
 
         <Text style={[styles.label, { color: theme.text }]}>Acesso à água:</Text>

@@ -241,7 +241,9 @@ export const ReportarProblemaSubscreen: React.FC<ReportarProblemaSubscreenProps>
           Leitura de problemas semelhantes na região
         </Text>
         <Text style={{ fontSize: 12, color: theme.textMuted }}>
-          Relatos próximos ao bioma {activeFarm.bioma} e o que funcionou na prática:
+          {en
+            ? `Reports near the ${activeFarm.bioma} biome and what worked in practice:`
+            : `Relatos próximos ao bioma ${activeFarm.bioma} e o que funcionou na prática:`}
         </Text>
 
         {similarProblems.map((prob) => (

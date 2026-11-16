@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Pressable, Text, TextInput } from '../../i18n/native';
+import { useLanguage } from '../../i18n/Language';
+import { translate } from '../../i18n/translate';
 import { FarmMapCanvas } from '../FarmMapCanvas';
 import { AppTheme } from '../../theme/tokens';
 import { useResponsiveLayout } from '../../theme/responsive';
@@ -37,6 +39,8 @@ export const FarmBoundaryStep: React.FC<FarmBoundaryStepProps> = ({
   theme,
 }) => {
   const [drawingMode, setDrawingMode] = useState(true);
+  const { language } = useLanguage();
+  const en = language === 'en';
   const { isDesktop, desktopSideMapHeight } = useResponsiveLayout();
   const metrics = calculatePolygonMetrics(farmPolygon);
 
@@ -65,11 +69,12 @@ export const FarmBoundaryStep: React.FC<FarmBoundaryStepProps> = ({
         ]}
       >
         <Text style={[styles.title, { color: theme.text, fontSize: 16 * theme.scale }]}>
-          Demarque o terreno da fazenda em {regiaoNome}
+          {en ? `Mark the farm boundary in ${regiaoNome}` : `Demarque o terreno da fazenda em ${regiaoNome}`}
         </Text>
         <Text style={[styles.sub, { color: theme.textMuted }]}>
-          {municipio} - {estado} • Toque nos cantos do seu terreno no mapa {isDesktop ? 'ao lado' : 'abaixo'} para calcular a
-          área real (hectares e tarefas).
+          {en
+            ? `${municipio} - ${estado} • Tap your property boundary corners on the ${isDesktop ? 'side' : 'below'} map to compute the real area (hectares & local tarefas).`
+            : `${municipio} - ${estado} • Toque nos cantos do seu terreno no mapa ${isDesktop ? 'ao lado' : 'abaixo'} para calcular a área real (hectares e tarefas).`}
         </Text>
       </View>
 
@@ -81,11 +86,17 @@ export const FarmBoundaryStep: React.FC<FarmBoundaryStepProps> = ({
       >
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 12, fontWeight: '800', color: theme.successText }}>
-            Pontos marcados: {farmPolygon.length} (mínimo 3)
+            {en
+              ? `Marked points: ${farmPolygon.length} (minimum 3)`
+              : `Pontos marcados: ${farmPolygon.length} (mínimo 3)`}
           </Text>
           <Text style={{ fontSize: 15, fontWeight: '900', color: theme.successText }}>
             {farmPolygon.length >= 3
-              ? `Área: ${formatArea(metrics.areaHectares, metrics.areaTarefasBa)}`
+              ? en
+                ? `Area: ${formatArea(metrics.areaHectares, metrics.areaTarefasBa)}`
+                : `Área: ${formatArea(metrics.areaHectares, metrics.areaTarefasBa)}`
+              : en
+              ? 'Tap 3 or more corners of your land'
               : 'Toque em 3 ou mais cantos do terreno'}
           </Text>
         </View>
@@ -227,6 +238,8 @@ export const FarmLotsStep: React.FC<FarmLotsStepProps> = ({
   onSpeak,
   theme,
 }) => {
+  const { language } = useLanguage();
+  const en = language === 'en';
   const { isDesktop, desktopSideMapHeight } = useResponsiveLayout();
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [drawingLot, setDrawingLot] = useState(true);
@@ -544,9 +557,9 @@ export const FarmLotsStep: React.FC<FarmLotsStepProps> = ({
             >
               <Ionicons name="alert-circle-outline" size={16} color={theme.warningText} />
               <Text style={{ flex: 1, fontSize: 12, fontWeight: '800', color: theme.warningText }}>
-                Falta demarcar {pendingLotsCount}{' '}
-                {pendingLotsCount === 1 ? 'lote' : 'lotes'} no mapa (mínimo 3 cantos dentro do seu
-                terreno).
+                {en
+                  ? `${pendingLotsCount} ${pendingLotsCount === 1 ? 'plot still needs boundary marking' : 'plots still need boundary marking'} on the map (minimum 3 corners inside your farm).`
+                  : `Falta demarcar ${pendingLotsCount} ${pendingLotsCount === 1 ? 'lote' : 'lotes'} no mapa (mínimo 3 cantos dentro do seu terreno).`}
               </Text>
             </View>
           )}
@@ -646,7 +659,9 @@ export const FarmLotsStep: React.FC<FarmLotsStepProps> = ({
                         activeLot.polygon.length >= 3 ? theme.successText : theme.textMuted,
                     }}
                   >
-                    Pontos marcados no {activeLot.nome}: {activeLot.polygon.length} (mínimo 3)
+                    {en
+                      ? `Points marked in ${translate(activeLot.nome, language)}: ${activeLot.polygon.length} (minimum 3)`
+                      : `Pontos marcados no ${activeLot.nome}: ${activeLot.polygon.length} (mínimo 3)`}
                   </Text>
                   <Text
                     style={{
@@ -656,7 +671,11 @@ export const FarmLotsStep: React.FC<FarmLotsStepProps> = ({
                     }}
                   >
                     {activeLot.polygon.length >= 3
-                      ? `Área do lote: ${formatArea(activeLot.areaHectares, activeLot.areaTarefasBa)}`
+                      ? en
+                        ? `Plot area: ${formatArea(activeLot.areaHectares, activeLot.areaTarefasBa)}`
+                        : `Área do lote: ${formatArea(activeLot.areaHectares, activeLot.areaTarefasBa)}`
+                      : en
+                      ? 'Tap corners inside the green farm boundary'
                       : 'Toque nos cantos dentro da área verde da fazenda'}
                   </Text>
                 </View>

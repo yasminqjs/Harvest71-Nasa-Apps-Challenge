@@ -1,17 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { BackHandler, Linking, ScrollView, Share, StyleSheet, View } from 'react-native';
+import Svg, { Path, Rect as SvgRect } from 'react-native-svg';
 import { useLanguage } from '../i18n/Language';
 import { Pressable, Text } from '../i18n/native';
 import { translate } from '../i18n/translate';
 import { MainTabKey } from '../components/BottomTabBar';
+import { FarmMapCanvas } from '../components/FarmMapCanvas';
 import { FeatureBadge } from '../components/FeatureBadge';
 import { VoiceReadBar } from '../components/VoiceReadBar';
 import { ClimaDiaSubscreen } from '../components/subscreens/ClimaDiaSubscreen';
 import { HistoricoPlantioSubscreen } from '../components/subscreens/HistoricoPlantioSubscreen';
 import { PrevisaoTrimestreSubscreen } from '../components/subscreens/PrevisaoTrimestreSubscreen';
 import { useAccessibility } from '../context/AccessibilityContext';
-import { FEATURE_COLOR_STYLES } from '../models/farmArchitecture';
 import { getAppTheme } from '../theme/tokens';
 import { useResponsiveLayout } from '../theme/responsive';
 import { formatArea } from '../utils/regionalize';
@@ -38,12 +39,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 }) => {
   const { accessibility, activeFarmer, activeFarm, farmArchitecture, speak } =
     useAccessibility();
-  const { width, contentMaxWidth } = useResponsiveLayout();
+  const { width, height, contentMaxWidth, pagePadding, kpiColumns } = useResponsiveLayout();
   const isWideWeb = width >= 820;
+  const kpiFourAcross = kpiColumns === 4;
+  const dashboardMapHeight = Math.round(Math.max(270, Math.min(680, height - 340)));
   const { language } = useLanguage();
   const en = language === 'en';
   const theme = getAppTheme(accessibility);
-  const yellow = FEATURE_COLOR_STYLES.amarelo;
   const [subscreen, setSubscreen] = useState<HomeSubscreen>(null);
   const [reportStatus, setReportStatus] = useState<string | null>(null);
   const [showFarmDetails, setShowFarmDetails] = useState(false);
@@ -154,7 +156,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       contentContainerStyle={[
         styles.container,
         isWideWeb && styles.containerWide,
-        { maxWidth: contentMaxWidth },
+        { maxWidth: contentMaxWidth, paddingHorizontal: pagePadding },
       ]}
     >
       {subscreen === 'clima' ? (
@@ -180,57 +182,78 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               styles.summaryBanner,
               {
                 backgroundColor: theme.surface,
-                borderColor: theme.border,
-                borderLeftColor: yellow.border,
+                borderColor: accessibility.highContrast ? theme.border : theme.border,
               },
             ]}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <Text style={[styles.summaryTitle, { color: theme.text, fontSize: 17 * theme.scale, flex: 1 }]}>
-                Resumo Local da Roça
-              </Text>
-              <FeatureBadge color="amarelo" />
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="location-outline" size={13} color={theme.textMuted} />
-              <Text style={{ fontSize: 12, color: theme.textMuted, fontWeight: '600', flex: 1 }} numberOfLines={1}>
-                {activeFarm.nome} • {activeFarm.municipio}-{activeFarm.estado} •{' '}
-                {formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)}
-              </Text>
+            <View style={[styles.heroSplit, isWideWeb && styles.heroSplitWide]}>
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text style={[styles.eyebrowText, { color: theme.primary }]}>
+                  {en ? 'FARM TELEMETRY & FIELD OVERVIEW' : 'TELEMETRIA E RESUMO DA FAZENDA'}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <Text style={[styles.summaryTitle, { color: theme.text, fontSize: 19 * theme.scale }]}>
+                    {activeFarm.nome}
+                  </Text>
+                  <FeatureBadge color="amarelo" />
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <Ionicons name="location-outline" size={13} color={theme.textMuted} />
+                  <Text style={{ fontSize: 12, color: theme.textMuted, fontWeight: '600', flex: 1 }} numberOfLines={1}>
+                    {activeFarm.municipio}-{activeFarm.estado} •{' '}
+                    {formatArea(activeFarm.areaHectares, activeFarm.areaTarefasBa)} •{' '}
+                    {en ? 'Biome ' : 'Bioma '}{activeFarm.bioma}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={isWideWeb ? { width: 320 } : { width: '100%' }}>
+                <VoiceReadBar
+                  text={resumoVoiceText}
+                  theme={theme}
+                  label={en ? 'Read Overview tab aloud' : 'Ouvir leitura da aba Resumo'}
+                />
+              </View>
             </View>
           </View>
 
-          <VoiceReadBar
-            text={resumoVoiceText}
-            theme={theme}
-            label={en ? 'Read Overview tab aloud' : 'Ouvir leitura da aba Resumo'}
-          />
-
-          {/* Grade de indicadores: 4 colunas no Web Desktop, 2x2 no celular */}
-          <View style={isWideWeb ? styles.metricsGridWide : styles.metricsGridStack}>
-            <View style={[styles.gridRow, isWideWeb && styles.gridRowWide]}>
+          {/* Grade de indicadores: 4 colunas quando cabe no viewport, 2x2 no celular */}
+          <View style={kpiFourAcross ? styles.metricsGridWide : styles.metricsGridStack}>
+            <View style={[styles.gridRow, kpiFourAcross && styles.gridRowWide]}>
               <Pressable
                 onPress={() => setSubscreen('clima')}
                 style={[
                   styles.blueBox,
-                  { backgroundColor: theme.surface, borderColor: yellow.border },
+                  { backgroundColor: theme.surface, borderColor: theme.border },
                 ]}
               >
                 <View style={styles.cardTopRow}>
                   <View
                     style={[
                       styles.cardIconCircle,
-                      { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : '#FEF3C7' },
+                      { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : '#EEF4EC' },
                     ]}
                   >
-                    <Ionicons name="sunny" size={20} color="#CA8A04" />
+                    <Ionicons name="sunny-outline" size={18} color={accessibility.highContrast ? theme.primary : '#3F6E51'} />
                   </View>
                   <Ionicons name="chevron-forward" size={15} color={theme.textMuted} />
                 </View>
                 <Text style={[styles.boxTitle, { color: theme.text }]}>Clima do dia</Text>
-                <Text style={[styles.boxValue, { color: accessibility.highContrast ? theme.primary : '#92400E' }]}>
+                <Text style={[styles.boxValue, { color: theme.text }]}>
                   {diag.climaDia.tempMaxC}° / {diag.climaDia.tempMinC}°C
                 </Text>
+                <Svg width="100%" height={26} viewBox="0 0 140 26">
+                  <Path
+                    d="M0 20 Q25 14 48 16 T96 9 T140 12 L140 26 L0 26 Z"
+                    fill={accessibility.highContrast ? 'rgba(255,214,10,0.18)' : 'rgba(63,110,81,0.14)'}
+                  />
+                  <Path
+                    d="M0 20 Q25 14 48 16 T96 9 T140 12"
+                    fill="none"
+                    stroke={accessibility.highContrast ? theme.primary : '#3F6E51'}
+                    strokeWidth={2}
+                  />
+                </Svg>
                 <Text style={[styles.boxSub, { color: theme.textMuted }]} numberOfLines={1}>
                   Chuva {diag.climaDia.chuvaHojeMm} mm • Umid {diag.climaDia.umidadeRelativaPct}%
                 </Text>
@@ -240,26 +263,42 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 onPress={() => setSubscreen('trimestre')}
                 style={[
                   styles.blueBox,
-                  { backgroundColor: theme.surface, borderColor: yellow.border },
+                  { backgroundColor: theme.surface, borderColor: theme.border },
                 ]}
               >
                 <View style={styles.cardTopRow}>
                   <View
                     style={[
                       styles.cardIconCircle,
-                      { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : '#FEF3C7' },
+                      { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : '#EEF2F5' },
                     ]}
                   >
-                    <Ionicons name="calendar-outline" size={19} color="#CA8A04" />
+                    <Ionicons name="analytics-outline" size={18} color={accessibility.highContrast ? theme.primary : '#2E4756'} />
                   </View>
                   <View style={styles.trimestreIconRow}>
-                    <Text style={{ fontSize: 18 }}>{diag.modeloB.emoji}</Text>
+                    <Text style={{ fontSize: 16 }}>{diag.modeloB.emoji}</Text>
                     <Ionicons name="chevron-forward" size={15} color={theme.textMuted} />
                   </View>
                 </View>
                 <Text style={[styles.boxTitle, { color: theme.text }]}>
                   Previsão do trimestre
                 </Text>
+                <Svg width="100%" height={26} viewBox="0 0 140 26">
+                  <Path
+                    d="M0 22 C30 22 50 18 75 13 C100 8 120 5 140 4 L140 26 L0 26 Z"
+                    fill={
+                      diag.modeloB.sinaisAtivos >= 2
+                        ? 'rgba(217,119,6,0.16)'
+                        : 'rgba(46,71,86,0.14)'
+                    }
+                  />
+                  <Path
+                    d="M0 22 C30 22 50 18 75 13 C100 8 120 5 140 4"
+                    fill="none"
+                    stroke={diag.modeloB.sinaisAtivos >= 2 ? '#D97706' : '#2E4756'}
+                    strokeWidth={2}
+                  />
+                </Svg>
                 <Text
                   style={[
                     styles.boxSub,
@@ -279,7 +318,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </Pressable>
             </View>
 
-            <View style={[styles.gridRow, isWideWeb && styles.gridRowWide]}>
+            <View style={[styles.gridRow, kpiFourAcross && styles.gridRowWide]}>
               <Pressable
                 onPress={onOpenCurrentRotation}
                 style={[
@@ -294,11 +333,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                       { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : theme.successBg },
                     ]}
                   >
-                    <Ionicons name="leaf" size={19} color={theme.primary} />
+                    <Ionicons name="leaf-outline" size={18} color={theme.primary} />
                   </View>
                   <Ionicons name="chevron-forward" size={15} color={theme.textMuted} />
                 </View>
                 <Text style={[styles.boxTitle, { color: theme.text }]}>Rotação atual</Text>
+                <Text style={[styles.boxValue, { color: theme.text }]}>
+                  {primaryProgress}%
+                </Text>
                 <View style={styles.miniProgressWrap}>
                   <View style={[styles.miniTrack, { backgroundColor: theme.surfaceMuted }]}>
                     <View
@@ -308,8 +350,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                       ]}
                     />
                   </View>
-                  <Text style={{ fontSize: 11, fontWeight: '900', color: theme.primary }}>
-                    {primaryProgress}% ({lots.length} lote{lots.length === 1 ? '' : 's'})
+                  <Text style={[styles.boxSub, { color: theme.textMuted }]}>
+                    {lots.length} {en ? (lots.length === 1 ? 'plot' : 'plots') : `lote${lots.length === 1 ? '' : 's'}`}
                   </Text>
                 </View>
               </Pressable>
@@ -325,10 +367,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <View
                     style={[
                       styles.cardIconCircle,
-                      { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : '#DBEAFE' },
+                      { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : '#EEF2F5' },
                     ]}
                   >
-                    <Ionicons name="layers-outline" size={19} color="#2563EB" />
+                    <Ionicons name="layers-outline" size={18} color={accessibility.highContrast ? theme.primary : '#2E4756'} />
                   </View>
                   <Ionicons name="chevron-forward" size={15} color={theme.textMuted} />
                 </View>
@@ -338,6 +380,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <Text style={[styles.boxValue, { color: theme.text }]}>
                   pH {diag.soloSoilGrids.ph} • {historyCount} reg.
                 </Text>
+                <Svg width="100%" height={24} viewBox="0 0 140 24">
+                  {[12, 18, 15, 22, 17, 20].map((barH, idx) => (
+                    <SvgRect
+                      key={idx}
+                      x={idx * 23 + 2}
+                      y={24 - barH}
+                      width={14}
+                      height={barH}
+                      rx={3}
+                      fill={idx === 3 ? theme.primary : accessibility.highContrast ? '#4B5563' : '#C9D6CA'}
+                    />
+                  ))}
+                </Svg>
                 <Text style={[styles.boxSub, { color: theme.textMuted }]} numberOfLines={1}>
                   NASA POWER + Landsat
                 </Text>
@@ -345,19 +400,127 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </View>
           </View>
 
-          {/* Atalhos + detalhes técnicos + relatório em 2 colunas no Web Desktop */}
+          {/* Workspace inferior: Mapa satelital da propriedade à esquerda + telemetria e ações à direita em telas largas */}
           <View style={isWideWeb ? styles.bottomColumnsWide : styles.bottomColumnsStack}>
-            <View style={isWideWeb ? styles.bottomCol : styles.bottomColStack}>
+            {isWideWeb && (
+              <View style={[styles.mapShowcaseCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <View style={styles.mapCardHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.eyebrowText, { color: theme.primary }]}>
+                      {en ? 'LIVE FIELD BOUNDARIES & PLOTS' : 'LIMITES E TALHÕES EM SATÉLITE'}
+                    </Text>
+                    <Text style={[styles.boxTitle, { color: theme.text }]}>
+                      {activeFarm.nome} • {lots.length}{' '}
+                      {en ? (lots.length === 1 ? 'mapped plot' : 'mapped plots') : lots.length === 1 ? 'lote mapeado' : 'lotes mapeados'}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => onNavigateTab('plantacao')}
+                    style={[styles.mapHeaderBtn, { backgroundColor: theme.surfaceMuted, borderColor: theme.border }]}
+                  >
+                    <Ionicons name="leaf-outline" size={14} color={theme.primary} />
+                    <Text style={{ fontSize: 11.5, fontWeight: '800', color: theme.primary }}>
+                      {en ? 'Manage Plots' : 'Gerenciar Lotes'}
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <FarmMapCanvas
+                  centroid={activeFarm.centroid}
+                  polygon={activeFarm.polygon}
+                  lots={lots.map((l) => ({
+                    id: l.id,
+                    nome: l.nome,
+                    corHex: l.corHex,
+                    polygon: l.polygon,
+                    culturaAtual: translate(l.culturaAtual, language),
+                    areaHectares: l.areaHectares,
+                  }))}
+                  wells={[]}
+                  showWells={false}
+                  showNdvi
+                  drawingMode={false}
+                  height={dashboardMapHeight}
+                  onAddPoint={() => {}}
+                  onSelectLot={() => onOpenCurrentRotation()}
+                  theme={theme}
+                />
+              </View>
+            )}
+
+            <View style={isWideWeb ? styles.rightTelemetryCol : styles.bottomColStack}>
+              {isWideWeb && (
+                <View style={[styles.telemetryCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                  <View style={styles.telemetryHeaderRow}>
+                    <Text style={[styles.boxTitle, { color: theme.text }]}>
+                      {en ? 'Agronomic Signals & Active Plots' : 'Sinais Agronômicos e Lotes Ativos'}
+                    </Text>
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: theme.primary }}>
+                      {diag.modeloB.sinaisAtivos}/4 {en ? 'drought signals' : 'sinais de seca'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.telemetryGrid}>
+                    <View style={[styles.telemetryMini, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                      <Text style={{ fontSize: 10.5, fontWeight: '700', color: theme.textMuted }}>
+                        {en ? 'Water Balance' : 'Saldo Hídrico'}
+                      </Text>
+                      <Text style={{ fontSize: 13.5, fontWeight: '900', color: theme.text }}>
+                        {diag.modeloA.saldoHidricoMm > 0 ? `+${diag.modeloA.saldoHidricoMm}` : diag.modeloA.saldoHidricoMm} {en ? 'mm/wk' : 'mm/sem'}
+                      </Text>
+                    </View>
+                    <View style={[styles.telemetryMini, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                      <Text style={{ fontSize: 10.5, fontWeight: '700', color: theme.textMuted }}>
+                        {en ? 'Slope / Erosion' : 'Declividade'}
+                      </Text>
+                      <Text style={{ fontSize: 13.5, fontWeight: '900', color: theme.text }}>
+                        {diag.modeloD.declividadePct}% ({translate(diag.modeloD.nivel, language)})
+                      </Text>
+                    </View>
+                    <View style={[styles.telemetryMini, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                      <Text style={{ fontSize: 10.5, fontWeight: '700', color: theme.textMuted }}>
+                        {en ? '2050 Projection' : 'Projeção 2050'}
+                      </Text>
+                      <Text style={{ fontSize: 13.5, fontWeight: '900', color: theme.text }}>
+                        +{diag.modeloE.deltaTempC}°C ({diag.modeloE.deltaChuvaPct}%)
+                      </Text>
+                    </View>
+                  </View>
+
+                  {lots.length > 0 && (
+                    <View style={{ gap: 6 }}>
+                      {lots.slice(0, 3).map((lot) => (
+                        <Pressable
+                          key={lot.id}
+                          onPress={onOpenCurrentRotation}
+                          style={[styles.lotMiniRow, { backgroundColor: theme.bg, borderColor: theme.border }]}
+                        >
+                          <View style={[styles.lotColorDot, { backgroundColor: lot.corHex }]} />
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={{ fontSize: 12, fontWeight: '800', color: theme.text }} numberOfLines={1}>
+                              {lot.nome} • {translate(lot.culturaAtual, language)}
+                            </Text>
+                          </View>
+                          <Text style={{ fontSize: 11.5, fontWeight: '900', color: theme.primary }}>
+                            {lot.progressoRealPct}%
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+
               <View style={styles.quickNavRow}>
                 <Pressable
                   onPress={() => onNavigateTab('plantacao')}
                   style={[
                     styles.quickNavBtn,
-                    { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
+                    { backgroundColor: theme.accent, borderColor: theme.accent },
                   ]}
                 >
-                  <Ionicons name="leaf" size={15} color="#14532D" />
-                  <Text style={{ fontSize: 12, fontWeight: '900', color: '#14532D' }}>
+                  <Ionicons name="leaf-outline" size={15} color="#FFFFFF" />
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF' }}>
                     Ir para Plantação
                   </Text>
                 </Pressable>
@@ -365,11 +528,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   onPress={() => onNavigateTab('comunidade')}
                   style={[
                     styles.quickNavBtn,
-                    { backgroundColor: '#FEE2E2', borderColor: '#F87171' },
+                    { backgroundColor: theme.surface, borderColor: theme.border },
                   ]}
                 >
-                  <Ionicons name="people" size={15} color="#7F1D1D" />
-                  <Text style={{ fontSize: 12, fontWeight: '900', color: '#7F1D1D' }}>
+                  <Ionicons name="people-outline" size={15} color={theme.text} />
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: theme.text }}>
                     Ir para Comunidade
                   </Text>
                 </Pressable>
@@ -389,20 +552,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               {showFarmDetails && (
                 <View style={[styles.modelBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                   <Text style={{ fontSize: 11, color: theme.textMuted }}>
-                    • Variáveis da fazenda (usuário): água ({activeFarmer.waterAccess}) • objetivo (
-                    {activeFarmer.objective})
+                    • {en ? 'Farm variables (farmer)' : 'Variáveis da fazenda (usuário)'}:{' '}
+                    {en ? 'water' : 'água'} ({translate(String(activeFarmer.waterAccess), language)}) •{' '}
+                    {en ? 'goal' : 'objetivo'} ({translate(String(activeFarmer.objective), language)})
                   </Text>
                   <Text style={{ fontSize: 11, color: theme.textMuted }}>
-                    • Plantações ({lots.length}): {activeFarm.culturaPrincipal} • EcoCrop + NASA POWER
+                    • {en ? 'Crops' : 'Plantações'} ({lots.length}): {translate(activeFarm.culturaPrincipal, language)} • EcoCrop + NASA POWER
                   </Text>
                   <Text style={{ fontSize: 11, color: theme.textMuted }}>
-                    • Acontecimentos da região (comunidade): {regionalEventsCount} relatos locais
+                    • {en ? 'Regional events (community)' : 'Acontecimentos da região (comunidade)'}: {regionalEventsCount}{' '}
+                    {en ? 'local reports' : 'relatos locais'}
                   </Text>
                 </View>
               )}
-            </View>
 
-            <View style={isWideWeb ? styles.bottomCol : styles.bottomColStack}>
               {/* Barra verde: GERAR RELATÓRIO: zap ... */}
               <Pressable
                 onPress={handleGenerateZapReport}
@@ -508,7 +671,7 @@ const styles = StyleSheet.create({
   },
   bottomColumnsWide: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'stretch',
     gap: 16,
   },
   bottomColStack: {
@@ -518,17 +681,94 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 10,
   },
-  summaryBanner: {
-    borderRadius: 18,
+  mapShowcaseCard: {
+    flex: 1.35,
+    minWidth: 0,
+    borderRadius: 12,
     borderWidth: 1,
-    borderLeftWidth: 4,
-    padding: 14,
+    padding: 12,
+    gap: 10,
+  },
+  mapCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  mapHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  rightTelemetryCol: {
+    flex: 1,
+    minWidth: 300,
+    gap: 10,
+  },
+  telemetryCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    gap: 10,
+  },
+  telemetryHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  telemetryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  telemetryMini: {
+    flex: 1,
+    minWidth: 105,
+    borderRadius: 9,
+    borderWidth: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    gap: 2,
+  },
+  lotMiniRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 9,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  lotColorDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    flexShrink: 0,
+  },
+  summaryBanner: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
     gap: 6,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+  },
+  heroSplit: {
+    gap: 10,
+  },
+  heroSplitWide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  eyebrowText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   summaryTitle: {
     fontWeight: '900',
@@ -569,18 +809,13 @@ const styles = StyleSheet.create({
   },
   blueBox: {
     flex: 1,
-    minHeight: 118,
-    borderRadius: 16,
+    minHeight: 112,
+    borderRadius: 12,
     borderWidth: 1,
-    padding: 13,
+    padding: 12,
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 6,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    gap: 5,
   },
   cardTopRow: {
     width: '100%',

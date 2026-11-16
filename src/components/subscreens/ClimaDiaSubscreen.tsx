@@ -3,6 +3,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text } from '../../i18n/native';
+import { translate } from '../../i18n/translate';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { SvgText } from '../../i18n/svg';
 import { AppTheme } from '../../theme/tokens';
@@ -116,7 +117,7 @@ export const ClimaDiaSubscreen: React.FC<ClimaDiaSubscreenProps> = ({
             {diag.climaDia.umidadeRelativaPct}%
           </Text>
           <Text style={[styles.metricHint, { color: theme.textMuted }]}>
-            Solo SMAP: {diag.modeloA.smapTendencia}
+            {en ? 'SMAP Soil: ' : 'Solo SMAP: '}{translate(diag.modeloA.smapTendencia, language)}
           </Text>
         </View>
 
@@ -132,7 +133,7 @@ export const ClimaDiaSubscreen: React.FC<ClimaDiaSubscreenProps> = ({
             {diag.climaDia.tempMaxC}°C
           </Text>
           <Text style={[styles.metricHint, { color: theme.textMuted }]}>
-            Mín: {diag.climaDia.tempMinC}°C • ET₀ {diag.modeloA.et0PowerMm} mm
+            {en ? 'Min' : 'Mín'}: {diag.climaDia.tempMinC}°C • ET₀ {diag.modeloA.et0PowerMm} mm
           </Text>
         </View>
       </View>

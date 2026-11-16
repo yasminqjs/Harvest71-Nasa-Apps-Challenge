@@ -226,11 +226,16 @@ export const VoiceOnboardingScreen: React.FC = () => {
         ]}
       >
       <View style={styles.brandBox}>
+        <View style={[styles.eyebrowPill, { backgroundColor: theme.successBg, borderColor: theme.border }]}>
+          <Text style={[styles.eyebrowText, { color: theme.primary }]}>
+            {en ? 'SCIENCE-DRIVEN DIGITAL AGRONOMY' : 'AGRONOMIA DIGITAL BASEADA EM CIÊNCIA'}
+          </Text>
+        </View>
         <Image
           source={require('../../assets/harvest71-logo.png')}
           style={[
             styles.logoImage,
-            isCompactHeight && { width: 82, height: 82 },
+            isCompactHeight && { width: 78, height: 78 },
           ]}
           resizeMode="contain"
           accessibilityLabel="Harvest71"
@@ -396,6 +401,18 @@ const styles = StyleSheet.create({
   brandBox: {
     alignItems: 'center',
     gap: 4,
+  },
+  eyebrowPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    marginBottom: 4,
+  },
+  eyebrowText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   logoImage: {
     width: 104,

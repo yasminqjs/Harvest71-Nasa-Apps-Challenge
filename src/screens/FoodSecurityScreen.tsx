@@ -239,7 +239,11 @@ export const FoodSecurityScreen: React.FC = () => {
         </Text>
         <Text style={{ fontSize: 12, fontWeight: '700', color: theme.textMuted }}>
           {severeDrought
-            ? `⚠️ Seca detectada! Plantas recomendadas no SQLite para ${activeFarm.bioma} (pH ${activeFarm.diagnostico.soloSoilGrids.ph}):`
+            ? en
+              ? `⚠️ Drought detected! Recommended SQLite plants for ${activeFarm.bioma} (pH ${activeFarm.diagnostico.soloSoilGrids.ph}):`
+              : `⚠️ Seca detectada! Plantas recomendadas no SQLite para ${activeFarm.bioma} (pH ${activeFarm.diagnostico.soloSoilGrids.ph}):`
+            : en
+            ? `Offline catalog (MMA/INSA/Flora do Brasil) filtered for ${activeFarm.bioma} • Soil pH ${activeFarm.diagnostico.soloSoilGrids.ph}:`
             : `Catálogo offline (MMA/INSA/Flora do Brasil) filtrado para ${activeFarm.bioma} • Solo pH ${activeFarm.diagnostico.soloSoilGrids.ph}:`}
         </Text>
 

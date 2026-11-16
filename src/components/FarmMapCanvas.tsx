@@ -208,11 +208,19 @@ const LeafletFarmWebCanvas: React.FC<
       <View style={styles.badge}>
         <Text style={styles.badgeText}>
           {drawingMode
-            ? 'Toque no mapa para demarcar os cantos'
+            ? language === 'en'
+              ? 'Tap map to mark boundary corners'
+              : 'Toque no mapa para demarcar os cantos'
             : showWells
-            ? `${basemap === 'streets' ? 'Cartográfico' : 'Satélite'} + Poços (SIAGAS)`
+            ? language === 'en'
+              ? `${basemap === 'streets' ? 'Street map' : 'Satellite'} + Wells (SIAGAS)`
+              : `${basemap === 'streets' ? 'Cartográfico' : 'Satélite'} + Poços (SIAGAS)`
             : basemap === 'streets'
-            ? 'Mapa Cartográfico (Esri/OSM)'
+            ? language === 'en'
+              ? 'Street Map (Esri/OSM)'
+              : 'Mapa Cartográfico (Esri/OSM)'
+            : language === 'en'
+            ? 'Farm Satellite (Esri)'
             : 'Satélite da Roça (Esri)'}
         </Text>
       </View>

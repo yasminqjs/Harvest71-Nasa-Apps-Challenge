@@ -3,8 +3,10 @@ import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { VoiceReadBar } from '../components/VoiceReadBar';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { OFFICIAL_DATA_SOURCES } from '../data/seedData';
 import { useLanguage } from '../i18n/Language';
 import { Pressable, Text } from '../i18n/native';
+import { translate } from '../i18n/translate';
 import { useResponsiveLayout } from '../theme/responsive';
 import { getAppTheme } from '../theme/tokens';
 
@@ -310,7 +312,7 @@ export const MethodologyScreen: React.FC = () => {
   const { language } = useLanguage();
   const en = language === 'en';
   const theme = getAppTheme(accessibility);
-  const { isDesktop, contentMaxWidth } = useResponsiveLayout();
+  const { isDesktop, contentMaxWidth, pagePadding } = useResponsiveLayout();
   const [selectedId, setSelectedId] = useState<PipelineStepId>('overview');
 
   const activeStep = useMemo(
@@ -495,7 +497,7 @@ export const MethodologyScreen: React.FC = () => {
       contentContainerStyle={[
         styles.container,
         isDesktop && styles.containerDesktop,
-        { maxWidth: contentMaxWidth },
+        { maxWidth: contentMaxWidth, paddingHorizontal: pagePadding },
       ]}
     >
       <View
@@ -536,6 +538,52 @@ export const MethodologyScreen: React.FC = () => {
           {detailCard}
         </View>
       )}
+
+      <View
+        style={[
+          styles.sourcesSection,
+          { backgroundColor: theme.surface, borderColor: theme.border },
+        ]}
+      >
+        <View style={styles.sourcesSectionHeader}>
+          <Ionicons name="library-outline" size={18} color={theme.primary} />
+          <View style={{ flex: 1, gap: 1 }}>
+            <Text style={[styles.detailTitle, { color: theme.text, fontSize: 15 * theme.scale }]}>
+              {en
+                ? 'Official Scientific & Institutional Data Sources'
+                : 'Fontes Científicas e Institucionais Oficiais'}
+            </Text>
+            <Text style={{ fontSize: 11.5, fontWeight: '600', color: theme.textMuted }}>
+              {en
+                ? 'Same audited catalog referenced across Profile, Forecast, and Field Simulation.'
+                : 'Mesmo catálogo auditado referenciado no Perfil, Previsão e Simulação do Talhão.'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={isDesktop ? styles.sourcesGridDesktop : styles.sourcesGridStack}>
+          {OFFICIAL_DATA_SOURCES.map((group) => (
+            <View
+              key={group.categoria}
+              style={[
+                styles.sourceGroupCard,
+                { backgroundColor: theme.bg, borderColor: theme.border },
+              ]}
+            >
+              <Text style={{ fontSize: 13 * theme.scale, fontWeight: '900', color: theme.primary }}>
+                {translate(group.categoria, language)}
+              </Text>
+              <View style={{ gap: 5 }}>
+                {group.itens.map((item) => (
+                  <Text key={item} style={{ fontSize: 12 * theme.scale, color: theme.text, lineHeight: 17 }}>
+                    • {translate(item, language)}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
     </ScrollView>
   );
 };
@@ -694,5 +742,31 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     padding: 10,
+  },
+  sourcesSection: {
+    borderRadius: 18,
+    borderWidth: 1.5,
+    padding: 14,
+    gap: 12,
+  },
+  sourcesSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  sourcesGridDesktop: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 12,
+  },
+  sourcesGridStack: {
+    gap: 10,
+  },
+  sourceGroupCard: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    gap: 8,
   },
 });

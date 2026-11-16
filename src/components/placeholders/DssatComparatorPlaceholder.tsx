@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text } from '../../i18n/native';
+import { translate } from '../../i18n/translate';
 import { FEATURE_COLOR_STYLES } from '../../models/farmArchitecture';
 import { AppTheme } from '../../theme/tokens';
 import { FarmArchitectureModel, PlantationArchitectureModel } from '../../types/domain';
@@ -31,6 +33,8 @@ export const DssatComparatorPlaceholder: React.FC<DssatComparatorPlaceholderProp
   onBack,
   theme,
 }) => {
+  const { language } = useLanguage();
+  const en = language === 'en';
   const palette = FEATURE_COLOR_STYLES.cinza;
   const lot = selectedPlantation ?? farmArchitecture.plantacoes[0];
 
@@ -73,32 +77,36 @@ export const DssatComparatorPlaceholder: React.FC<DssatComparatorPlaceholderProp
 
         <View style={[styles.slotBox, { backgroundColor: theme.surface, borderColor: palette.border }]}>
           <Text style={[styles.slotTitle, { color: theme.text }]}>
-            Entradas já conectadas pela Modelagem da Fazenda:
+            {en ? 'Inputs already connected by Farm Modeling:' : 'Entradas já conectadas pela Modelagem da Fazenda:'}
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Cultura atual (usuário): {lot?.culturaAtual.culturaNome ?? 'Nenhuma plantação cadastrada'}
+            • {en ? 'Current crop (user)' : 'Cultura atual (usuário)'}:{' '}
+            {lot ? translate(lot.culturaAtual.culturaNome, language) : en ? 'No crop registered' : 'Nenhuma plantação cadastrada'}
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Especificações EcoCrop: {lot?.culturaAtual.especificacoesCultura.variedadeRegional ?? '—'} (Kc{' '}
+            • {en ? 'EcoCrop Specs' : 'Especificações EcoCrop'}:{' '}
+            {lot?.culturaAtual.especificacoesCultura.variedadeRegional ?? '—'} (Kc{' '}
             {lot?.culturaAtual.especificacoesCultura.kcMedio ?? '—'})
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Clima (NASA POWER): {lot?.historicoDaTerra.variaveisClimaticas.tempMaxC ?? '—'}°C máx •
-            ET₀ {lot?.historicoDaTerra.variaveisClimaticas.et0PowerMm ?? '—'} mm
+            • {en ? 'Climate (NASA POWER)' : 'Clima (NASA POWER)'}:{' '}
+            {lot?.historicoDaTerra.variaveisClimaticas.tempMaxC ?? '—'}°C {en ? 'max' : 'máx'} • ET₀{' '}
+            {lot?.historicoDaTerra.variaveisClimaticas.et0PowerMm ?? '—'} mm
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Solo (SRTM + Landsat C2 L2 TIRS 30 m): declividade{' '}
+            • {en ? 'Soil (SRTM + Landsat C2 L2 TIRS 30 m): slope ' : 'Solo (SRTM + Landsat C2 L2 TIRS 30 m): declividade '}
             {lot?.historicoDaTerra.variaveisDoSolo.declividadePct ?? '—'}% • pH{' '}
             {lot?.historicoDaTerra.variaveisDoSolo.phSolo ?? '—'}
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Rotações futuras planejadas:{' '}
-            {lot?.culturasFuturas.rotacaoPlanejada.join(', ') || 'A definir / DSSAT'}
+            • {en ? 'Planned future rotations: ' : 'Rotações futuras planejadas: '}
+            {lot?.culturasFuturas.rotacaoPlanejada.map((r) => translate(r, language)).join(', ') ||
+              (en ? 'To be defined / DSSAT' : 'A definir / DSSAT')}
           </Text>
         </View>
 
         <Text style={[styles.mergeNote, { color: palette.text }]}>
-          Arquivo alvo para merge: src/components/placeholders/DssatComparatorPlaceholder.tsx
+          {en ? 'Merge target file' : 'Arquivo alvo para merge'}: src/components/placeholders/DssatComparatorPlaceholder.tsx
         </Text>
       </View>
     </View>

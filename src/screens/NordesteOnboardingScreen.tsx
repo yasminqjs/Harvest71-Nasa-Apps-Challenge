@@ -181,7 +181,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
   const { language } = useLanguage();
   const en = language === 'en';
   const theme = getAppTheme(accessibility);
-  const { onboardingMaxWidth, isTablet, isDesktop } = useResponsiveLayout();
+  const { onboardingMaxWidth, isTablet, isDesktop, pagePadding } = useResponsiveLayout();
 
   const [stage, setStage] = useState<OnboardingStage>('mapa');
   const [activeParamIdx, setActiveParamIdx] = useState(0);
@@ -290,7 +290,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
     } catch {
       setGpsStatus('error');
     }
-  }, [en, selectBahiaRegion, speak]);
+  }, [en, selectBahiaRegion, setLotStepError, speak]);
 
   useEffect(() => {
     if (stage !== 'mapa' || gpsStatus !== 'idle') return undefined;
@@ -402,7 +402,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
   return (
     <View style={[styles.root, { backgroundColor: theme.bg }]}>
       {/* Cabeçalho fixo */}
-      <View style={[styles.topHeader, { maxWidth: onboardingMaxWidth }]}>
+      <View style={[styles.topHeader, { maxWidth: onboardingMaxWidth, paddingHorizontal: pagePadding }]}>
         <View style={styles.topBar}>
           <View style={styles.titleStack}>
             <Text style={[styles.stepBadge, { color: theme.primary }]}>
@@ -556,7 +556,7 @@ export const NordesteOnboardingScreen: React.FC = () => {
         {/* Conteúdo principal */}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={[styles.stepBody, { maxWidth: onboardingMaxWidth }]}
+        contentContainerStyle={[styles.stepBody, { maxWidth: onboardingMaxWidth, paddingHorizontal: pagePadding }]}
         showsVerticalScrollIndicator={false}
       >
         {stage === 'demarcacao_fazenda' ? (
@@ -631,11 +631,19 @@ export const NordesteOnboardingScreen: React.FC = () => {
                     }}
                   >
                     {gpsStatus === 'locating'
-                      ? 'Detectando sua região pelo GPS...'
+                      ? en
+                        ? 'Detecting your region via GPS...'
+                        : 'Detectando sua região pelo GPS...'
                       : gpsStatus === 'found' && gpsMatch
-                      ? `GPS detectou: ${gpsMatch.region.nome} (${gpsMatch.region.estado})`
+                      ? en
+                        ? `GPS detected: ${gpsMatch.region.nome} (${gpsMatch.region.estado})`
+                        : `GPS detectou: ${gpsMatch.region.nome} (${gpsMatch.region.estado})`
                       : gpsStatus === 'denied'
-                      ? 'GPS sem permissão — selecione no mapa abaixo'
+                      ? en
+                        ? 'GPS permission denied — pick a hub on the map below'
+                        : 'GPS sem permissão — selecione no mapa abaixo'
+                      : en
+                      ? 'Use GPS to locate your region'
                       : 'Usar GPS para localizar sua região'}
                   </Text>
                   {gpsStatus === 'found' && gpsMatch && (
@@ -717,7 +725,8 @@ export const NordesteOnboardingScreen: React.FC = () => {
             <View
               style={[
                 styles.mapCard,
-                { backgroundColor: theme.surface, borderColor: theme.border },
+                isDesktop && styles.mapCardMinimalDesktop,
+                { backgroundColor: isDesktop ? 'transparent' : theme.surface, borderColor: theme.border },
               ]}
             >
               {!isDesktop && gpsCardNode}
@@ -1239,15 +1248,18 @@ export const NordesteOnboardingScreen: React.FC = () => {
             <Pressable
               onPress={() => {
                 if (lotesDraft.length === 0) {
-                  const msg =
-                    'Selecione quantos lotes tem na sua fazenda (ou toque em Adicionar lote) antes de continuar.';
+                  const msg = en
+                    ? 'Select how many plots are on your farm (or tap Add Plot) before continuing.'
+                    : 'Selecione quantos lotes tem na sua fazenda (ou toque em Adicionar lote) antes de continuar.';
                   setLotStepError(msg);
                   speak(msg);
                   return;
                 }
                 const undemarcated = lotesDraft.find((lot) => lot.polygon.length < 3);
                 if (undemarcated) {
-                  const msg = `Demarque a área de "${undemarcated.nome}" no mapa (mínimo 3 pontos dentro do terreno) antes de avançar.`;
+                  const msg = en
+                    ? `Mark the area of "${undemarcated.nome}" on the map (minimum 3 points inside the farm) before continuing.`
+                    : `Demarque a área de "${undemarcated.nome}" no mapa (mínimo 3 pontos dentro do terreno) antes de avançar.`;
                   setLotStepError(msg);
                   speak(msg);
                   return;
@@ -1443,12 +1455,17 @@ const styles = StyleSheet.create({
   },
   mapCard: {
     width: '100%',
-    borderRadius: 22,
-    borderWidth: 1.5,
+    borderRadius: 16,
+    borderWidth: 1,
     padding: 12,
     alignItems: 'center',
     gap: 10,
     overflow: 'hidden',
+  },
+  mapCardMinimalDesktop: {
+    borderWidth: 0,
+    padding: 0,
+    borderRadius: 0,
   },
   selectedBanner: {
     width: '100%',

@@ -26,7 +26,7 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
   const { language } = useLanguage();
   const en = language === 'en';
   const theme = getAppTheme(accessibility);
-  const { contentMaxWidth } = useResponsiveLayout();
+  const { contentMaxWidth, pagePadding } = useResponsiveLayout();
   const [expanded, setExpanded] = useState(true);
 
   const pendingAlerts = useMemo(
@@ -95,7 +95,7 @@ export const AlertTopBanner: React.FC<AlertTopBannerProps> = ({
   };
 
   return (
-    <View style={[styles.bannerOuter, { maxWidth: contentMaxWidth }]}>
+    <View style={[styles.bannerOuter, { maxWidth: contentMaxWidth, paddingHorizontal: pagePadding }]}>
       <View
         style={[
           styles.bannerWrap,

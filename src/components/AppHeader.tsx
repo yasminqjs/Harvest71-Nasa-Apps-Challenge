@@ -33,7 +33,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onOpenSettings,
   onOpenTutorial,
 }) => {
-  const { isTablet: isDesktopWeb, headerMaxWidth } = useResponsiveLayout();
+  const { isTablet: isDesktopWeb, isDesktop: hasSidebar, headerMaxWidth } = useResponsiveLayout();
   const {
     accessibility,
     activeFarmer,
@@ -55,7 +55,54 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         { backgroundColor: theme.surface, borderBottomColor: theme.border },
       ]}
     >
-      <View style={[styles.header, isDesktopWeb && styles.headerWide, { maxWidth: headerMaxWidth }]}>
+      <View style={[styles.header, isDesktopWeb && styles.headerWide, { maxWidth: hasSidebar ? '100%' : headerMaxWidth }]}>
+        {hasSidebar ? (
+          <View style={styles.leftGroup}>
+            <View
+              style={[
+                styles.contextChip,
+                { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
+              ]}
+            >
+              <Ionicons name="planet-outline" size={14} color={theme.primary} />
+              <Text style={{ fontSize: 12, fontWeight: '800', color: theme.text }} numberOfLines={1}>
+                {activeFarm
+                  ? `${activeFarm.nome} · ${activeFarm.regiaoNome} (${activeFarm.centroid.latitude.toFixed(2)}°, ${activeFarm.centroid.longitude.toFixed(2)}°)`
+                  : 'Harvest71 Web'}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor: isOnline ? theme.successBg : theme.warningBg,
+                  borderColor: isOnline ? theme.successBorder : theme.warningBorder,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.statusDot,
+                  { backgroundColor: isOnline ? theme.successBorder : theme.warningBorder },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.statusText,
+                  { color: isOnline ? theme.successText : theme.warningText },
+                ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {isOnline
+                  ? pendingSyncCount > 0
+                    ? `Sincronizando (${pendingSyncCount})`
+                    : 'Sincronizado'
+                  : `Offline${pendingSyncCount > 0 ? ` (${pendingSyncCount})` : ''}`}
+              </Text>
+            </View>
+          </View>
+        ) : (
         <View style={[styles.leftGroup, isDesktopWeb && styles.leftGroupWide]}>
           <Image
             source={require('../../assets/harvest71-logo.png')}
@@ -100,8 +147,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             </Text>
           </View>
         </View>
+        )}
 
-        {isDesktopWeb && activeTab && onChangeTab && (
+        {!hasSidebar && isDesktopWeb && activeTab && onChangeTab && (
           <View style={styles.topNav} accessibilityRole="tablist">
             {WEB_NAV_TABS.map((t) => {
               const isActive = activeTab === t.key;
@@ -240,13 +288,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     gap: 8,
   },
   headerWide: {
     paddingHorizontal: 20,
-    paddingVertical: 11,
+    paddingVertical: 8,
   },
   leftGroup: {
     flex: 1,
@@ -258,6 +306,16 @@ const styles = StyleSheet.create({
   },
   leftGroupWide: {
     flex: 0,
+    flexShrink: 1,
+  },
+  contextChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
     flexShrink: 1,
   },
   topNav: {

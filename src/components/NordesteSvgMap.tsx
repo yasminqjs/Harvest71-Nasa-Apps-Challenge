@@ -435,8 +435,13 @@ export const NordesteSvgMap: React.FC<NordesteSvgMapProps> = ({
                 const ly = Math.min(308, Math.max(30, y + offset.dy));
                 const pillW = offset.shortLabel.length * 5.2 + 12;
 
+                const gTouchProps =
+                  Platform.OS === 'web'
+                    ? ({ onClick: () => onSelectRegion(reg) } as Record<string, unknown>)
+                    : { onPress: () => onSelectRegion(reg) };
+
                 return (
-                  <G key={reg.id} onPress={() => onSelectRegion(reg)}>
+                  <G key={reg.id} {...gTouchProps}>
                     {isGpsDetected && (
                       <Circle
                         cx={x}

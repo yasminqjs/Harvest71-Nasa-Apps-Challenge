@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text, TextInput } from '../../i18n/native';
+import { translate } from '../../i18n/translate';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { getAppTheme } from '../../theme/tokens';
 import { PLANT_CATALOG_CHIPS } from '../../utils/agronomyHelpers';
@@ -284,17 +285,24 @@ export const HistoricoPlantioSubscreen: React.FC<HistoricoPlantioSubscreenProps>
               >
                 <View style={styles.histTop}>
                   <Text style={{ fontSize: 13, fontWeight: '900', color: theme.text }}>
-                    {item.nomeCultura}
+                    {translate(item.nomeCultura, language)}
                   </Text>
                   <Text style={{ fontSize: 11, fontWeight: '800', color: theme.primary }}>
-                    {item.tipoSistema === 'monocultura' ? 'Monocultura' : 'Rotação'}
+                    {item.tipoSistema === 'monocultura'
+                      ? en
+                        ? 'Monoculture'
+                        : 'Monocultura'
+                      : en
+                      ? 'Rotation'
+                      : 'Rotação'}
                   </Text>
                 </View>
                 <Text style={{ fontSize: 11, color: theme.textMuted }}>
-                  {item.loteNome ? `${item.loteNome} • ` : ''}
-                  Duração: {item.duracaoTexto || item.periodoSafra || 'Safra anterior'}
+                  {item.loteNome ? `${translate(item.loteNome, language)} • ` : ''}
+                  {en ? 'Duration: ' : 'Duração: '}
+                  {translate(item.duracaoTexto || item.periodoSafra || (en ? 'Previous season' : 'Safra anterior'), language)}
                   {item.quantidadeColhida
-                    ? ` • Colhido: ${item.quantidadeColhida} ${item.unidadeQuantidade || 'kg'}`
+                    ? ` • ${en ? 'Harvested: ' : 'Colhido: '}${item.quantidadeColhida} ${item.unidadeQuantidade || 'kg'}`
                     : ''}
                 </Text>
                 {item.observacao ? (

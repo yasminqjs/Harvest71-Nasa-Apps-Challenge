@@ -35,9 +35,9 @@ export const CommunityScreen: React.FC = () => {
   } = useAccessibility();
   const { language } = useLanguage();
   const en = language === 'en';
-  const { width, contentMaxWidth } = useResponsiveLayout();
+  const { width, contentMaxWidth, pagePadding, workspaceWidth } = useResponsiveLayout();
   const isWideWeb = width >= 920;
-  const leftColWidth = isWideWeb ? Math.max(360, Math.min(460, Math.round(width * 0.28))) : undefined;
+  const leftColWidth = isWideWeb ? Math.max(320, Math.min(440, Math.round(workspaceWidth * 0.3))) : undefined;
   const theme = getAppTheme(accessibility);
   const blue = FEATURE_COLOR_STYLES.azul;
   const salmon = FEATURE_COLOR_STYLES.salmao;
@@ -146,7 +146,7 @@ export const CommunityScreen: React.FC = () => {
       contentContainerStyle={[
         styles.container,
         isWideWeb && styles.containerWide,
-        { maxWidth: contentMaxWidth },
+        { maxWidth: contentMaxWidth, paddingHorizontal: pagePadding },
       ]}
     >
       <View style={isWideWeb ? styles.columnsWide : styles.columnsStack}>
@@ -340,8 +340,9 @@ export const CommunityScreen: React.FC = () => {
                 color: accessibility.highContrast ? theme.text : salmon.text,
               }}
             >
-              Ver usuários próximos ({graph.nodes.filter((n) => !n.isUserFarm).length} polos) e receber
-              relatos de outros usuários na sua região
+              {en
+                ? `View nearby growers (${graph.nodes.filter((n) => !n.isUserFarm).length} hubs) and receive reports from farmers in your region`
+                : `Ver usuários próximos (${graph.nodes.filter((n) => !n.isUserFarm).length} polos) e receber relatos de outros usuários na sua região`}
             </Text>
           </View>
 

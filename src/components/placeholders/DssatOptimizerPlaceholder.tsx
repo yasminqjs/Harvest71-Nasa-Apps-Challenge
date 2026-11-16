@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text } from '../../i18n/native';
+import { translate } from '../../i18n/translate';
 import { FEATURE_COLOR_STYLES } from '../../models/farmArchitecture';
 import { AppTheme } from '../../theme/tokens';
 import { FarmArchitectureModel } from '../../types/domain';
@@ -29,6 +31,8 @@ export const DssatOptimizerPlaceholder: React.FC<DssatOptimizerPlaceholderProps>
   onBack,
   theme,
 }) => {
+  const { language } = useLanguage();
+  const en = language === 'en';
   const palette = FEATURE_COLOR_STYLES.cinza;
   const vars = farmArchitecture.variaveisDaFazenda;
 
@@ -71,26 +75,28 @@ export const DssatOptimizerPlaceholder: React.FC<DssatOptimizerPlaceholderProps>
 
         <View style={[styles.slotBox, { backgroundColor: theme.surface, borderColor: palette.border }]}>
           <Text style={[styles.slotTitle, { color: theme.text }]}>
-            Variáveis da fazenda prontas para o otimizador:
+            {en ? 'Farm variables ready for the optimizer:' : 'Variáveis da fazenda prontas para o otimizador:'}
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Área demarcada: {vars.areaHectares.toFixed(2)} ha ({farmArchitecture.plantacoes.length}{' '}
-            plantações)
+            • {en ? 'Mapped area' : 'Área demarcada'}: {vars.areaHectares.toFixed(2)} ha ({farmArchitecture.plantacoes.length}{' '}
+            {en ? 'plantings' : 'plantações'})
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Acesso à água: {vars.waterAccess} • Trabalho: {vars.laborType}
+            • {en ? 'Water access' : 'Acesso à água'}: {translate(String(vars.waterAccess), language)} •{' '}
+            {en ? 'Labor' : 'Trabalho'}: {translate(String(vars.laborType), language)}
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Perfil financeiro: {vars.financialTier} • Objetivo: {vars.objective}
+            • {en ? 'Financial profile' : 'Perfil financeiro'}: {translate(String(vars.financialTier), language)} •{' '}
+            {en ? 'Goal' : 'Objetivo'}: {translate(String(vars.objective), language)}
           </Text>
           <Text style={[styles.slotItem, { color: theme.textMuted }]}>
-            • Acontecimentos da região considerados:{' '}
-            {farmArchitecture.acontecimentosDaRegiao.eventos.length} relatos
+            • {en ? 'Regional events considered' : 'Acontecimentos da região considerados'}:{' '}
+            {farmArchitecture.acontecimentosDaRegiao.eventos.length} {en ? 'reports' : 'relatos'}
           </Text>
         </View>
 
         <Text style={[styles.mergeNote, { color: palette.text }]}>
-          Arquivo alvo para merge: src/components/placeholders/DssatOptimizerPlaceholder.tsx
+          {en ? 'Merge target file' : 'Arquivo alvo para merge'}: src/components/placeholders/DssatOptimizerPlaceholder.tsx
         </Text>
       </View>
     </View>

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { Pressable, Text } from '../i18n/native';
 import Svg, { Circle, G, Line, Rect } from 'react-native-svg';
 import { SvgText } from '../i18n/svg';
@@ -96,11 +96,13 @@ export const CommunityReportGraph: React.FC<CommunityReportGraphProps> = ({
             const fillColor = node.isUserFarm ? '#15803D' : topicInfo.color;
             const labelY = node.y + baseR + 12;
 
+            const gTouchProps =
+              Platform.OS === 'web'
+                ? ({ onClick: () => onSelectNode(isSelected ? null : node.id) } as Record<string, unknown>)
+                : { onPress: () => onSelectNode(isSelected ? null : node.id) };
+
             return (
-              <G
-                key={node.id}
-                onPress={() => onSelectNode(isSelected ? null : node.id)}
-              >
+              <G key={node.id} {...gTouchProps}>
                 {isSelected && (
                   <Circle
                     cx={node.x}

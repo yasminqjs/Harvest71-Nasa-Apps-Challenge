@@ -250,12 +250,16 @@ export const NordesteLeafletMap: React.FC<NordesteLeafletMapProps> = ({
       <View style={styles.summaryBar}>
         <View style={[styles.summaryBadge, { backgroundColor: theme.primary }]}>
           <Text style={[styles.summaryBadgeText, { color: theme.primaryText }]}>
-            IBGE + {basemap === 'satellite' ? 'Satélite Esri' : 'Esri/OSM'}
+            IBGE + {basemap === 'satellite' ? (language === 'en' ? 'Esri Satellite' : 'Satélite Esri') : 'Esri/OSM'}
           </Text>
         </View>
         <Text style={styles.summaryText} numberOfLines={1}>
           {selectedReg
-            ? `${selectedReg.nome} (${selectedReg.estado}) · Risco veranico ${selectedReg.riscoVeranicoPct}%`
+            ? language === 'en'
+              ? `${selectedReg.nome} (${selectedReg.estado}) · Dry-spell risk ${selectedReg.riscoVeranicoPct}%`
+              : `${selectedReg.nome} (${selectedReg.estado}) · Risco veranico ${selectedReg.riscoVeranicoPct}%`
+            : language === 'en'
+            ? '9 states · Tap a marker'
             : '9 estados · Toque em um marcador'}
         </Text>
       </View>

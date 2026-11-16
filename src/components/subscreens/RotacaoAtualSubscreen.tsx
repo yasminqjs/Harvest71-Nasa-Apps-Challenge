@@ -340,8 +340,9 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
               </Text>
             </View>
             <Text style={{ fontSize: 12, fontWeight: '700', color: theme.text }}>
-              Real informado: {activeLot.progressoRealPct}% • Expectativa NASA/ciclo:{' '}
-              {activeLot.progressoEsperadoPct}%
+              {en
+                ? `Reported actual: ${activeLot.progressoRealPct}% • NASA / cycle expectation: ${activeLot.progressoEsperadoPct}%`
+                : `Real informado: ${activeLot.progressoRealPct}% • Expectativa NASA/ciclo: ${activeLot.progressoEsperadoPct}%`}
             </Text>
             <View style={styles.barGroup}>
               <View style={[styles.barTrack, { backgroundColor: theme.surfaceMuted }]}>
@@ -393,16 +394,16 @@ export const RotacaoAtualSubscreen: React.FC<RotacaoAtualSubscreenProps> = ({
               </Text>
             </View>
             <Text style={{ fontSize: 18, fontWeight: '900', color: theme.primary }}>
-              {formatCurrencyBRL(activeLot.retornoFinanceiroEstR$)} neste lote
+              {formatCurrencyBRL(activeLot.retornoFinanceiroEstR$)} {en ? 'in this plot' : 'neste lote'}
             </Text>
             <Text style={{ fontSize: 11, color: theme.textMuted }}>
-              Equivalente médio de{' '}
+              {en ? 'Average equivalent of ' : 'Equivalente médio de '}
               {formatCurrencyBRL(
                 Math.round(
                   activeLot.retornoFinanceiroEstR$ / Math.max(0.25, activeLot.areaHectares)
                 )
               )}{' '}
-              por hectare.
+              {en ? 'per hectare.' : 'por hectare.'}
             </Text>
           </View>
 

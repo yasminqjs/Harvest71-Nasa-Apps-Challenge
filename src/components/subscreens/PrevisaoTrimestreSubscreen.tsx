@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useLanguage } from '../../i18n/Language';
 import { Pressable, Text } from '../../i18n/native';
+import { translate } from '../../i18n/translate';
 import { AppTheme } from '../../theme/tokens';
 import { FarmProperty } from '../../types/domain';
 import {
@@ -53,6 +55,8 @@ export const PrevisaoTrimestreSubscreen: React.FC<PrevisaoTrimestreSubscreenProp
   onSpeak,
   theme,
 }) => {
+  const { language } = useLanguage();
+  const en = language === 'en';
   const diag = farm.diagnostico;
   const months = buildQuarterlyForecastCalendar(diag);
   const [selectedMonthIdx, setSelectedMonthIdx] = useState(0);
@@ -91,11 +95,12 @@ export const PrevisaoTrimestreSubscreen: React.FC<PrevisaoTrimestreSubscreenProp
         <Text style={{ fontSize: 28 }}>{diag.modeloB.emoji}</Text>
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={{ fontSize: 14, fontWeight: '900', color: theme.text }}>
-            {diag.modeloC.titulo}
+            {translate(diag.modeloC.titulo, language)}
           </Text>
           <Text style={{ fontSize: 12, color: theme.textMuted }}>
-            Veranico histórico: {diag.modeloC.probabilidadeVeranicoPct}% • {diag.modeloB.sinaisAtivos}/4
-            sinais ativos na região
+            {en
+              ? `Historical dry spell risk: ${diag.modeloC.probabilidadeVeranicoPct}% • ${diag.modeloB.sinaisAtivos}/4 active signals in the region`
+              : `Veranico histórico: ${diag.modeloC.probabilidadeVeranicoPct}% • ${diag.modeloB.sinaisAtivos}/4 sinais ativos na região`}
           </Text>
         </View>
       </View>

@@ -5,6 +5,7 @@ import { useLanguage } from '../i18n/Language';
 import { Pressable, Text } from '../i18n/native';
 import { translate } from '../i18n/translate';
 import { VoiceReadBar } from '../components/VoiceReadBar';
+import { FarmMapCanvas } from '../components/FarmMapCanvas';
 import { DssatAreaSimulation } from '../components/dssat/DssatAreaSimulation';
 import { DssatRotationSearch } from '../components/dssat/DssatRotationSearch';
 import { PlantationQualityPlaceholder } from '../components/placeholders/PlantationQualityPlaceholder';
@@ -42,8 +43,11 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
   openCurrentRotation = false,
 }) => {
   const { accessibility, activeFarmer, activeFarm, farmArchitecture, speak } = useAccessibility();
-  const { width, contentMaxWidth } = useResponsiveLayout();
-  const isWideWeb = width >= 820;
+  const { width, height, contentMaxWidth, pagePadding, gridColumns } = useResponsiveLayout();
+  const isWideWeb = width >= 640;
+  const isDesktopSplit = width >= 820;
+  const cropsMapHeight = Math.round(Math.max(270, Math.min(620, height - 430)));
+  const cardWidthPct = gridColumns === 3 ? '32.2%' : gridColumns === 2 ? '48.8%' : '100%';
   const { openQualityRequested, clearOpenQualityRequest } = useCropQuality();
   const { language } = useLanguage();
   const en = language === 'en';
@@ -117,7 +121,7 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
         contentContainerStyle={[
           styles.container,
           isWideWeb && styles.containerWide,
-          { maxWidth: contentMaxWidth },
+          { maxWidth: contentMaxWidth, paddingHorizontal: pagePadding },
         ]}
       >
         {effectiveBlock === 'atualizar_lotes' ? (
@@ -208,7 +212,13 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
                     Cultura atual e rotações planejadas
                   </Text>
                   <Text style={[styles.choiceSub, { color: theme.textMuted }]} numberOfLines={2}>
-                    {plantacoes.length} plantação{plantacoes.length === 1 ? '' : 'ões'} • NASA/FAO EcoCrop
+                    {plantacoes.length}{' '}
+                    {en
+                      ? plantacoes.length === 1
+                        ? 'crop'
+                        : 'crops'
+                      : `plantação${plantacoes.length === 1 ? '' : 'ões'}`}{' '}
+                    • NASA/FAO EcoCrop
                   </Text>
                 </View>
                 <View style={[styles.chevronCircle, { backgroundColor: theme.surfaceMuted }]}>
@@ -316,18 +326,29 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
                 { backgroundColor: theme.surface, borderColor: theme.border },
               ]}
             >
-              <Text style={[styles.hubTitle, { color: theme.text, fontSize: 18 * theme.scale }]}>
-                Plantação e Modelagem da Fazenda
-              </Text>
-              <Text style={{ fontSize: 12, color: theme.textMuted, fontWeight: '600' }}>
-                {activeFarm.nome} • {formatArea(ha, activeFarm.areaTarefasBa)} •{' '}
-                {plantacoes.length}{' '}
-                {en
-                  ? plantacoes.length === 1
-                    ? 'crop'
-                    : 'crops'
-                  : `plantação${plantacoes.length === 1 ? '' : 'ões'}`}
-              </Text>
+              <View style={[styles.headerFlexRow, isWideWeb && styles.headerFlexRowWide]}>
+                <View style={{ flex: 1, gap: 3 }}>
+                  <Text style={[styles.hubTitle, { color: theme.text, fontSize: 18 * theme.scale }]}>
+                    Plantação e Modelagem da Fazenda
+                  </Text>
+                  <Text style={{ fontSize: 12, color: theme.textMuted, fontWeight: '600' }}>
+                    {activeFarm.nome} • {formatArea(ha, activeFarm.areaTarefasBa)} •{' '}
+                    {plantacoes.length}{' '}
+                    {en
+                      ? plantacoes.length === 1
+                        ? 'crop'
+                        : 'crops'
+                      : `plantação${plantacoes.length === 1 ? '' : 'ões'}`}
+                  </Text>
+                </View>
+                <View style={isWideWeb ? { width: 310 } : { width: '100%' }}>
+                  <VoiceReadBar
+                    text={cropsVoiceText}
+                    theme={theme}
+                    label={en ? 'Read Crops tab aloud' : 'Ouvir leitura da aba Plantação'}
+                  />
+                </View>
+              </View>
               <Pressable
                 onPress={() => setShowDataLayers((v) => !v)}
                 accessibilityRole="button"
@@ -360,20 +381,14 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
               )}
             </View>
 
-            <VoiceReadBar
-              text={cropsVoiceText}
-              theme={theme}
-              label={en ? 'Read Crops tab aloud' : 'Ouvir leitura da aba Plantação'}
-            />
-
             <View style={[styles.cardsStack, isWideWeb && styles.cardsGridWide]}>
-              {/* 1. VERDE: Atualizar dados */}
+              {/* 1. Atualizar dados */}
               <Pressable
                 onPress={() => setActiveBlock('atualizar_hub')}
-                style={[styles.choiceRow, isWideWeb && styles.choiceCardWide, { backgroundColor: theme.surface, borderColor: theme.border, borderLeftColor: verde.border }]}
+                style={[styles.choiceRow, isWideWeb && { width: cardWidthPct, flexGrow: 1 }, { backgroundColor: theme.surface, borderColor: theme.border }]}
               >
                 <View style={[styles.choiceIconBadge, { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : verde.bg }]}>
-                  <Ionicons name="create-outline" size={22} color={accessibility.highContrast ? theme.primary : verde.text} />
+                  <Ionicons name="create-outline" size={20} color={accessibility.highContrast ? theme.primary : verde.text} />
                 </View>
                 <View style={styles.choiceBody}>
                   <Text style={[styles.choiceTitle, { color: theme.text }]}>
@@ -383,9 +398,7 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
                     Editar terreno, lotes, cultura atual, variáveis da fazenda e histórico
                   </Text>
                 </View>
-                <View style={[styles.chevronCircle, { backgroundColor: theme.surfaceMuted }]}>
-                  <Ionicons name="chevron-forward" size={16} color={accessibility.highContrast ? theme.primary : verde.text} />
-                </View>
+                <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
               </Pressable>
 
               {([
@@ -396,18 +409,16 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
                   key={block}
                   accessibilityRole="button"
                   onPress={() => setActiveBlock(block)}
-                  style={[styles.choiceRow, isWideWeb && styles.choiceCardWide, { backgroundColor: theme.surface, borderColor: theme.border, borderLeftColor: theme.accent }]}
+                  style={[styles.choiceRow, isWideWeb && { width: cardWidthPct, flexGrow: 1 }, { backgroundColor: theme.surface, borderColor: theme.border }]}
                 >
-                  <View style={[styles.choiceIconBadge, { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : '#CCFBF1' }]}>
-                    <Ionicons name={icon} size={22} color={theme.accent} />
+                  <View style={[styles.choiceIconBadge, { backgroundColor: theme.surfaceMuted }]}>
+                    <Ionicons name={icon} size={20} color={theme.primary} />
                   </View>
                   <View style={styles.choiceBody}>
                     <Text style={[styles.choiceTitle, { color: theme.text }]}>{title}</Text>
                     <Text style={[styles.choiceSub, { color: theme.textMuted }]} numberOfLines={2}>{description}</Text>
                   </View>
-                  <View style={[styles.chevronCircle, { backgroundColor: theme.surfaceMuted }]}>
-                    <Ionicons name="chevron-forward" size={16} color={theme.accent} />
-                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
                 </Pressable>
               ))}
 
@@ -416,21 +427,20 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
                 onPress={() => setActiveBlock('qualidade_atual')}
                 style={[
                   styles.choiceRow,
-                  isWideWeb && styles.choiceCardWide,
+                  isWideWeb && { width: cardWidthPct, flexGrow: 1 },
                   {
                     backgroundColor: theme.surface,
                     borderColor: theme.border,
-                    borderLeftColor: theme.accent,
                   },
                 ]}
               >
                 <View
                   style={[
                     styles.choiceIconBadge,
-                    { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : '#CCFBF1' },
+                    { backgroundColor: theme.surfaceMuted },
                   ]}
                 >
-                  <Ionicons name="pulse-outline" size={22} color={theme.accent} />
+                  <Ionicons name="pulse-outline" size={20} color={theme.primary} />
                 </View>
                 <View style={styles.choiceBody}>
                   <Text style={[styles.choiceTitle, { color: theme.text }]}>
@@ -442,9 +452,7 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
                       : 'NASA POWER, Sentinel-2, exame da folha por foto, manchas e áudio'}
                   </Text>
                 </View>
-                <View style={[styles.chevronCircle, { backgroundColor: theme.surfaceMuted }]}>
-                  <Ionicons name="chevron-forward" size={16} color={theme.accent} />
-                </View>
+                <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
               </Pressable>
 
               {/* 5. SATÉLITE + PREVISÕES POR GRÃO */}
@@ -452,21 +460,20 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
                 onPress={() => setActiveBlock('satelite_previsoes')}
                 style={[
                   styles.choiceRow,
-                  isWideWeb && styles.choiceCardWide,
+                  isWideWeb && { width: cardWidthPct, flexGrow: 1 },
                   {
                     backgroundColor: theme.surface,
                     borderColor: theme.border,
-                    borderLeftColor: theme.accent,
                   },
                 ]}
               >
                 <View
                   style={[
                     styles.choiceIconBadge,
-                    { backgroundColor: accessibility.highContrast ? theme.surfaceMuted : '#CCFBF1' },
+                    { backgroundColor: theme.surfaceMuted },
                   ]}
                 >
-                  <Ionicons name="planet-outline" size={22} color={theme.accent} />
+                  <Ionicons name="planet-outline" size={20} color={theme.primary} />
                 </View>
                 <View style={styles.choiceBody}>
                   <Text style={[styles.choiceTitle, { color: theme.text }]}>
@@ -480,11 +487,234 @@ export const DecisionScreen: React.FC<{ openCurrentRotation?: boolean }> = ({
                       : 'Terreno em imagem real, produtividade estimada (sc/ha), risco climático e clima 7 dias'}
                   </Text>
                 </View>
-                <View style={[styles.chevronCircle, { backgroundColor: theme.surfaceMuted }]}>
-                  <Ionicons name="chevron-forward" size={16} color={theme.accent} />
-                </View>
+                <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
               </Pressable>
             </View>
+
+            {isDesktopSplit && (
+              <View style={styles.bottomWorkspaceRow}>
+                <View style={[styles.mapShowcaseCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                  <View style={styles.workspaceCardHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.eyebrowText, { color: theme.primary }]}>
+                        {en ? 'SENTINEL-2 NDVI & FIELD PLOTS' : 'SENTINEL-2 NDVI E TALHÕES ATIVOS'}
+                      </Text>
+                      <Text style={[styles.choiceTitle, { color: theme.text }]}>
+                        {activeFarm.nome} • {plantacoes.length}{' '}
+                        {en
+                          ? plantacoes.length === 1
+                            ? 'active planting'
+                            : 'active plantings'
+                          : plantacoes.length === 1
+                          ? 'plantio ativo'
+                          : 'plantios ativos'}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => setActiveBlock('satelite_previsoes')}
+                      style={[styles.headerActionBtn, { backgroundColor: theme.surfaceMuted, borderColor: theme.border }]}
+                    >
+                      <Ionicons name="planet-outline" size={14} color={theme.primary} />
+                      <Text style={{ fontSize: 11.5, fontWeight: '800', color: theme.primary }}>
+                        {en ? 'Satellite Forecast' : 'Abrir Satélite'}
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  <FarmMapCanvas
+                    centroid={activeFarm.centroid}
+                    polygon={activeFarm.polygon}
+                    lots={plantacoes.map((p) => ({
+                      id: p.id,
+                      nome: p.nome,
+                      corHex: p.corHex,
+                      polygon: p.polygon,
+                      culturaAtual: translate(p.culturaAtual.culturaNome, language),
+                      areaHectares: p.areaHectares,
+                    }))}
+                    wells={[]}
+                    showWells={false}
+                    showNdvi
+                    drawingMode={false}
+                    height={cropsMapHeight}
+                    onAddPoint={() => {}}
+                    onSelectLot={(lotId) => {
+                      setPlannerLotId(lotId);
+                      setActiveBlock('atualizar_lotes');
+                    }}
+                    theme={theme}
+                  />
+
+                  {activeFarm.diagnostico.ndviZonas.length > 0 && (
+                    <View style={styles.ndviStrip}>
+                      {activeFarm.diagnostico.ndviZonas.slice(0, 3).map((zone) => {
+                        const zoneColor =
+                          zone.vigor === 'verde'
+                            ? '#15803D'
+                            : zone.vigor === 'amarelo'
+                            ? '#B45309'
+                            : '#B91C1C';
+                        return (
+                          <Pressable
+                            key={zone.id}
+                            onPress={() => setActiveBlock('qualidade_atual')}
+                            style={[styles.ndviPill, { backgroundColor: theme.bg, borderColor: theme.border }]}
+                          >
+                            <View style={[styles.ndviDot, { backgroundColor: zoneColor }]} />
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <Text style={{ fontSize: 11, fontWeight: '800', color: theme.text }} numberOfLines={1}>
+                                {translate(zone.setor, language)}
+                              </Text>
+                              <Text style={{ fontSize: 10, color: theme.textMuted }} numberOfLines={1}>
+                                NDVI {zone.ndviValor.toFixed(2)}
+                              </Text>
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.rightPanelCol}>
+                  <View style={[styles.panelCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                    <View style={styles.workspaceCardHeader}>
+                      <Text style={[styles.choiceTitle, { color: theme.text }]}>
+                        {en ? 'Registered Crops & Plots' : 'Talhões e Culturas Cadastradas'}
+                      </Text>
+                      <Pressable onPress={() => setActiveBlock('atualizar_lotes')}>
+                        <Text style={{ fontSize: 11.5, fontWeight: '800', color: theme.primary }}>
+                          {en ? 'Edit plots →' : 'Editar lotes →'}
+                        </Text>
+                      </Pressable>
+                    </View>
+
+                    <View style={{ gap: 7 }}>
+                      {plantacoes.slice(0, 3).map((p) => {
+                        const sysLabel =
+                          p.culturaAtual.sistema === 'rotacao'
+                            ? en
+                              ? 'Rotation'
+                              : 'Rotação'
+                            : en
+                            ? 'Monoculture'
+                            : 'Monocultura';
+                        const droughtLabel =
+                          p.culturaAtual.especificacoesCultura.resilienciaSeca === 'alta'
+                            ? en
+                              ? 'High drought resilience'
+                              : 'Alta resiliência à seca'
+                            : p.culturaAtual.especificacoesCultura.resilienciaSeca === 'media'
+                            ? en
+                              ? 'Moderate drought resilience'
+                              : 'Resiliência média'
+                            : en
+                            ? 'Low drought resilience'
+                            : 'Baixa resiliência';
+                        return (
+                          <Pressable
+                            key={p.id}
+                            onPress={() => {
+                              setPlannerLotId(p.id);
+                              setActiveBlock('atualizar_lotes');
+                            }}
+                            style={[styles.plotRowCard, { backgroundColor: theme.bg, borderColor: theme.border }]}
+                          >
+                            <View style={[styles.plotColorDot, { backgroundColor: p.corHex }]} />
+                            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                              <Text style={{ fontSize: 12.5, fontWeight: '800', color: theme.text }} numberOfLines={1}>
+                                {p.nome} • {translate(p.culturaAtual.culturaNome, language)}
+                              </Text>
+                              <Text style={{ fontSize: 11, color: theme.textMuted }} numberOfLines={1}>
+                                {p.areaHectares.toFixed(2)} ha • {sysLabel} • Kc {p.culturaAtual.especificacoesCultura.kcMedio.toFixed(2)} • {droughtLabel}
+                              </Text>
+                            </View>
+                            <Text style={{ fontSize: 11.5, fontWeight: '900', color: theme.primary }}>
+                              {p.culturaAtual.tempoPlantadaDias}d
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+
+                  <View style={[styles.panelCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                    <View style={styles.workspaceCardHeader}>
+                      <Text style={[styles.choiceTitle, { color: theme.text }]}>
+                        {en ? 'Soil & DSSAT Modeling Baseline' : 'Base de Solo e Modelagem DSSAT'}
+                      </Text>
+                      <Text style={{ fontSize: 10.5, fontWeight: '800', color: theme.textMuted }}>
+                        SoilGrids + NASA POWER
+                      </Text>
+                    </View>
+
+                    <View style={styles.baselineGrid}>
+                      <View style={[styles.baselineMetric, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                        <Text style={{ fontSize: 10.5, fontWeight: '700', color: theme.textMuted }}>
+                          {en ? 'Soil pH & Texture' : 'pH e Textura do Solo'}
+                        </Text>
+                        <Text style={{ fontSize: 13.5, fontWeight: '900', color: theme.text }} numberOfLines={1}>
+                          pH {activeFarm.diagnostico.soloSoilGrids.ph.toFixed(1)} • {translate(activeFarm.diagnostico.soloSoilGrids.textura, language)}
+                        </Text>
+                      </View>
+                      <View style={[styles.baselineMetric, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                        <Text style={{ fontSize: 10.5, fontWeight: '700', color: theme.textMuted }}>
+                          {en ? 'Organic Carbon' : 'Carbono Orgânico'}
+                        </Text>
+                        <Text style={{ fontSize: 13.5, fontWeight: '900', color: theme.text }}>
+                          {activeFarm.diagnostico.soloSoilGrids.carbonoOrganicoGKg} g/kg
+                        </Text>
+                      </View>
+                      <View style={[styles.baselineMetric, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                        <Text style={{ fontSize: 10.5, fontWeight: '700', color: theme.textMuted }}>
+                          {en ? 'Weekly ET0 Demand' : 'Evapotranspiração (ET0)'}
+                        </Text>
+                        <Text style={{ fontSize: 13.5, fontWeight: '900', color: theme.text }}>
+                          {activeFarm.diagnostico.modeloA.et0PowerMm} mm
+                        </Text>
+                      </View>
+                    </View>
+
+                    {activeFarm.diagnostico.culturasRecomendadas[0] && (
+                      <View style={[styles.dssatHintBox, { backgroundColor: theme.surfaceMuted, borderColor: theme.border }]}>
+                        <Ionicons name="sparkles-outline" size={16} color={theme.primary} />
+                        <Text style={{ flex: 1, fontSize: 11.5, color: theme.text, lineHeight: 16 }}>
+                          <Text style={{ fontWeight: '900' }}>
+                            {en ? 'Top climate match: ' : 'Melhor adaptação climática: '}
+                            {translate(activeFarm.diagnostico.culturasRecomendadas[0].nome, language)}
+                          </Text>
+                          {' — '}
+                          {activeFarm.diagnostico.culturasRecomendadas[0].diasColheita}{' '}
+                          {en ? 'days cycle' : 'dias de ciclo'} •{' '}
+                          {activeFarm.diagnostico.culturasRecomendadas[0].produtividadeKgPorHa} kg/ha
+                        </Text>
+                      </View>
+                    )}
+
+                    <View style={styles.quickActionFooter}>
+                      <Pressable
+                        onPress={() => setActiveBlock('talhao_dssat')}
+                        style={[styles.footerPrimaryBtn, { backgroundColor: theme.accent }]}
+                      >
+                        <Ionicons name="earth-outline" size={15} color="#FFFFFF" />
+                        <Text style={{ color: '#FFFFFF', fontSize: 12.5, fontWeight: '900' }}>
+                          {en ? 'Run Plot in DSSAT' : 'Simular Talhão no DSSAT'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setActiveBlock('planejar_rotacao')}
+                        style={[styles.footerSecondaryBtn, { backgroundColor: theme.bg, borderColor: theme.border }]}
+                      >
+                        <Ionicons name="calendar-outline" size={15} color={theme.primary} />
+                        <Text style={{ color: theme.primary, fontSize: 12.5, fontWeight: '800' }}>
+                          {en ? 'Plan Rotation' : 'Planejar Rotação'}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -506,15 +736,19 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   headerStrip: {
-    borderRadius: 18,
+    borderRadius: 12,
     borderWidth: 1,
-    padding: 14,
+    padding: 12,
     gap: 6,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+  },
+  headerFlexRow: {
+    gap: 10,
+  },
+  headerFlexRowWide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 14,
   },
   hubTitle: {
     fontWeight: '900',
@@ -548,16 +782,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 14,
-    minHeight: 74,
-    borderRadius: 16,
+    padding: 13,
+    minHeight: 72,
+    borderRadius: 12,
     borderWidth: 1,
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
   },
   choiceIconBadge: {
     width: 42,
@@ -610,5 +838,134 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontWeight: '900',
+  },
+  bottomWorkspaceRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 16,
+  },
+  mapShowcaseCard: {
+    flex: 1.35,
+    minWidth: 0,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    gap: 10,
+  },
+  workspaceCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  eyebrowText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  headerActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  ndviStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  ndviPill: {
+    flex: 1,
+    minWidth: 120,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    borderRadius: 9,
+    borderWidth: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+  },
+  ndviDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    flexShrink: 0,
+  },
+  rightPanelCol: {
+    flex: 1,
+    minWidth: 300,
+    gap: 10,
+  },
+  panelCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    gap: 10,
+  },
+  plotRowCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    borderRadius: 9,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  plotColorDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    flexShrink: 0,
+  },
+  baselineGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  baselineMetric: {
+    flex: 1,
+    minWidth: 115,
+    borderRadius: 9,
+    borderWidth: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    gap: 2,
+  },
+  dssatHintBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 9,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  quickActionFooter: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  footerPrimaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 9,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  footerSecondaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 9,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
 });

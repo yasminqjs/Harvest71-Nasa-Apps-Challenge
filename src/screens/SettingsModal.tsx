@@ -293,32 +293,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </Text>
                 </View>
                 <Text style={{ fontSize: 12.5, color: theme.text, lineHeight: 20 }}>
-                  • Nome: <Text style={{ fontWeight: '800' }}>{activeFarmer.tratamento}</Text>
+                  • {en ? 'Name' : 'Nome'}: <Text style={{ fontWeight: '800' }}>{activeFarmer.tratamento}</Text>
                   {activeFarmer.genero
-                    ? ` • Gênero: ${activeFarmer.genero}`
+                    ? ` • ${en ? 'Gender' : 'Gênero'}: ${translate(activeFarmer.genero, language)}`
                     : ''}
-                  {'\n'}• Tempo na agricultura familiar:{' '}
+                  {'\n'}• {en ? 'Years in family farming' : 'Tempo na agricultura familiar'}:{' '}
                   <Text style={{ fontWeight: '800' }}>
-                    {activeFarmer.tempoAgriculturaFamiliar ?? 'Não informado'}
+                    {translate(activeFarmer.tempoAgriculturaFamiliar ?? 'Não informado', language)}
                   </Text>
-                  {'\n'}• Tamanho da terra:{' '}
+                  {'\n'}• {en ? 'Farm size' : 'Tamanho da terra'}:{' '}
                   <Text style={{ fontWeight: '800' }}>
                     {activeFarmer.tamanhoEstimadoHa
                       ? `${activeFarmer.tamanhoEstimadoHa} ha`
+                      : en
+                      ? 'Standard'
                       : 'Padrão'}
                   </Text>
-                  {'\n'}• Água: <Text style={{ fontWeight: '800' }}>{activeFarmer.waterAccess}</Text>
+                  {'\n'}• {en ? 'Water' : 'Água'}:{' '}
+                  <Text style={{ fontWeight: '800' }}>{translate(String(activeFarmer.waterAccess), language)}</Text>
                   {activeFarmer.armazenamentoAgua
-                    ? ` (Reserva: ${activeFarmer.armazenamentoAgua})`
+                    ? ` (${en ? 'Storage' : 'Reserva'}: ${translate(String(activeFarmer.armazenamentoAgua), language)})`
                     : ''}
-                  {'\n'}• Força de trabalho:{' '}
-                  <Text style={{ fontWeight: '800' }}>{activeFarmer.laborType}</Text>
-                  {'\n'}• Situação financeira:{' '}
-                  <Text style={{ fontWeight: '800' }}>{activeFarmer.financialTier}</Text>
-                  {'\n'}• Objetivo: <Text style={{ fontWeight: '800' }}>{activeFarmer.objective}</Text>
+                  {'\n'}• {en ? 'Labor force' : 'Força de trabalho'}:{' '}
+                  <Text style={{ fontWeight: '800' }}>{translate(String(activeFarmer.laborType), language)}</Text>
+                  {'\n'}• {en ? 'Financial profile' : 'Situação financeira'}:{' '}
+                  <Text style={{ fontWeight: '800' }}>{translate(String(activeFarmer.financialTier), language)}</Text>
+                  {'\n'}• {en ? 'Goal' : 'Objetivo'}:{' '}
+                  <Text style={{ fontWeight: '800' }}>{translate(String(activeFarmer.objective), language)}</Text>
                   {activeFarmer.desafiosPrincipais &&
                   activeFarmer.desafiosPrincipais.length > 0
-                    ? `\n• Desafios: ${activeFarmer.desafiosPrincipais.join(', ')}`
+                    ? `\n• ${en ? 'Challenges' : 'Desafios'}: ${activeFarmer.desafiosPrincipais
+                        .map((d) => translate(String(d), language))
+                        .join(', ')}`
                     : ''}
                 </Text>
               </View>

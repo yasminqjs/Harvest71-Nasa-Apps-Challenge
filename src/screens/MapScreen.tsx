@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useLanguage } from '../i18n/Language';
 import { Pressable, Text } from '../i18n/native';
+import { translate } from '../i18n/translate';
 import { FarmMapCanvas } from '../components/FarmMapCanvas';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { getAppTheme } from '../theme/tokens';
@@ -90,7 +91,7 @@ export const MapScreen: React.FC = () => {
           style={[styles.regionText, { color: theme.text, fontSize: 13 * theme.scale }]}
           numberOfLines={1}
         >
-          Região: {activeFarm.regiaoNome} ({activeFarm.municipio} - {activeFarm.estado}) •{' '}
+          {en ? 'Region' : 'Região'}: {activeFarm.regiaoNome} ({activeFarm.municipio} - {activeFarm.estado}) •{' '}
           {formatArea(displayedAreaHa, displayedAreaTarefas)}
         </Text>
       </View>
@@ -137,7 +138,7 @@ export const MapScreen: React.FC = () => {
                     color: active ? '#FFFFFF' : theme.text,
                   }}
                 >
-                  {lot.nome} ({lot.culturaAtual})
+                  {translate(lot.nome, language)} ({translate(lot.culturaAtual, language)})
                 </Text>
               </Pressable>
             );
@@ -178,9 +179,15 @@ export const MapScreen: React.FC = () => {
           ]}
         >
           <Text style={{ fontSize: 12, fontWeight: '700', color: theme.successText }}>
-            Pontos marcados: {draftPoints.length} (mínimo 3).{' '}
+            {en
+              ? `Marked points: ${draftPoints.length} (min 3). `
+              : `Pontos marcados: ${draftPoints.length} (mínimo 3). `}
             {draftPoints.length >= 3
-              ? `Área calculada: ${formatArea(liveMetrics.areaHectares, liveMetrics.areaTarefasBa)}`
+              ? en
+                ? `Calculated area: ${formatArea(liveMetrics.areaHectares, liveMetrics.areaTarefasBa)}`
+                : `Área calculada: ${formatArea(liveMetrics.areaHectares, liveMetrics.areaTarefasBa)}`
+              : en
+              ? 'Tap the boundary corners of your farm on the map.'
               : 'Toque nos cantos do terreno no mapa.'}
           </Text>
           <View style={styles.drawActionsRow}>
